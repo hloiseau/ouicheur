@@ -64,12 +64,12 @@ export default async function GiftPage({
           <div className="detail-progress">
             <Progress gift={gift} />
           </div>
-          {gift.purchased && (
+          {!!gift.purchased && (
             <p className="notice">
               Ce cadeau a été acheté par le propriétaire.
             </p>
           )}
-          {gift.suggested_price && (
+          {gift.suggested_price != null && (
             <p className="fine-print">
               Prix suggéré lors de l’extraction :{" "}
               {formatMoney(

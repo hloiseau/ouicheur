@@ -238,12 +238,13 @@ export function Admin({ initialized }: { initialized: boolean }) {
                   Une collection qui vous ressemble
                 </span>
                 <h2>
-                  De belles envies
+                  Vos prochaines envies
                   <br />
-                  commencent ici.
+                  prennent forme.
                 </h2>
                 <p>
-                  Un lien, un petit mot et votre prochaine idée prend sa place.
+                  Ajoutez un lien, précisez votre idée et partagez votre
+                  sélection.
                 </p>
                 <button
                   className="text-link"
@@ -555,7 +556,7 @@ function ProfileEditor({
           }
         }}
       >
-        <h2>Votre petit univers</h2>
+        <h2>Votre profil public</h2>
         <Field label="Pseudonyme public">
           <input
             name="name"

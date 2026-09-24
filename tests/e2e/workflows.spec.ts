@@ -16,6 +16,11 @@ test("wishlist, contribution privée, administration et erreurs", async ({
   await page.screenshot({
     path: `test-results/wishlist-${info.project.name}.png`,
     fullPage: true,
+    scale: "css",
+  });
+  await page.screenshot({
+    path: `test-results/wishlist-viewport-${info.project.name}.png`,
+    scale: "css",
   });
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,
@@ -32,6 +37,17 @@ test("wishlist, contribution privée, administration et erreurs", async ({
       exact: true,
     })
     .click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Une lumière pour les soirs de lecture",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText("0", { exact: true })).toHaveCount(0);
+  await page.screenshot({
+    path: `test-results/gift-detail-${info.project.name}.png`,
+    fullPage: true,
+    scale: "css",
+  });
   await page
     .getByRole("textbox", { name: "Votre contribution (EUR)" })
     .fill("12,50");
@@ -57,6 +73,7 @@ test("wishlist, contribution privée, administration et erreurs", async ({
   await page.screenshot({
     path: `test-results/contribution-${info.project.name}.png`,
     fullPage: true,
+    scale: "css",
   });
   const unauthorized = await context.request.post("/api/admin/confirm", {
     headers: { origin: "http://localhost:3211" },
@@ -74,6 +91,7 @@ test("wishlist, contribution privée, administration et erreurs", async ({
   await page.screenshot({
     path: `test-results/admin-${info.project.name}.png`,
     fullPage: true,
+    scale: "css",
   });
   expect(
     await page.evaluate(

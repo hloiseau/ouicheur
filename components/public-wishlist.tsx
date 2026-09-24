@@ -42,8 +42,6 @@ export function GiftArt({
             }
             size={76}
           />
-          <span className="art-star">✦</span>
-          <span className="art-dot" />
         </div>
       )}
     </div>
@@ -150,33 +148,36 @@ export function PublicWishlist({
             <div className="hero-copy">
               <div className="eyebrow">
                 <span className="tiny-dot" />
-                Une petite attention, un grand sourire
+                Wishlist personnelle · À partager
               </div>
               <div className="profile-heading">
-                <div className="avatar">
-                  {profile?.avatar ? (
-                    <img src={profile.avatar} alt="" />
-                  ) : (
-                    <span>
-                      {profile?.name?.slice(0, 1).toUpperCase() || (
-                        <Icon name="heart" size={32} />
-                      )}
-                    </span>
-                  )}
-                  <span className="avatar-spark">✦</span>
+                <div className="profile-intro">
+                  <div className="avatar">
+                    {profile?.avatar ? (
+                      <img src={profile.avatar} alt="" />
+                    ) : (
+                      <span>
+                        {profile?.name?.slice(0, 1).toUpperCase() || (
+                          <Icon name="heart" size={32} />
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  <p className="greeting">Des envies qui me ressemblent.</p>
                 </div>
-                <div>
-                  <p className="greeting">Bienvenue dans mon petit univers</p>
-                  <h1>
-                    La wishlist de <em>{profile?.name || "demain"}.</em>
-                  </h1>
-                </div>
+                <h1>
+                  La wishlist de{" "}
+                  <em>
+                    {profile?.name || "demain"}
+                    <span className="heading-dot">.</span>
+                  </em>
+                </h1>
               </div>
               <p className="hero-description">
                 {profile?.bio ||
                   (profile
-                    ? "Des choses qui me font envie, des projets qui me ressemblent. Merci d’en faire un petit bout avec moi."
-                    : "Les petites envies font les grands sourires. Cette wishlist se prépare et accueillera bientôt ses premiers cadeaux.")}
+                    ? "Des objets, des idées, des projets. Retrouvez mes envies du moment et participez à celles qui vous parlent."
+                    : "Des objets, des idées, des projets. La sélection se prépare : les premières envies arrivent bientôt.")}
               </p>
               <div className="hero-bottom">
                 <span className="soft-tag">
@@ -185,7 +186,7 @@ export function PublicWishlist({
                 </span>
                 <span className="soft-tag">
                   <Icon name="heart" size={16} />
-                  Chaque attention compte
+                  Libre à vous de participer
                 </span>
               </div>
               {profile && JSON.parse(profile.socials).length > 0 && (
@@ -204,25 +205,19 @@ export function PublicWishlist({
               )}
             </div>
             <div className="hero-art" aria-hidden="true">
-              <div className="art-label">
-                LES ENVIES, C’EST MIEUX À PLUSIEURS
-              </div>
-              <div className="big-present">
-                <span className="present-bow left" />
-                <span className="present-bow right" />
-                <span className="present-lid" />
-                <span className="present-ribbon" />
-                <span className="present-tag">
-                  <Icon name="heart" size={22} />
-                </span>
-              </div>
-              <span className="floating-star star-one">✦</span>
-              <span className="floating-star star-two">✧</span>
-              <span className="floating-heart">♡</span>
-              <div className="art-note">
-                un peu de vous,
-                <br />
-                <em>beaucoup de joie.</em>
+              <div className="wish-pass">
+                <span className="pass-label">Une idée devient réelle.</span>
+                <div className="pass-symbol">
+                  <Icon name="gift" size={110} />
+                </div>
+                <div className="pass-footer">
+                  <strong>{String(gifts.length).padStart(2, "0")}</strong>
+                  <span>
+                    Envies
+                    <br />à partager
+                  </span>
+                  <Icon name="arrow" size={27} />
+                </div>
               </div>
             </div>
           </div>
@@ -230,9 +225,9 @@ export function PublicWishlist({
         <section className="container wishlist-section" id="envies">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">La collection d’envies</span>
+              <span className="eyebrow">La sélection</span>
               <h2>
-                Les petits et grands souhaits
+                Mes envies du moment
                 <span className="heading-dot">.</span>
               </h2>
             </div>
@@ -299,7 +294,7 @@ export function PublicWishlist({
                   </Link>
                   <div className="gift-card-body">
                     <span className="card-category">
-                      {gift.category || "Un peu de bonheur"}
+                      {gift.category || "Mes envies"}
                     </span>
                     <h3>
                       <Link href={`/cadeaux/${gift.id}`}>{gift.title}</Link>
@@ -337,7 +332,7 @@ export function PublicWishlist({
               <p>
                 {gifts.length
                   ? "Essayez une autre catégorie ou quelques mots différents."
-                  : "Revenez faire un tour. De jolies idées prendront bientôt place ici."}
+                  : "La sélection prend forme. Revenez découvrir les prochaines idées."}
               </p>
               {!profile && (
                 <a className="text-link" href="/admin">
@@ -349,11 +344,11 @@ export function PublicWishlist({
         </section>
         <section className="container how-section" id="comment">
           <div className="how-intro">
-            <span className="eyebrow">Un cadeau, tout simplement</span>
+            <span className="eyebrow">Comment ça marche</span>
             <h2>
-              À plusieurs,
+              Une envie.
               <br />
-              on rapproche les envies.
+              Un coup de pouce.
             </h2>
             <p>
               Vous contribuez, je choisis le bon moment pour acheter. Chaque
