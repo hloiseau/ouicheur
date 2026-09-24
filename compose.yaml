@@ -1,0 +1,22 @@
+services:
+  app:
+    build: .
+    image: wishlister:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+      DATA_DIR: /app/data
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - wishlister-data:/app/data
+      - wishlister-backups:/app/backups
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  wishlister-data:
+  wishlister-backups:

@@ -1,0 +1,47 @@
+{
+  "name": "wishlister",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env node_modules/next/dist/bin/next dev --hostname 127.0.0.1",
+    "build": "node node_modules/next/dist/bin/next build --webpack",
+    "start": "node --env-file-if-exists=.env scripts/start.mjs",
+    "check": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "setup": "node --env-file-if-exists=.env scripts/manage.ts setup",
+    "password": "node --env-file-if-exists=.env scripts/manage.ts password",
+    "backup": "node --env-file-if-exists=.env scripts/manage.ts backup",
+    "restore": "node --env-file-if-exists=.env scripts/manage.ts restore",
+    "probe:imports": "node --import tsx scripts/probe-imports.ts",
+    "browser:install": "node scripts/install-browser.mjs",
+    "test:e2e": "node node_modules/@playwright/test/cli.js test",
+    "test:docker": "node --import tsx tests/docker-smoke.ts",
+    "format": "prettier --write app components lib scripts tests *.ts *.json *.yaml README.md docs",
+    "format:check": "prettier --check app components lib scripts tests *.ts *.json *.yaml README.md docs"
+  },
+  "dependencies": {
+    "cheerio": "1.2.0",
+    "csv-parse": "7.0.2",
+    "ipaddr.js": "2.5.0",
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "sharp": "0.35.4",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "node": "24.21.0",
+    "prettier": "3.9.9",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  }
+}

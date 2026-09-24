@@ -1,0 +1,188 @@
+import { test, expect } from "@playwright/test";
+test("wishlist, contribution privée, administration et erreurs", async ({
+  page,
+  context,
+}, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "La wishlist de Camille." }),
+  ).toBeVisible();
+  expect(await page.locator(".gift-card").count()).toBeGreaterThanOrEqual(3);
+  await expect(
+    page.getByText("Pour tes petits moments de bonheur !"),
+  ).toHaveCount(0);
+  await page.screenshot({
+    path: `test-results/wishlist-${info.project.name}.png`,
+    fullPage: true,
+  });
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth,
+  );
+  expect(overflow).toBe(false);
+  await page
+    .getByRole("textbox", { name: "Rechercher une envie" })
+    .fill("introuvable-test");
+  await expect(page.getByText("Cette envie se cache encore…")).toBeVisible();
+  await page.getByRole("textbox", { name: "Rechercher une envie" }).fill("");
+  await page
+    .getByRole("link", {
+      name: "Une lumière pour les soirs de lecture",
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole("textbox", { name: "Votre contribution (EUR)" })
+    .fill("12,50");
+  await page
+    .getByRole("textbox", { name: "Votre petit nom (facultatif)" })
+    .fill(`Visiteur ${info.project.name}`);
+  await page
+    .getByRole("textbox", { name: "Un mot qui fait sourire (facultatif)" })
+    .fill("Message strictement privé");
+  await page.getByRole("button", { name: "Continuer vers PayPal" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Une envie se rapproche." }),
+  ).toBeVisible();
+  const id = new URL(page.url()).pathname.split("/").pop()!;
+  await expect(
+    page.getByRole("link", { name: /Ouvrir PayPal/ }),
+  ).toHaveAttribute("href", "https://paypal.me/FictionalTestOnly/12.50EUR");
+  // Never open PayPal or move money in this test.
+  await page.getByRole("button", { name: "J’ai envoyé l’argent" }).click();
+  await expect(
+    page.getByText("Annoncée, à vérifier", { exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: `test-results/contribution-${info.project.name}.png`,
+    fullPage: true,
+  });
+  const unauthorized = await context.request.post("/api/admin/confirm", {
+    headers: { origin: "http://localhost:3211" },
+    data: {},
+  });
+  expect(unauthorized.status()).toBe(401);
+  await page.goto("/admin");
+  await page
+    .getByLabel("Mot de passe", { exact: true })
+    .fill("test-only-password-2026");
+  await page.getByRole("button", { name: "Entrer dans mon espace" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Bonjour Camille ✦" }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: `test-results/admin-${info.project.name}.png`,
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth,
+    ),
+  ).toBe(false);
+  const csrf = await context.request.post("/api/admin/profile", {
+    headers: { origin: "https://attacker.example" },
+    data: {},
+  });
+  expect(csrf.status()).toBe(403);
+  const ssrf = await context.request.post("/api/admin/extract", {
+    headers: { origin: "http://localhost:3211" },
+    data: { url: "http://169.254.169.254/latest/meta-data" },
+  });
+  expect(ssrf.status()).toBe(400);
+  await page.getByRole("button", { name: /Contributions/ }).click();
+  const row = page
+    .locator(".contribution-row")
+    .filter({ hasText: `Visiteur ${info.project.name}` });
+  await row.getByRole("button", { name: "Vérifier le versement" }).click();
+  await row
+    .getByLabel("Référence réelle de transaction PayPal (privée)")
+    .fill(`BROWSER-${info.project.name}`);
+  await row.getByLabel("Frais connus (EUR)", { exact: false }).fill("0.50");
+  await row
+    .getByLabel(
+      "J’ai vérifié que mon compte a reçu ce versement dans la bonne devise.",
+    )
+    .check();
+  await row
+    .getByLabel("Le paiement est effectivement encaissé, et non en attente.")
+    .check();
+  await row
+    .getByLabel(
+      "J’ai vérifié l’association certaine avec cette intention et ce cadeau.",
+    )
+    .check();
+  await row
+    .getByLabel("Justification privée de la vérification ou correction")
+    .fill("Vérification simulée dans le navigateur de test");
+  await row
+    .getByRole("button", { name: "Confirmer manuellement ce versement" })
+    .click();
+  await expect(row).toHaveCount(0);
+  const status = await context.request.get(`/api/contributions/${id}`);
+  const statusData = await status.json();
+  expect(statusData.payment.net).toBe(1200);
+  expect(statusData.payment.provenance).toBe("manual");
+  expect(statusData.payment.transaction_ref).toBeUndefined();
+  await page.getByRole("button", { name: "Ajouter une envie" }).click();
+  await page
+    .getByRole("textbox", { name: /Commencer avec un lien produit/ })
+    .fill("http://127.0.0.1/private");
+  await page
+    .getByRole("button", { name: "Récupérer les informations" })
+    .click();
+  await expect(
+    page.getByText(/Vous pouvez compléter le formulaire/),
+  ).toBeVisible();
+  await page
+    .getByLabel("Lien du produit", { exact: true })
+    .fill(`https://example.com/manual-${info.project.name}`);
+  await page
+    .getByLabel("Nom de cette envie")
+    .fill(`Ajout manuel ${info.project.name}`);
+  await page.getByLabel("Objectif (EUR)", { exact: false }).fill("39.90");
+  await page
+    .getByRole("combobox", { name: "Visibilité", exact: true })
+    .selectOption("visible");
+  await page.getByRole("button", { name: "Enregistrer cette envie" }).click();
+  await expect(
+    page.getByRole("heading", { name: `Ajout manuel ${info.project.name}` }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Importer une liste", exact: true })
+    .click();
+  await page
+    .getByRole("combobox", { name: "Source", exact: true })
+    .selectOption("json");
+  await page.getByLabel("Contenu à importer").fill(
+    JSON.stringify([
+      {
+        source_id: `e2e-${info.project.name}`,
+        url: `https://example.com/import-${info.project.name}`,
+        title: `Import ${info.project.name}`,
+        price: "22.50",
+        currency: "EUR",
+      },
+    ]),
+  );
+  await page.getByRole("button", { name: "Préparer l’aperçu" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Aperçu de l’import" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Enregistrer 1 envie(s) sélectionnée(s)" })
+    .click();
+  await expect(
+    page.getByText(/Import enregistré. Retrouvez les cadeaux/),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Préparer l’aperçu" }).click();
+  await expect(page.getByText(/Doublon détecté/)).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Enregistrer 0 envie(s) sélectionnée(s)",
+    }),
+  ).toBeDisabled();
+  await page.goto("/");
+  await expect(page.getByText("Message strictement privé")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

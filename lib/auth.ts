@@ -1,0 +1,109 @@
+import { randomBytes, scrypt, timingSafeEqual, createHash } from "node:crypto";
+import type { DatabaseSync } from "node:sqlite";
+import { atomic, audit } from "./db.ts";
+import { AppError } from "./validation.ts";
+
+export const hashToken = (token: string) =>
+  createHash("sha256").update(token).digest("hex");
+const derive = (password: string, salt: string) =>
+  new Promise<Buffer>((resolve, reject) =>
+    scrypt(
+      password,
+      salt,
+      64,
+      { N: 32768, r: 8, p: 3, maxmem: 128 * 1024 * 1024 },
+      (error, key) => (error ? reject(error) : resolve(key)),
+    ),
+  );
+export async function hashPassword(password: string) {
+  if (password.length < 12 || password.length > 256)
+    throw new AppError(
+      "Le mot de passe doit contenir entre 12 et 256 caractères.",
+    );
+  const salt = randomBytes(16).toString("hex");
+  return `scrypt:${salt}:${(await derive(password, salt)).toString("hex")}`;
+}
+export async function verifyPassword(password: string, encoded: string) {
+  const [, salt, hex] = encoded.split(":");
+  if (!salt || !hex || password.length > 256) return false;
+  const actual = await derive(password, salt);
+  const expected = Buffer.from(hex, "hex");
+  return expected.length === actual.length && timingSafeEqual(actual, expected);
+}
+export async function initializeOwner(
+  db: DatabaseSync,
+  name: string,
+  password: string,
+) {
+  const encoded = await hashPassword(password);
+  if (!name.trim() || name.length > 80)
+    throw new AppError("Pseudonyme invalide.");
+  atomic(db, () => {
+    if (db.prepare("SELECT 1 FROM owner").get())
+      throw new AppError("Cette instance est déjà initialisée.", 409);
+    db.prepare("INSERT INTO owner(id,name,password_hash) VALUES (1,?,?)").run(
+      name.trim(),
+      encoded,
+    );
+    audit(db, "owner.initialize", "1");
+  });
+}
+export async function setPassword(db: DatabaseSync, password: string) {
+  const encoded = await hashPassword(password);
+  atomic(db, () => {
+    if (!db.prepare("SELECT 1 FROM owner").get())
+      throw new AppError("Initialisez d’abord le propriétaire.");
+    db.prepare("UPDATE owner SET password_hash=? WHERE id=1").run(encoded);
+    db.exec("DELETE FROM sessions");
+    audit(db, "owner.password_changed", "1");
+  });
+}
+export function createSession(db: DatabaseSync) {
+  const token = randomBytes(32).toString("hex");
+  const expires = Date.now() + 12 * 60 * 60 * 1000;
+  db.prepare("DELETE FROM sessions WHERE expires < ?").run(Date.now());
+  db.prepare("INSERT INTO sessions VALUES (?,?)").run(
+    hashToken(token),
+    expires,
+  );
+  return token;
+}
+export function authorized(db: DatabaseSync, token?: string) {
+  return (
+    !!token &&
+    /^[a-f0-9]{64}$/.test(token) &&
+    !!db
+      .prepare("SELECT 1 FROM sessions WHERE hash=? AND expires>?")
+      .get(hashToken(token), Date.now())
+  );
+}
+export function rateLimit(
+  db: DatabaseSync,
+  key: string,
+  limit: number,
+  windowMs: number,
+) {
+  const allowed = atomic(db, () => {
+    const now = Date.now();
+    db.prepare("DELETE FROM rate_limits WHERE until < ?").run(now);
+    db.prepare(
+      "INSERT INTO rate_limits VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET hits=hits+1",
+    ).run(key, now + windowMs);
+    const row = db
+      .prepare("SELECT hits FROM rate_limits WHERE key=?")
+      .get(key)!;
+    return Number(row.hits) <= limit;
+  });
+  if (!allowed)
+    throw new AppError("Trop de tentatives. Réessayez un peu plus tard.", 429);
+}
+export function requireOrigin(request: Request) {
+  const origin = process.env.APP_ORIGIN || "http://localhost:3000";
+  if (request.headers.get("origin") !== new URL(origin).origin)
+    throw new AppError(
+      "Origine de la requête refusée. Rechargez depuis l’adresse officielle du site.",
+      403,
+    );
+  if (!request.headers.get("content-type")?.startsWith("application/json"))
+    throw new AppError("Format JSON requis.", 415);
+}
