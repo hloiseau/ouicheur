@@ -232,32 +232,6 @@ export function Admin({ initialized }: { initialized: boolean }) {
         {error && <Notice error>{error}</Notice>}
         {page === "overview" && (
           <>
-            <div className="overview-banner">
-              <div>
-                <span className="eyebrow">
-                  Une collection qui vous ressemble
-                </span>
-                <h2>
-                  Vos prochaines envies
-                  <br />
-                  prennent forme.
-                </h2>
-                <p>
-                  Ajoutez un lien, précisez votre idée et partagez votre
-                  sélection.
-                </p>
-                <button
-                  className="text-link"
-                  onClick={() => {
-                    setPage("gifts");
-                    setEditor("new");
-                  }}
-                >
-                  Créer ma prochaine envie <Icon name="arrow" size={17} />
-                </button>
-              </div>
-              <Icon name="gift" size={110} />
-            </div>
             <div className="stat-grid">
               <div className="stat-card">
                 <Icon name="gift" />
@@ -287,7 +261,7 @@ export function Admin({ initialized }: { initialized: boolean }) {
             )}
             <section className="panel">
               <div className="panel-heading">
-                <h2>Le financement, en toute confiance</h2>
+                <h2>Vérifier les contributions</h2>
                 <span className="badge amber">Confirmation manuelle</span>
               </div>
               <p>

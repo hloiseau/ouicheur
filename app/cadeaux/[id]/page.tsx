@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { database } from "../../../lib/db";
 import { listGifts, publicProfile } from "../../../lib/gifts";
-import { Brand, Icon } from "../../../components/ui";
 import { GiftArt, Progress } from "../../../components/public-wishlist";
 import { ContributionForm } from "../../../components/contribution";
 import { formatMoney } from "../../../lib/format";
@@ -34,20 +33,15 @@ export default async function GiftPage({
   return (
     <>
       <header className="site-header">
-        <div className="container header-inner">
-          <Brand />
+        <div className="container public-subheader">
           <Link className="text-link" href="/">
-            ← Toutes les envies
+            ← La wishlist de {profile.name}
           </Link>
         </div>
       </header>
       <main id="main" className="container detail-page">
         <div className="detail-art">
           <GiftArt gift={gift} />
-          <div className="detail-caption">
-            <Icon name="heart" size={17} />
-            Une attention pour {profile.name}
-          </div>
         </div>
         <section className="detail-content">
           <span className="eyebrow">{gift.category || "Une petite envie"}</span>

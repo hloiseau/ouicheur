@@ -7,7 +7,7 @@ test("wishlist, contribution privée, administration et erreurs", async ({
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "La wishlist de Camille." }),
+    page.getByRole("heading", { name: "La wishlist de Camille" }),
   ).toBeVisible();
   expect(await page.locator(".gift-card").count()).toBeGreaterThanOrEqual(3);
   await expect(
@@ -29,7 +29,7 @@ test("wishlist, contribution privée, administration et erreurs", async ({
   await page
     .getByRole("textbox", { name: "Rechercher une envie" })
     .fill("introuvable-test");
-  await expect(page.getByText("Cette envie se cache encore…")).toBeVisible();
+  await expect(page.getByText("Aucune envie trouvée")).toBeVisible();
   await page.getByRole("textbox", { name: "Rechercher une envie" }).fill("");
   await page
     .getByRole("link", {

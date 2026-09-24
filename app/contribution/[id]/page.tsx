@@ -1,4 +1,3 @@
-import { Brand } from "../../../components/ui";
 import { ContributionStatus } from "../../../components/contribution";
 export const metadata = {
   title: "Votre contribution",
@@ -13,9 +12,10 @@ export default async function Page({
   return (
     <>
       <header className="site-header">
-        <div className="container header-inner">
-          <Brand />
-          <a href="/">La wishlist</a>
+        <div className="container public-subheader">
+          <a className="text-link" href="/">
+            ← Retour à la wishlist
+          </a>
         </div>
       </header>
       <main id="main" className="status-page container">
