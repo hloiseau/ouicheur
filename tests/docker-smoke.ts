@@ -96,6 +96,63 @@ async function check(cookie: string) {
   assert.equal(data.gifts[0].title, "Cadeau Docker");
 }
 try {
+  const fresh = join(folder, "first-start");
+  mkdirSync(fresh, { recursive: true });
+  start(fresh);
+  await ready();
+  const firstCode = [
+    ...docker("logs", name).matchAll(/Code d’installation : ([\w-]{32})/g),
+  ].at(-1)?.[1];
+  assert.ok(
+    firstCode,
+    "Le premier démarrage doit afficher le code dans les journaux.",
+  );
+  docker("restart", name);
+  await ready();
+  const restartedCode = [
+    ...docker("logs", name).matchAll(/Code d’installation : ([\w-]{32})/g),
+  ].at(-1)?.[1];
+  assert.equal(restartedCode, firstCode);
+  const initialPage = await fetch("http://localhost:3212/setup");
+  assert.equal(initialPage.status, 200);
+  const setupHtml = await initialPage.text();
+  assert.ok(setupHtml.includes("Votre wishlist commence ici."));
+  assert.ok(!setupHtml.includes(firstCode));
+  const setupResponse = await fetch("http://localhost:3212/api/setup", {
+    method: "POST",
+    headers: {
+      origin: "http://localhost:3212",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      code: firstCode,
+      name: "NAS Test",
+      password: "docker-setup-password",
+      confirmation: "docker-setup-password",
+      currency: "EUR",
+      paypal: "",
+    }),
+  });
+  assert.equal(setupResponse.status, 201);
+  const setupCookie = setupResponse.headers.get("set-cookie")!.split(";")[0];
+  docker("restart", name);
+  await ready();
+  const initialized = await fetch("http://localhost:3212/api/admin", {
+    headers: { cookie: setupCookie },
+  });
+  assert.equal(initialized.status, 200);
+  assert.equal((await initialized.json()).profile.name, "NAS Test");
+  const closed = await fetch("http://localhost:3212/api/setup", {
+    method: "POST",
+    headers: {
+      origin: "http://localhost:3212",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ code: firstCode }),
+  });
+  assert.equal(closed.status, 409);
+  docker("rm", "--force", name);
+  name += "-existing";
   start(source);
   await ready();
   let cookie = await login();
@@ -127,7 +184,7 @@ try {
   cookie = await login();
   await check(cookie);
   console.log(
-    "Docker : démarrage, page publique, session, financement, redémarrage, sauvegarde et restauration sur un nouveau conteneur validés.",
+    "Docker : premier démarrage web protégé, code persistant, session, fermeture du setup, instance existante, financement, redémarrage, sauvegarde et restauration validés.",
   );
 } finally {
   spawnSync("docker", ["rm", "--force", name], { encoding: "utf8" });

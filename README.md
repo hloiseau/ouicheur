@@ -11,14 +11,17 @@ Prérequis : Docker Engine / Docker Desktop démarré et Docker Compose.
 ```sh
 cp .env.example .env
 docker compose up -d --build
-docker compose exec -it app npm run setup
 ```
 
 Sous PowerShell, remplacer la première ligne par `Copy-Item .env.example .env` si `.env` n’existe pas encore. Le projet livré dispose déjà d’un `.env` local sans secret.
 
-La commande `setup` demande votre pseudonyme et un mot de passe d’au moins 12 caractères, saisi de manière masquée. **Aucun compte ni mot de passe par défaut.** Cette création n’est accessible que depuis le terminal du serveur ; elle se ferme définitivement après le premier propriétaire. Aucun visiteur public ne peut initialiser l’application.
+Ouvrir **http://localhost:3000** : au premier démarrage, un assistant web demande votre pseudonyme, un mot de passe d’au moins 12 caractères, sa confirmation et votre devise. PayPal.Me est facultatif. **Aucun compte ni mot de passe par défaut.**
 
-Ouvrir **http://localhost:3000**, puis **http://localhost:3000/admin**. Configurer le profil, le lien PayPal.Me personnel et les catégories, puis ajouter ou importer les cadeaux. L’instance est volontairement vide ; les données fictives restent dans les tests.
+Un **code d’installation privé** apparaît dans les journaux de l’application (Docker Desktop, TrueNAS, ou `docker compose logs app`). Copier ce code dans l’assistant empêche un premier visiteur public de s’approprier l’instance. Le code persiste jusqu’à la création du propriétaire, puis est supprimé et définitivement désactivé. La connexion à `/admin` est automatique après création du compte. Un redémarrage conserve le compte et ne rouvre pas le setup.
+
+Compléter ensuite le profil, le lien PayPal.Me personnel et les catégories, puis ajouter ou importer les cadeaux. L’instance est volontairement vide ; les données fictives restent dans les tests.
+
+**TrueNAS 25.10 :** voir le [guide d’installation comme application](docs/truenas.md) et le [modèle YAML](compose.truenas.yaml). Le setup s’effectue dans le navigateur ; seule la lecture du code dans les journaux de l’application est nécessaire.
 
 Le port est lié à `127.0.0.1` pour l’accès local et le reverse proxy. Deux volumes conservent les données et les sauvegardes : `wishlister-data` et `wishlister-backups` (préfixés par Compose). `docker compose down` conserve ces volumes. `down -v` les supprimerait.
 
@@ -29,17 +32,16 @@ Node **24 LTS** et npm. Un binaire Node 24 exact est également verrouillé dans
 ```sh
 npm ci
 cp .env.example .env
-npm run setup
 npm run dev
 ```
 
-Production locale : `npm run build`, puis `npm start`. Si `.env` est déjà configuré, ne le remplacez pas. Le moteur SQLite intégré à Node est utilisé directement ; il n’y a ni ORM ni serveur de base à administrer. Les migrations SQL de `migrations/` sont appliquées transactionnellement à l’ouverture de la base.
+Production locale : `npm run build`, puis `npm start`. Ces démarrages affichent le code d’installation dans le terminal si le compte n’existe pas encore. Si `.env` est déjà configuré, ne le remplacez pas. Le moteur SQLite intégré à Node est utilisé directement ; il n’y a ni ORM ni serveur de base à administrer. Les migrations SQL de `migrations/` sont appliquées transactionnellement à l’ouverture de la base.
 
 | Commande                                             | Usage                                                             |
 | ---------------------------------------------------- | ----------------------------------------------------------------- |
 | `npm run dev`                                        | Développement sur localhost:3000                                  |
 | `npm run build` / `npm start`                        | Compiler / démarrer en production                                 |
-| `npm run setup`                                      | Créer le propriétaire localement, une seule fois                  |
+| `npm run setup`                                      | Alternative locale facultative au setup web, une seule fois       |
 | `npm run password`                                   | Récupérer l’accès depuis le serveur, révoquer toutes les sessions |
 | `npm run check`                                      | Vérifier TypeScript                                               |
 | `npm test`                                           | Tests du registre, sécurité, imports, sauvegarde/restauration     |
@@ -135,6 +137,8 @@ La V1 n’a aucun listener de paiement ni besoin d’accès entrant PayPal spéc
 
 Monolithe Next.js / React / TypeScript, SQLite Node, images WebP locales. Les domaines sont dans `lib/` : `auth`, `gifts`, `payments`, `imports`, `metadata`, `fetch-safe`, `images`, `backup`. Les routes contrôlent les sessions et l’origine avant les écritures ; les extractions réseau sont réservées à l’administrateur. Mots de passe scrypt, sel aléatoire, sessions aléatoires dont seul le hachage est stocké.
 
+L’initialisation web exige un code aléatoire de 192 bits généré au démarrage et conservé dans le stockage privé jusqu’à utilisation. Il n’est jamais renvoyé par HTTP. `/api/setup` vérifie l’origine, limite les essais à 10 par 15 minutes sur l’instance et borne le corps à 16 Ko. La création du propriétaire et la suppression du code sont atomiques, y compris en cas de requêtes concurrentes. Une instance déjà configurée refuse toute nouvelle initialisation.
+
 Le téléchargement refuse les protocoles non HTTP(S), les identifiants dans les URLs, les ports inattendus, les IP privées/réservées IPv4 et IPv6 et les résolutions DNS mixtes. Il fixe l’IP validée pour la connexion, revalide chaque redirection et impose trois redirections / 15 secondes / 2 Mo HTML / 5 Mo image. Les images raster sont décodées avec une limite de pixels, réencodées et débarrassées de leurs métadonnées ; SVG refusé. Les textes sont échappés par React, le HTML externe n’est jamais rendu ni exécuté.
 
 Le journal et les contributions sont conservés. L’écran affiche les 1 000 dernières intentions, les 50 derniers imports et les 100 dernières opérations ; l’export contient le registre et le journal complets. Cette limite de vue convient à la V1 personnelle ; prévoir une pagination avant un usage dépassant ces volumes.
@@ -151,7 +155,7 @@ npm run browser:install
 npm run test:e2e
 ```
 
-Les tests navigateur démarrent une instance séparée sur le port 3211 et créent uniquement des données fictives dans `.local/e2e/`. Ils n’ouvrent jamais PayPal et n’effectuent aucun paiement. Les captures sont dans `test-results/` et le rapport dans `playwright-report/`, tous ignorés par Git. [Détail des vérifications et limites](docs/verification.md).
+Les tests navigateur utilisent le port 3211 pour les parcours courants et une instance vide sur le port 3213 pour chaque scénario de setup. Les données restent dans `.local/e2e/` et `.local/e2e-setup/`. Ils n’ouvrent jamais PayPal et n’effectuent aucun paiement. Les captures sont dans `test-results/` et le rapport dans `playwright-report/`, tous ignorés par Git. [Détail des vérifications et limites](docs/verification.md).
 
 Documentation technique consultée : [installation Next.js](https://nextjs.org/docs/app/getting-started/installation), [déploiement standalone](https://nextjs.org/docs/app/api-reference/config/next-config-js/output), [SQLite Node](https://nodejs.org/api/sqlite.html), [scrypt Node](https://nodejs.org/docs/latest-v24.x/api/crypto.html), [Cheerio](https://cheerio.js.org/docs/basics/loading/), [réencodage Sharp](https://sharp.pixelplumbing.com/api-output/).
 

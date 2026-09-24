@@ -7,6 +7,7 @@
     "node": ">=24.0.0 <25"
   },
   "scripts": {
+    "predev": "node --env-file-if-exists=.env scripts/prepare-setup.ts",
     "dev": "node --env-file-if-exists=.env node_modules/next/dist/bin/next dev --hostname 127.0.0.1",
     "build": "node node_modules/next/dist/bin/next build --webpack",
     "start": "node --env-file-if-exists=.env scripts/start.mjs",

@@ -44,7 +44,7 @@ const navigation = [
   { key: "profile", label: "Mon profil", icon: "user" },
   { key: "audit", label: "Journal", icon: "book" },
 ];
-export function Admin({ initialized }: { initialized: boolean }) {
+export function Admin() {
   const [data, setData] = useState<AdminData | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState("overview");
@@ -89,47 +89,38 @@ export function Admin({ initialized }: { initialized: boolean }) {
               Votre espace pour ajouter des cadeaux et prendre soin des petites
               attentions.
             </p>
-            {!initialized ? (
-              <Notice>
-                Cette instance attend son propriétaire. Sur votre serveur,
-                lancez <code>npm run setup</code> (ou{" "}
-                <code>docker compose exec -it app npm run setup</code>). La
-                création du compte est uniquement locale.
-              </Notice>
-            ) : (
-              <form
-                className="stack"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  setBusy(true);
-                  setError("");
-                  const f = new FormData(e.currentTarget);
-                  try {
-                    await api("login", { password: f.get("password") });
-                    await refresh();
-                  } catch (e) {
-                    setError((e as Error).message);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                <Field label="Mot de passe">
-                  <input
-                    type="password"
-                    required
-                    name="password"
-                    autoComplete="current-password"
-                    maxLength={256}
-                  />
-                </Field>
-                {error && <Notice error>{error}</Notice>}
-                <button className="button primary wide" disabled={busy}>
-                  {busy ? "Connexion…" : "Entrer dans mon espace"}
-                  <Icon name="arrow" size={17} />
-                </button>
-              </form>
-            )}
+            <form
+              className="stack"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setBusy(true);
+                setError("");
+                const f = new FormData(e.currentTarget);
+                try {
+                  await api("login", { password: f.get("password") });
+                  await refresh();
+                } catch (e) {
+                  setError((e as Error).message);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              <Field label="Mot de passe">
+                <input
+                  type="password"
+                  required
+                  name="password"
+                  autoComplete="current-password"
+                  maxLength={256}
+                />
+              </Field>
+              {error && <Notice error>{error}</Notice>}
+              <button className="button primary wide" disabled={busy}>
+                {busy ? "Connexion…" : "Entrer dans mon espace"}
+                <Icon name="arrow" size={17} />
+              </button>
+            </form>
             <p className="fine-print">
               Accès perdu ? La commande locale <code>npm run password</code>{" "}
               permet de réinitialiser votre mot de passe.

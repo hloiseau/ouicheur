@@ -12,6 +12,7 @@ import {
   verifyPassword,
 } from "../../../lib/auth";
 import { listGifts, saveGift } from "../../../lib/gifts";
+import { completeWebSetup } from "../../../lib/setup";
 import {
   confirmManual,
   contributionStatus,
@@ -99,6 +100,18 @@ async function handle(
             .trim()
             .slice(0, 100)
         : "shared";
+    if (path === "setup") {
+      if (request.method !== "POST")
+        throw new AppError("Méthode refusée.", 405);
+      if (db.prepare("SELECT 1 FROM owner").get())
+        throw new AppError(
+          "Cette instance est déjà initialisée. Connectez-vous à votre espace.",
+          409,
+        );
+      rateLimit(db, "setup:global", 10, 15 * 60000);
+      await completeWebSetup(db, await body(request, 16 * 1024));
+      return authCookie(response({ ok: true }, 201), createSession(db));
+    }
     if (path === "login" && request.method === "POST") {
       rateLimit(db, `login:${ip}`, 10, 15 * 60000);
       const value = z
@@ -112,7 +125,7 @@ async function handle(
         !(await verifyPassword(value.password, String(owner.password_hash)))
       )
         throw new AppError(
-          "Connexion impossible. Vérifiez le mot de passe et l’initialisation locale.",
+          "Connexion impossible. Vérifiez le mot de passe.",
           401,
         );
       audit(db, "owner.login", "1");

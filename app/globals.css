@@ -1029,6 +1029,17 @@ textarea::placeholder {
 .login-card h1 {
   font-size: 34px;
 }
+.setup-card {
+  max-width: 490px;
+}
+.setup-card h1 {
+  font-size: 28px;
+}
+.login-page:has(.setup-card) {
+  min-height: 100vh;
+  padding-top: 32px;
+  padding-bottom: 32px;
+}
 .login-card > p {
   font-size: 13px;
   color: var(--muted);

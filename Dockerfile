@@ -16,9 +16,10 @@ COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/migrations ./migrations
 COPY --from=build --chown=node:node /app/lib ./lib
 COPY --from=build --chown=node:node /app/scripts/manage.ts ./scripts/manage.ts
+COPY --from=build --chown=node:node /app/scripts/start.mjs /app/scripts/prepare-setup.ts ./scripts/
 COPY --from=build --chown=node:node /app/package.json ./package.json
 RUN mkdir -p /app/data /app/backups && chown node:node /app/data /app/backups
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["node", "server.js"]
+CMD ["node", "scripts/start.mjs"]

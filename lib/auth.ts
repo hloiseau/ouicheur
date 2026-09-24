@@ -34,6 +34,7 @@ export async function initializeOwner(
   db: DatabaseSync,
   name: string,
   password: string,
+  profile = { paypal: "", currency: "EUR" },
 ) {
   const encoded = await hashPassword(password);
   if (!name.trim() || name.length > 80)
@@ -41,10 +42,10 @@ export async function initializeOwner(
   atomic(db, () => {
     if (db.prepare("SELECT 1 FROM owner").get())
       throw new AppError("Cette instance est déjà initialisée.", 409);
-    db.prepare("INSERT INTO owner(id,name,password_hash) VALUES (1,?,?)").run(
-      name.trim(),
-      encoded,
-    );
+    db.prepare(
+      "INSERT INTO owner(id,name,password_hash,paypal,currency) VALUES (1,?,?,?,?)",
+    ).run(name.trim(), encoded, profile.paypal, profile.currency);
+    db.exec("DELETE FROM bootstrap");
     audit(db, "owner.initialize", "1");
   });
 }
