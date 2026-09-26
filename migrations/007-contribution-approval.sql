@@ -1,0 +1,1 @@
+ALTER TABLE contributions ADD COLUMN approved INTEGER NOT NULL DEFAULT 0 CHECK(approved IN (0,1));

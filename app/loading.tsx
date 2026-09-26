@@ -1,7 +1,11 @@
+"use client";
+import { useI18n } from "../components/language";
+
 export default function Loading() {
+  const { t } = useI18n();
   return (
     <main id="main" className="container status-page" role="status">
-      Les envies se préparent…
+      {t("Les envies se préparent…")}{" "}
     </main>
   );
 }

@@ -67,11 +67,15 @@ function start(data: string) {
     name,
     "--publish",
     "127.0.0.1:3212:3000",
+    // Linux CI bind mounts belong to the runner; Windows uses the image UID.
+    "--user",
+    `${process.getuid?.() ?? 1000}:${process.getgid?.() ?? 1000}`,
     "--mount",
     `type=bind,source=${data},target=/app/data`,
     "--env",
-    "APP_ORIGIN=http://localhost:3212",
-    "wishlister:local",
+    // Direct NAS/test access must work alongside a different public domain.
+    "APP_ORIGIN=https://ouicheur.example",
+    "ouicheur:local",
   );
 }
 async function login() {
@@ -84,6 +88,7 @@ async function login() {
     body: JSON.stringify({ password: "docker-test-only-password" }),
   });
   assert.equal(r.status, 200);
+  assert.doesNotMatch(r.headers.get("set-cookie")!, /; Secure(?:;|$)/i);
   return r.headers.get("set-cookie")!.split(";")[0];
 }
 async function check(cookie: string) {
@@ -101,7 +106,7 @@ try {
   start(fresh);
   await ready();
   const firstCode = [
-    ...docker("logs", name).matchAll(/Code d’installation : ([\w-]{32})/g),
+    ...docker("logs", name).matchAll(/Setup code: ([\w-]{32})/g),
   ].at(-1)?.[1];
   assert.ok(
     firstCode,
@@ -110,13 +115,13 @@ try {
   docker("restart", name);
   await ready();
   const restartedCode = [
-    ...docker("logs", name).matchAll(/Code d’installation : ([\w-]{32})/g),
+    ...docker("logs", name).matchAll(/Setup code: ([\w-]{32})/g),
   ].at(-1)?.[1];
   assert.equal(restartedCode, firstCode);
   const initialPage = await fetch("http://localhost:3212/setup");
   assert.equal(initialPage.status, 200);
   const setupHtml = await initialPage.text();
-  assert.ok(setupHtml.includes("Votre wishlist commence ici."));
+  assert.ok(setupHtml.includes("Your Ouichlist starts here."));
   assert.ok(!setupHtml.includes(firstCode));
   const setupResponse = await fetch("http://localhost:3212/api/setup", {
     method: "POST",
@@ -134,6 +139,10 @@ try {
     }),
   });
   assert.equal(setupResponse.status, 201);
+  assert.doesNotMatch(
+    setupResponse.headers.get("set-cookie")!,
+    /; Secure(?:;|$)/i,
+  );
   const setupCookie = setupResponse.headers.get("set-cookie")!.split(";")[0];
   docker("restart", name);
   await ready();

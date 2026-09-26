@@ -1,18 +1,22 @@
 "use client";
+import { useI18n } from "./language";
+
 import { useState } from "react";
 import { api, Field, Icon, Notice } from "./ui";
 import { currencies } from "../lib/validation";
 
 export function Setup() {
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   return (
     <main id="main" className="login-page">
       <section className="login-card setup-card">
-        <h1>Votre wishlist commence ici.</h1>
+        <h1>{t("Votre Ouichlist commence ici.")}</h1>
         <p>
-          Créez votre espace personnel. Cette étape ne sera demandée qu’une
-          fois.
+          {t(
+            "Créez votre espace personnel. Cette étape ne sera demandée qu’une fois.",
+          )}{" "}
         </p>
         <form
           className="stack"
@@ -31,8 +35,10 @@ export function Setup() {
           }}
         >
           <Field
-            label="Code d’installation"
-            hint="Dans TrueNAS, ouvrez les journaux de l’application Wishlister et copiez le code affiché au démarrage."
+            label={t("Code d’installation")}
+            hint={t(
+              "Dans TrueNAS, ouvrez les journaux de l’application Ouicheur et copiez le code affiché au démarrage.",
+            )}
           >
             <input
               name="code"
@@ -45,8 +51,8 @@ export function Setup() {
             />
           </Field>
           <Field
-            label="Votre nom ou pseudonyme"
-            hint="Il sera affiché sur votre wishlist."
+            label={t("Votre nom ou pseudonyme")}
+            hint={t("Il sera affiché sur votre Ouichlist.")}
           >
             <input
               name="name"
@@ -56,8 +62,10 @@ export function Setup() {
             />
           </Field>
           <Field
-            label="Mot de passe"
-            hint="Au moins 12 caractères. Choisissez un mot de passe réservé à cette application."
+            label={t("Mot de passe")}
+            hint={t(
+              "Au moins 12 caractères. Choisissez un mot de passe réservé à cette application.",
+            )}
           >
             <input
               name="password"
@@ -68,7 +76,7 @@ export function Setup() {
               maxLength={256}
             />
           </Field>
-          <Field label="Confirmer le mot de passe">
+          <Field label={t("Confirmer le mot de passe")}>
             <input
               name="confirmation"
               type="password"
@@ -78,7 +86,7 @@ export function Setup() {
               maxLength={256}
             />
           </Field>
-          <Field label="Devise de la wishlist">
+          <Field label={t("Devise de la Ouichlist")}>
             <select name="currency" defaultValue="EUR">
               {currencies.map((currency) => (
                 <option key={currency}>{currency}</option>
@@ -86,12 +94,12 @@ export function Setup() {
             </select>
           </Field>
           <Field
-            label="Lien PayPal.Me (facultatif)"
-            hint="Vous pourrez l’ajouter plus tard dans votre profil."
+            label={t("Lien PayPal.Me (facultatif)")}
+            hint={t("Vous pourrez l’ajouter plus tard dans votre profil.")}
           >
             <input
               name="paypal"
-              placeholder="https://paypal.me/votreNom"
+              placeholder="https://paypal.me/yourName"
               maxLength={100}
               autoCapitalize="none"
               spellCheck={false}
@@ -99,7 +107,7 @@ export function Setup() {
           </Field>
           {error && <Notice error>{error}</Notice>}
           <button className="button primary wide" disabled={busy}>
-            {busy ? "Création de votre espace…" : "Créer ma wishlist"}
+            {busy ? t("Création de votre espace…") : t("Créer ma Ouichlist")}
             <Icon name="arrow" size={17} />
           </button>
         </form>

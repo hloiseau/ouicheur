@@ -21,7 +21,7 @@ const categories = [
   [randomUUID(), "Les petits plaisirs"],
 ];
 for (const [id, name] of categories)
-  db.prepare("INSERT INTO categories VALUES (?,?)").run(id, name);
+  db.prepare("INSERT INTO categories(id,name) VALUES (?,?)").run(id, name);
 for (const [index, title, description, target, priority] of [
   [
     0,
@@ -78,6 +78,8 @@ for (const [index, title, description, target, priority] of [
   }
 }
 writeFileSync(resolve(".local/e2e-current.txt"), folder);
+if (process.env.E2E_RUN_ID)
+  writeFileSync(resolve(`.local/e2e-${process.env.E2E_RUN_ID}.txt`), folder);
 db.close();
 const child = spawn(process.execPath, ["scripts/start.mjs"], {
   stdio: "inherit",

@@ -1,9 +1,9 @@
 [
   {
-    "source_id": "exemple-lampe-01",
-    "url": "https://example.com/produits/lampe",
-    "title": "Une lampe pour mon coin lecture",
-    "description": "Donnée fictive à remplacer par votre produit.",
+    "source_id": "example-lamp-01",
+    "url": "https://example.com/products/lamp",
+    "title": "A lamp for my reading corner",
+    "description": "Example data to replace with your product.",
     "image_url": "",
     "price": "49.90",
     "currency": "EUR"

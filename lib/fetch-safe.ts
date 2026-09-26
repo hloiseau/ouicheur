@@ -1,8 +1,18 @@
 import { lookup } from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";
+import http2 from "node:http2";
+import tls from "node:tls";
+import type { LookupFunction } from "node:net";
+import { addAbortSignal, type Readable } from "node:stream";
 import ipaddr from "ipaddr.js";
 import { AppError, webUrl } from "./validation";
+
+// Large merchant pages (notably Amazon) exceed 2 MiB before their product data.
+export const MAX_HTML_BYTES = 8 * 1024 * 1024;
+// Compatible with merchant browser detection while explicitly identifying our application.
+export const HTTP_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Ouicheur/1.0";
 
 export function publicAddress(address: string) {
   try {
@@ -23,7 +33,23 @@ export function publicAddress(address: string) {
     return false;
   }
 }
-export async function resolvePublic(url: URL, resolver = lookup) {
+export function connectionReset(error: unknown) {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    [
+      "ECONNRESET",
+      "EPIPE",
+      "ERR_HTTP2_ERROR",
+      "ERR_HTTP2_STREAM_ERROR",
+    ].includes(String(error.code))
+  );
+}
+export async function resolvePublic(
+  url: URL,
+  resolver = lookup,
+  deadline = Date.now() + 4000,
+) {
   if (
     (url.port && !["80", "443"].includes(url.port)) ||
     url.hostname.endsWith(".local") ||
@@ -46,7 +72,7 @@ export async function resolvePublic(url: URL, resolver = lookup) {
       new Promise<never>((_, reject) => {
         timer = setTimeout(
           () => reject(new AppError("Résolution DNS trop lente.")),
-          4000,
+          Math.max(1, Math.min(4000, deadline - Date.now())),
         );
       }),
     ]);
@@ -54,7 +80,9 @@ export async function resolvePublic(url: URL, resolver = lookup) {
       throw new AppError(
         "La résolution DNS pointe vers une adresse privée ou réservée.",
       );
-    return addresses[0];
+    // Prefer IPv4 when available: some hosts advertise IPv6 with unreliable routing.
+    // All answers above remain validated, including the unused addresses.
+    return addresses.find((address) => address.family === 4) || addresses[0];
   } finally {
     clearTimeout(timer);
   }
@@ -68,93 +96,148 @@ export async function fetchSafe(
   if (hops > 3 || Date.now() >= deadline)
     throw new AppError("Trop de redirections ou serveur trop lent.");
   const url = webUrl(input);
-  const address = await resolvePublic(url);
-  const max = kind === "html" ? 2 * 1024 * 1024 : 5 * 1024 * 1024;
+  const address = await resolvePublic(url, undefined, deadline);
+  const max = kind === "html" ? MAX_HTML_BYTES : 5 * 1024 * 1024;
+  const signal = AbortSignal.timeout(Math.max(1, deadline - Date.now()));
+  let socket: tls.TLSSocket | undefined;
+  let session: http2.ClientHttp2Session | undefined;
+  let agent: https.Agent | undefined;
+  let request: http.ClientRequest | http2.ClientHttp2Stream | undefined;
+  let response: Readable | undefined;
   const result = await new Promise<{
     body: Buffer;
     type: string;
     redirect?: string;
   }>((resolve, reject) => {
-    const request = (url.protocol === "https:" ? https : http).get(
-      url,
-      {
-        agent: false,
-        // Pin the validated DNS address for this connection, including every redirect.
-        lookup: (_host, options, callback) => {
-          if (options.all) callback(null, [address]);
-          else callback(null, address.address, address.family);
-        },
-        headers: {
-          "User-Agent": "Wishlister/1.0 (personal wishlist metadata)",
-          "Accept-Encoding": "identity",
-          Accept:
-            kind === "html"
-              ? "text/html,application/xhtml+xml"
-              : "image/jpeg,image/png,image/webp",
-        },
-        signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())),
-      },
-      (response) => {
-        const status = response.statusCode || 0;
-        const type = String(response.headers["content-type"] || "")
-          .split(";")[0]
-          .trim();
-        if ([301, 302, 303, 307, 308].includes(status)) {
-          const location = response.headers.location;
-          response.destroy();
-          if (!location)
-            return reject(new AppError("Redirection sans destination."));
-          return resolve({
-            body: Buffer.alloc(0),
-            type,
-            redirect: new URL(location, url).toString(),
-          });
-        }
-        if (status !== 200) {
-          response.destroy();
-          return reject(
-            new AppError(
-              `Source inaccessible (HTTP ${status}). Aucun contournement effectué.`,
-            ),
-          );
-        }
-        if (
-          response.headers["content-encoding"] &&
-          response.headers["content-encoding"] !== "identity"
-        ) {
-          response.destroy();
-          return reject(new AppError("Encodage distant non pris en charge."));
-        }
-        if (
-          kind === "html"
-            ? !["text/html", "application/xhtml+xml"].includes(type)
-            : !["image/jpeg", "image/png", "image/webp"].includes(type)
-        ) {
-          response.destroy();
-          return reject(new AppError("Format distant non autorisé."));
-        }
-        if (Number(response.headers["content-length"] || 0) > max) {
-          response.destroy();
-          return reject(new AppError("Fichier distant trop volumineux."));
-        }
-        let size = 0;
-        const chunks: Buffer[] = [];
-        response.on("data", (chunk: Buffer) => {
-          size += chunk.length;
-          if (size > max) {
-            response.destroy();
-            reject(new AppError("Fichier distant trop volumineux."));
-          } else chunks.push(chunk);
+    const receive = (
+      stream: Readable,
+      status: number,
+      headers: http.IncomingHttpHeaders,
+    ) => {
+      response = stream;
+      stream.on("error", reject);
+      const type = String(headers["content-type"] || "")
+        .split(";")[0]
+        .trim();
+      if ([301, 302, 303, 307, 308].includes(status)) {
+        const location = headers.location;
+        if (!location)
+          return reject(new AppError("Redirection sans destination."));
+        return resolve({
+          body: Buffer.alloc(0),
+          type,
+          redirect: location,
         });
-        response.on("end", () =>
-          resolve({ body: Buffer.concat(chunks), type }),
+      }
+      if (status !== 200) {
+        return reject(
+          new AppError(
+            "Source inaccessible (HTTP {0}). Aucun contournement effectué.",
+            400,
+            [status],
+          ),
         );
-        response.on("error", reject);
-      },
-    );
-    request.on("error", reject);
+      }
+      if (
+        headers["content-encoding"] &&
+        headers["content-encoding"] !== "identity"
+      ) {
+        return reject(new AppError("Encodage distant non pris en charge."));
+      }
+      if (
+        kind === "html"
+          ? !["text/html", "application/xhtml+xml"].includes(type)
+          : !["image/jpeg", "image/png", "image/webp"].includes(type)
+      ) {
+        return reject(new AppError("Format distant non autorisé."));
+      }
+      if (Number(headers["content-length"] || 0) > max) {
+        return reject(new AppError("Fichier distant trop volumineux."));
+      }
+      let size = 0;
+      const chunks: Buffer[] = [];
+      stream.on("data", (chunk: Buffer) => {
+        size += chunk.length;
+        if (size > max) {
+          stream.destroy();
+          reject(new AppError("Fichier distant trop volumineux."));
+        } else chunks.push(chunk);
+      });
+      stream.on("end", () => resolve({ body: Buffer.concat(chunks), type }));
+    };
+    // Pin the validated DNS address for both protocols and every redirect.
+    const lookup: LookupFunction = (_host, options, callback) => {
+      if (options.all) callback(null, [address]);
+      else callback(null, address.address, address.family);
+    };
+    const headers = {
+      "user-agent": HTTP_USER_AGENT,
+      "accept-encoding": "identity",
+      accept:
+        kind === "html"
+          ? "text/html,application/xhtml+xml"
+          : "image/jpeg,image/png,image/webp",
+    };
+    const http1 = () => {
+      request = (url.protocol === "https:" ? https : http).get(
+        url,
+        { agent: agent || false, lookup, headers, signal },
+        (res) => receive(res, res.statusCode || 0, res.headers),
+      );
+      request.on("error", reject);
+    };
+    if (url.protocol === "http:") return http1();
+
+    const hostname = url.hostname.replace(/^\[|\]$/g, "");
+    socket = tls.connect({
+      host: hostname,
+      port: Number(url.port) || 443,
+      servername: ipaddr.isValid(hostname) ? undefined : hostname,
+      lookup,
+      ALPNProtocols: ["h2", "http/1.1"],
+    });
+    socket.on("error", reject);
+    addAbortSignal(signal, socket);
+    socket.once("secureConnect", () => {
+      if (socket!.alpnProtocol === "h2") {
+        session = http2.connect(url.origin, {
+          createConnection: () => socket!,
+        });
+        session.on("error", reject);
+        const stream = session.request(
+          { ":path": url.pathname + url.search, ...headers },
+          { signal },
+        );
+        request = stream;
+        stream.on("error", reject);
+        stream.once("response", (res) =>
+          receive(stream, res[":status"] || 0, res),
+        );
+        stream.end();
+      } else {
+        // Reuse the TLS socket whose certificate and destination were just checked.
+        agent = new https.Agent({ keepAlive: false, maxSockets: 1 });
+        agent.createConnection = () => socket!;
+        http1();
+      }
+    });
+  }).finally(() => {
+    response?.destroy();
+    request?.destroy();
+    session?.destroy();
+    agent?.destroy();
+    socket?.destroy();
   });
   if (result.redirect)
-    return fetchSafe(result.redirect, kind, hops + 1, deadline);
-  return { body: result.body, type: result.type, url: url.toString() };
+    return fetchSafe(
+      new URL(result.redirect, url).toString(),
+      kind,
+      hops + 1,
+      deadline,
+    );
+  return {
+    body: result.body,
+    type: result.type,
+    url: url.toString(),
+  };
 }

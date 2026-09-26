@@ -1,10 +1,14 @@
 "use client";
+import { useI18n } from "./language";
+
 import type { ReactNode } from "react";
+import { createI18n, resolveLocale } from "../lib/i18n";
 
 export async function api<T = Record<string, unknown>>(
   path: string,
   data?: unknown,
 ): Promise<T> {
+  const { t } = createI18n(resolveLocale(document.documentElement.lang));
   const result = await fetch(
     `/api/${path}`,
     data === undefined
@@ -16,7 +20,7 @@ export async function api<T = Record<string, unknown>>(
         },
   );
   const value = await result.json();
-  if (!result.ok) throw new Error(value.error || "L’opération a échoué.");
+  if (!result.ok) throw new Error(value.error || t("L’opération a échoué."));
   return value;
 }
 export function Icon({ name, size = 22 }: { name: string; size?: number }) {
@@ -95,12 +99,13 @@ export function Icon({ name, size = 22 }: { name: string; size?: number }) {
   );
 }
 export function Brand() {
+  const { t } = useI18n();
   return (
-    <a className="brand" href="/" aria-label="Wishlister, accueil">
+    <a className="brand" href="/" aria-label={t("Ouicheur, accueil")}>
       <span className="brand-mark">
         <Icon name="gift" size={21} />
       </span>
-      wishlister<span className="brand-dot">.</span>
+      Ouicheur<span className="brand-dot">.</span>
     </a>
   );
 }

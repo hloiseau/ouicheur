@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
+import { createI18n, localeCookie, resolveLocale } from "../../../lib/i18n";
 import { z } from "zod";
 import { database, atomic, audit } from "../../../lib/db";
 import {
@@ -20,6 +21,7 @@ import {
   createIntent,
   declareIntent,
   expireIntents,
+  reviewContribution,
 } from "../../../lib/payments";
 import {
   AppError,
@@ -35,22 +37,30 @@ import {
   commitImport,
   createImport,
   getImport,
+  prepareImport,
   runImport,
 } from "../../../lib/imports";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Retain the cookie name so the rename does not sign existing owners out.
 const cookieName = "wishlister_session";
 const response = (value: unknown, status = 200) =>
   NextResponse.json(value, {
     status,
     headers: { "Cache-Control": "no-store" },
   });
-const authCookie = (reply: NextResponse, value: string, maxAge = 43200) => {
+const authCookie = (
+  request: Request,
+  reply: NextResponse,
+  value: string,
+  maxAge = 43200,
+) => {
   reply.cookies.set(cookieName, value, {
     httpOnly: true,
     sameSite: "strict",
-    secure: (process.env.APP_ORIGIN || "").startsWith("https://"),
+    // All callers are POST routes whose Origin was validated by requireOrigin.
+    secure: request.headers.get("origin")!.startsWith("https://"),
     path: "/",
     maxAge,
   });
@@ -83,6 +93,9 @@ async function handle(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
 ) {
+  const { t } = createI18n(
+    resolveLocale(request.cookies.get(localeCookie)?.value),
+  );
   try {
     const segments = (await context.params).path;
     const path = segments.join("/");
@@ -110,7 +123,11 @@ async function handle(
         );
       rateLimit(db, "setup:global", 10, 15 * 60000);
       await completeWebSetup(db, await body(request, 16 * 1024));
-      return authCookie(response({ ok: true }, 201), createSession(db));
+      return authCookie(
+        request,
+        response({ ok: true }, 201),
+        createSession(db),
+      );
     }
     if (path === "login" && request.method === "POST") {
       rateLimit(db, `login:${ip}`, 10, 15 * 60000);
@@ -129,7 +146,7 @@ async function handle(
           401,
         );
       audit(db, "owner.login", "1");
-      return authCookie(response({ ok: true }), createSession(db));
+      return authCookie(request, response({ ok: true }), createSession(db));
     }
     if (path === "contributions" && request.method === "POST") {
       rateLimit(db, `intent:${ip}`, 30, 60 * 60000);
@@ -156,14 +173,14 @@ async function handle(
       throw new AppError("Connexion administrateur requise.", 401);
     if (path === "logout" && request.method === "POST") {
       db.prepare("DELETE FROM sessions WHERE hash=?").run(hashToken(token!));
-      return authCookie(response({ ok: true }), "", 0);
+      return authCookie(request, response({ ok: true }), "", 0);
     }
     if (path === "admin" && request.method === "GET") {
       expireIntents(db);
       return response({
         profile: db
           .prepare(
-            "SELECT name,bio,avatar,banner,socials,paypal,currency FROM owner WHERE id=1",
+            "SELECT name,bio,avatar,banner,socials,paypal,currency,background,accent,banner_position,layout FROM owner WHERE id=1",
           )
           .get(),
         gifts: listGifts(db, true),
@@ -190,7 +207,7 @@ async function handle(
         exported_at: new Date().toISOString(),
         owner: db
           .prepare(
-            "SELECT name,bio,avatar,banner,socials,paypal,currency FROM owner WHERE id=1",
+            "SELECT name,bio,avatar,banner,socials,paypal,currency,background,accent,banner_position,layout FROM owner WHERE id=1",
           )
           .get(),
         categories: db.prepare("SELECT * FROM categories").all(),
@@ -203,8 +220,7 @@ async function handle(
       return new NextResponse(JSON.stringify(data, null, 2), {
         headers: {
           "Content-Type": "application/json",
-          "Content-Disposition":
-            'attachment; filename="wishlister-export.json"',
+          "Content-Disposition": 'attachment; filename="ouicheur-export.json"',
           "Cache-Control": "no-store",
         },
       });
@@ -214,8 +230,11 @@ async function handle(
       segments[1] === "imports" &&
       segments.length === 3 &&
       request.method === "GET"
-    )
+    ) {
+      if (getImport(db, segments[2]).state === "preview")
+        await prepareImport(db, segments[2]);
       return response(getImport(db, segments[2]));
+    }
     if (request.method !== "POST") throw new AppError("Page introuvable.", 404);
     const data = await body(
       request,
@@ -232,7 +251,7 @@ async function handle(
       if (!(await verifyPassword(v.current, String(owner.password_hash))))
         throw new AppError("Mot de passe actuel incorrect.", 403);
       await setPassword(db, v.password);
-      return authCookie(response({ ok: true }), "", 0);
+      return authCookie(request, response({ ok: true }), "", 0);
     }
     if (path === "admin/profile") {
       const v = z
@@ -241,6 +260,13 @@ async function handle(
           bio: text(2000),
           avatar: imageSchema,
           banner: imageSchema,
+          background: imageSchema.optional(),
+          accent: z
+            .string()
+            .regex(/^#[a-f\d]{6}$/i)
+            .optional(),
+          banner_position: z.number().int().min(0).max(100).optional(),
+          layout: z.enum(["compact", "comfortable"]).optional(),
           socials: z.array(urlSchema).max(6),
           paypal: text(100).transform(paypalName),
           currency: currencySchema,
@@ -251,7 +277,7 @@ async function handle(
           .prepare("SELECT currency FROM owner WHERE id=1")
           .get()!;
         db.prepare(
-          "UPDATE owner SET name=?,bio=?,avatar=?,banner=?,socials=?,paypal=?,currency=? WHERE id=1",
+          "UPDATE owner SET name=?,bio=?,avatar=?,banner=?,socials=?,paypal=?,currency=?,background=COALESCE(?,background),accent=COALESCE(?,accent),banner_position=COALESCE(?,banner_position),layout=COALESCE(?,layout) WHERE id=1",
         ).run(
           v.name,
           v.bio,
@@ -260,6 +286,10 @@ async function handle(
           JSON.stringify(v.socials),
           v.paypal,
           v.currency,
+          v.background ?? null,
+          v.accent ?? null,
+          v.banner_position ?? null,
+          v.layout ?? null,
         );
         audit(db, "profile.update", "1", {
           old_currency: before.currency,
@@ -270,13 +300,17 @@ async function handle(
     }
     if (path === "admin/categories") {
       const v = z
-        .object({ id: z.uuid().optional(), name: text(80).min(1) })
+        .object({
+          id: z.uuid().optional(),
+          name: text(80).min(1),
+          image: imageSchema.optional(),
+        })
         .parse(data);
       const id = v.id || randomUUID();
       atomic(db, () => {
         db.prepare(
-          "INSERT INTO categories VALUES (?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name",
-        ).run(id, v.name);
+          "INSERT INTO categories(id,name,image) VALUES (?,?,COALESCE(?,'')) ON CONFLICT(id) DO UPDATE SET name=excluded.name,image=COALESCE(?,categories.image)",
+        ).run(id, v.name, v.image ?? null, v.image ?? null);
         audit(db, "category.save", id, v);
       });
       return response({ id });
@@ -301,6 +335,10 @@ async function handle(
     }
     if (path === "admin/confirm")
       return response({ id: confirmManual(db, data) });
+    if (path === "admin/contributions/review") {
+      reviewContribution(db, data);
+      return response({ ok: true });
+    }
     if (path === "admin/correct") {
       correctPayment(db, data);
       return response({ ok: true });
@@ -320,7 +358,7 @@ async function handle(
           throw new AppError("Utilisez une correction du versement confirmé.");
         if (
           !db
-            .prepare("UPDATE contributions SET state=? WHERE id=?")
+            .prepare("UPDATE contributions SET state=?,approved=0 WHERE id=?")
             .run(v.state, v.id).changes
         )
           throw new AppError("Contribution introuvable.", 404);
@@ -372,11 +410,13 @@ async function handle(
       rateLimit(db, "imports", 10, 60000);
       const v = z
         .object({
-          source: z.enum(["amazon", "throne", "csv", "json"]),
+          source: z.enum(["amazon", "throne", "throne-html", "csv", "json"]),
           content: z.string().max(900000),
         })
         .parse(data);
-      return response({ id: createImport(db, v.source, v.content) });
+      const id = createImport(db, v.source, v.content);
+      if (getImport(db, id).state === "preview") await prepareImport(db, id);
+      return response({ id });
     }
     if (
       segments[0] === "admin" &&
@@ -394,28 +434,31 @@ async function handle(
     throw new AppError("Action inconnue.", 404);
   } catch (error) {
     if (error instanceof AppError)
-      return response({ error: error.message }, error.status);
+      return response({ error: t(error.key, ...error.values) }, error.status);
     if (error instanceof z.ZodError)
       return response(
         {
-          error:
-            "Vérifiez les champs : " +
+          error: t(
+            "Vérifiez les champs : {0}",
             [...new Set(error.issues.map((i) => i.path.join(".")))].join(", "),
+          ),
         },
         400,
       );
     if (error instanceof Error && /constraint|UNIQUE/i.test(error.message))
       return response(
         {
-          error:
+          error: t(
             "Une donnée existe déjà ou ne respecte pas les contraintes du registre.",
+          ),
         },
         409,
       );
     return response(
       {
-        error:
+        error: t(
           "L’opération a échoué. Vos données confirmées restent conservées.",
+        ),
       },
       500,
     );

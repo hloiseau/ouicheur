@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
 import { atomic, audit } from "./db";
+import { fundingTotalsSql } from "./gifts";
 import {
   AppError,
   amountSchema,
@@ -24,20 +25,22 @@ export function createIntent(db: DatabaseSync, input: unknown) {
   const value = intentSchema.parse(input);
   return atomic(db, () => {
     const gift = db
-      .prepare("SELECT * FROM gifts WHERE id=? AND visibility='visible'")
+      .prepare(
+        `SELECT g.*,COALESCE(f.funded,0) funded FROM gifts g
+        LEFT JOIN (${fundingTotalsSql}) f ON f.gift_id=g.id WHERE g.id=? AND g.visibility='visible'`,
+      )
       .get(value.gift_id);
     if (!gift) throw new AppError("Cadeau introuvable.", 404);
-    const total = db
-      .prepare(
-        "SELECT COALESCE(SUM(p.net-p.net_reversed),0) total FROM payments p JOIN contributions c ON c.id=p.contribution_id WHERE c.gift_id=?",
-      )
-      .get(gift.id)!;
     if (
       gift.closed ||
       gift.purchased ||
-      Number(total.total) >= Number(gift.target)
+      Number(gift.funded) >= Number(gift.target)
     )
       throw new AppError("Le financement de ce cadeau est terminé.", 409);
+    if (value.amount > Number(gift.target) - Number(gift.funded))
+      throw new AppError(
+        "La contribution ne peut pas dépasser le montant restant à financer.",
+      );
     const owner = db
       .prepare("SELECT paypal,currency FROM owner WHERE id=1")
       .get()!;
@@ -87,6 +90,38 @@ export function declareIntent(db: DatabaseSync, id: string) {
     !db.prepare("SELECT 1 FROM contributions WHERE id=?").get(id)
   )
     throw new AppError("Contribution introuvable.", 404);
+}
+const reviewSchema = z.object({
+  id: text(64).regex(/^[a-f0-9]{64}$/),
+  approved: z.boolean(),
+});
+export function reviewContribution(db: DatabaseSync, input: unknown) {
+  const value = reviewSchema.parse(input);
+  return atomic(db, () => {
+    const contribution = db
+      .prepare("SELECT state,approved FROM contributions WHERE id=?")
+      .get(value.id);
+    if (!contribution) throw new AppError("Contribution introuvable.", 404);
+    if (
+      db.prepare("SELECT 1 FROM payments WHERE contribution_id=?").get(value.id)
+    )
+      throw new AppError("Utilisez une correction du versement confirmé.", 409);
+    const state = value.approved ? "declared" : "rejected";
+    if (
+      contribution.approved === Number(value.approved) &&
+      contribution.state === state
+    )
+      return;
+    db.prepare("UPDATE contributions SET approved=?,state=? WHERE id=?").run(
+      Number(value.approved),
+      state,
+      value.id,
+    );
+    audit(db, "contribution.review", value.id, {
+      before: contribution,
+      approved: value.approved,
+    });
+  });
 }
 const confirmationSchema = z.object({
   contribution_id: text(64).min(1),
@@ -255,7 +290,7 @@ export function contributionStatus(db: DatabaseSync, id: string) {
   expireIntents(db);
   const c = db
     .prepare(
-      "SELECT id,gift_id,amount,currency,state,expires_at FROM contributions WHERE id=?",
+      "SELECT id,gift_id,amount,currency,state,approved,expires_at FROM contributions WHERE id=?",
     )
     .get(id);
   if (!c) throw new AppError("Contribution introuvable.", 404);
@@ -269,6 +304,8 @@ export function contributionStatus(db: DatabaseSync, id: string) {
     .get(id)!;
   return {
     ...c,
+    state: String(c.state),
+    approved: Number(c.approved),
     payment: payment || null,
     paypal_url:
       !payment && c.state === "intent"

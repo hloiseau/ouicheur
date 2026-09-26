@@ -1,13 +1,16 @@
-import { test, expect } from "@playwright/test";
-test("wishlist, contribution privée, administration et erreurs", async ({
+import { test, expect } from "./fixtures";
+test("Ouichlist, contribution privée, administration et erreurs", async ({
   page,
   context,
 }, info) => {
+  await context.addCookies([
+    { name: "ouicheur_locale", value: "fr", url: "http://localhost:3211" },
+  ]);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "La wishlist de Camille" }),
+    page.getByRole("heading", { name: "La Ouichlist de Camille" }),
   ).toBeVisible();
   expect(await page.locator(".gift-card").count()).toBeGreaterThanOrEqual(3);
   await expect(
@@ -57,7 +60,24 @@ test("wishlist, contribution privée, administration et erreurs", async ({
   await page
     .getByRole("textbox", { name: "Un mot qui fait sourire (facultatif)" })
     .fill("Message strictement privé");
+  const previousFunding = Number(
+    await page.getByRole("progressbar").getAttribute("value"),
+  );
+  // Stub the destination before the automatic opening; no PayPal request or transfer.
+  await context.route("https://paypal.me/**", (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: "<h1>PayPal simulé</h1>",
+    }),
+  );
+  const popupPromise = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Continuer vers PayPal" }).click();
+  const paypal = await popupPromise;
+  await expect(paypal).toHaveURL(
+    "https://paypal.me/FictionalTestOnly/12.50EUR",
+  );
+  expect(await paypal.evaluate(() => window.opener)).toBeNull();
+  await paypal.close();
   await expect(
     page.getByRole("heading", { name: "Une envie se rapproche." }),
   ).toBeVisible();
@@ -65,29 +85,41 @@ test("wishlist, contribution privée, administration et erreurs", async ({
   await expect(
     page.getByRole("link", { name: /Ouvrir PayPal/ }),
   ).toHaveAttribute("href", "https://paypal.me/FictionalTestOnly/12.50EUR");
-  // Never open PayPal or move money in this test.
   await page.getByRole("button", { name: "J’ai envoyé l’argent" }).click();
   await expect(
-    page.getByText("Annoncée, à vérifier", { exact: true }),
+    page.getByText("Participation comptabilisée", { exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "J’ai envoyé l’argent" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Ouvrir PayPal/ })).toHaveCount(
+    0,
+  );
   await page.screenshot({
     path: `test-results/contribution-${info.project.name}.png`,
     fullPage: true,
     scale: "css",
   });
-  const unauthorized = await context.request.post("/api/admin/confirm", {
-    headers: { origin: "http://localhost:3211" },
-    data: {},
-  });
+  await page.getByRole("link", { name: "Retour au cadeau" }).click();
+  await expect(page.getByRole("progressbar")).toHaveAttribute(
+    "value",
+    String(previousFunding + 1250),
+  );
+  await expect(page.getByText("Message strictement privé")).toHaveCount(0);
+  const unauthorized = await context.request.post(
+    "/api/admin/contributions/review",
+    {
+      headers: { origin: "http://localhost:3211" },
+      data: {},
+    },
+  );
   expect(unauthorized.status()).toBe(401);
   await page.goto("/admin");
   await page
     .getByLabel("Mot de passe", { exact: true })
     .fill("test-only-password-2026");
   await page.getByRole("button", { name: "Entrer dans mon espace" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Bonjour Camille ✦" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Mes envies" })).toBeVisible();
   await page.screenshot({
     path: `test-results/admin-${info.project.name}.png`,
     fullPage: true,
@@ -112,39 +144,54 @@ test("wishlist, contribution privée, administration et erreurs", async ({
   const row = page
     .locator(".contribution-row")
     .filter({ hasText: `Visiteur ${info.project.name}` });
-  await row.getByRole("button", { name: "Vérifier le versement" }).click();
-  await row
-    .getByLabel("Référence réelle de transaction PayPal (privée)")
-    .fill(`BROWSER-${info.project.name}`);
-  await row.getByLabel("Frais connus (EUR)", { exact: false }).fill("0.50");
-  await row
-    .getByLabel(
-      "J’ai vérifié que mon compte a reçu ce versement dans la bonne devise.",
-    )
-    .check();
-  await row
-    .getByLabel("Le paiement est effectivement encaissé, et non en attente.")
-    .check();
-  await row
-    .getByLabel(
-      "J’ai vérifié l’association certaine avec cette intention et ce cadeau.",
-    )
-    .check();
-  await row
-    .getByLabel("Justification privée de la vérification ou correction")
-    .fill("Vérification simulée dans le navigateur de test");
-  await row
-    .getByRole("button", { name: "Confirmer manuellement ce versement" })
-    .click();
+  await expect(row.getByRole("button")).toHaveText(["Valider", "Refuser"]);
+  await expect(row.locator("input, textarea, select")).toHaveCount(0);
+  await row.screenshot({
+    path: `test-results/approval-${info.project.name}.png`,
+    scale: "css",
+  });
+  const rejectedOrigin = await context.request.post(
+    "/api/admin/contributions/review",
+    {
+      headers: { origin: "https://attacker.example" },
+      data: { id, approved: true },
+    },
+  );
+  expect(rejectedOrigin.status()).toBe(403);
+  await row.getByRole("button", { name: "Valider", exact: true }).click();
   await expect(row).toHaveCount(0);
   const status = await context.request.get(`/api/contributions/${id}`);
   const statusData = await status.json();
-  expect(statusData.payment.net).toBe(1200);
-  expect(statusData.payment.provenance).toBe("manual");
-  expect(statusData.payment.transaction_ref).toBeUndefined();
+  expect(statusData.approved).toBe(1);
+  expect(statusData.payment).toBeNull();
+  const funded = async () => {
+    const data = await (await context.request.get("/api/admin")).json();
+    return data.gifts.find(
+      (gift: { id: string }) => gift.id === statusData.gift_id,
+    ).funded;
+  };
+  expect(await funded()).toBe(previousFunding + 1250);
+  await page
+    .getByRole("combobox", { name: "Afficher", exact: true })
+    .selectOption("confirmed");
+  await expect(row.getByText("Validée", { exact: true })).toBeVisible();
+  await row.getByRole("button", { name: "Refuser", exact: true }).click();
+  await expect(row).toHaveCount(0);
+  expect(await funded()).toBe(previousFunding);
+  expect(
+    (await (await context.request.get(`/api/contributions/${id}`)).json())
+      .state,
+  ).toBe("rejected");
+  await page
+    .getByRole("combobox", { name: "Afficher", exact: true })
+    .selectOption("rejected");
+  await row.getByRole("button", { name: "Valider", exact: true }).click();
+  await expect(row).toHaveCount(0);
+  expect(await funded()).toBe(previousFunding + 1250);
+  await page.getByRole("button", { name: "Mes envies", exact: true }).click();
   await page.getByRole("button", { name: "Ajouter une envie" }).click();
   await page
-    .getByRole("textbox", { name: /Commencer avec un lien produit/ })
+    .getByRole("textbox", { name: /Lien du produit/ })
     .fill("http://127.0.0.1/private");
   await page
     .getByRole("button", { name: "Récupérer les informations" })
@@ -159,6 +206,7 @@ test("wishlist, contribution privée, administration et erreurs", async ({
     .getByLabel("Nom de cette envie")
     .fill(`Ajout manuel ${info.project.name}`);
   await page.getByLabel("Objectif (EUR)", { exact: false }).fill("39.90");
+  await page.getByText("Plus d’options", { exact: true }).click();
   await page
     .getByRole("combobox", { name: "Visibilité", exact: true })
     .selectOption("visible");
@@ -191,7 +239,7 @@ test("wishlist, contribution privée, administration et erreurs", async ({
     .getByRole("button", { name: "Enregistrer 1 envie(s) sélectionnée(s)" })
     .click();
   await expect(
-    page.getByText(/Import enregistré. Retrouvez les cadeaux/),
+    page.getByText(/Import enregistré. Vos envies sont visibles/),
   ).toBeVisible();
   await page.getByRole("button", { name: "Préparer l’aperçu" }).click();
   await expect(page.getByText(/Doublon détecté/)).toBeVisible();
@@ -200,6 +248,13 @@ test("wishlist, contribution privée, administration et erreurs", async ({
       name: "Enregistrer 0 envie(s) sélectionnée(s)",
     }),
   ).toBeDisabled();
+  await page.goto(`/contribution/${id}`);
+  await expect(
+    page.getByRole("heading", { name: "Votre versement est confirmé." }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Confirmé par le propriétaire", { exact: true }),
+  ).toBeVisible();
   await page.goto("/");
   await expect(page.getByText("Message strictement privé")).toHaveCount(0);
   expect(errors).toEqual([]);

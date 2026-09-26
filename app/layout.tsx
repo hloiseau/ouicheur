@@ -1,24 +1,31 @@
 import type { Metadata } from "next";
+import { getI18n } from "../lib/i18n-server";
+import { LanguageProvider } from "../components/language";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: {
-    default: "Wishlister · Les petites envies",
-    template: "%s · Wishlister",
-  },
-  description:
-    "Une wishlist personnelle, des envies à partager et des cadeaux à financer ensemble.",
-};
-export default function RootLayout({
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return {
+    title: {
+      default: t("Ouicheur · Les petites envies"),
+      template: "%s · Ouicheur",
+    },
+    description: t(
+      "Une Ouichlist personnelle, des envies à partager et des cadeaux à financer ensemble.",
+    ),
+  };
+}
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const { t, locale } = await getI18n();
   return (
-    <html lang="fr">
+    <html lang={locale}>
       <body>
         <a className="skip-link" href="#main">
-          Aller au contenu
+          {t("Aller au contenu")}
         </a>
-        {children}
+        <LanguageProvider initialLocale={locale}>{children}</LanguageProvider>
       </body>
     </html>
   );

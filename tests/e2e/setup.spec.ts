@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 import { spawn, type ChildProcess } from "node:child_process";
 import { once } from "node:events";
@@ -54,14 +54,21 @@ test("premier démarrage web, code privé, session et verrouillage après redém
   }
   try {
     await start();
-    const code = logs.match(/Code d’installation : ([\w-]{32})/)?.[1];
+    const code = logs.match(/Setup code: ([\w-]{32})/)?.[1];
     expect(code).toBeTruthy();
     await page.goto(origin);
     await expect(page).toHaveURL(`${origin}/setup`);
     await page.goto(`${origin}/admin`);
     await expect(page).toHaveURL(`${origin}/setup`);
     await expect(
-      page.getByRole("heading", { name: "Votre wishlist commence ici." }),
+      page.getByRole("heading", { name: "Your Ouichlist starts here." }),
+    ).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await page
+      .getByRole("combobox", { name: "Language", exact: true })
+      .selectOption("fr");
+    await expect(
+      page.getByRole("heading", { name: "Votre Ouichlist commence ici." }),
     ).toBeVisible();
     expect(await page.content()).not.toContain(code!);
     expect((await context.request.get(`${origin}/api/setup`)).status()).toBe(
@@ -115,19 +122,19 @@ test("premier démarrage web, code privé, session et verrouillage après redém
       .getByLabel("Confirmer le mot de passe", { exact: true })
       .fill("different-password");
     await page
-      .getByRole("combobox", { name: "Devise de la wishlist" })
+      .getByRole("combobox", { name: "Devise de la Ouichlist" })
       .selectOption("CHF");
-    await page.getByRole("button", { name: "Créer ma wishlist" }).click();
+    await page.getByRole("button", { name: "Créer ma Ouichlist" }).click();
     await expect(page.locator(".setup-card").getByRole("alert")).toContainText(
       "Les mots de passe ne correspondent pas",
     );
     await page
       .getByLabel("Confirmer le mot de passe", { exact: true })
       .fill(data.password);
-    await page.getByRole("button", { name: "Créer ma wishlist" }).click();
+    await page.getByRole("button", { name: "Créer ma Ouichlist" }).click();
     await expect(page).toHaveURL(`${origin}/admin`);
     await expect(
-      page.getByRole("heading", { name: "Bonjour Alex ✦" }),
+      page.getByRole("heading", { name: "Mes envies" }),
     ).toBeVisible();
     const profile = await (
       await context.request.get(`${origin}/api/admin`)
@@ -152,11 +159,11 @@ test("premier démarrage web, code privé, session et verrouillage après redém
     ).toBe(409);
     await stop();
     await start();
-    expect(logs).not.toContain("Code d’installation");
+    expect(logs).not.toContain("Setup code:");
     await page.goto(`${origin}/setup`);
     await expect(page).toHaveURL(`${origin}/admin`);
     await expect(
-      page.getByRole("heading", { name: "Bonjour Alex ✦" }),
+      page.getByRole("heading", { name: "Mes envies" }),
     ).toBeVisible();
     expect(
       (
@@ -168,9 +175,7 @@ test("premier démarrage web, code privé, session et verrouillage après redém
     ).toBe(409);
     await context.clearCookies();
     await page.goto(`${origin}/admin`);
-    await expect(
-      page.getByLabel("Mot de passe", { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
   } finally {
     await stop();
   }

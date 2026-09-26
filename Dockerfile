@@ -9,6 +9,7 @@ RUN npm run build && npm prune --omit=dev --no-fund
 FROM node:24.21.0-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000 DATA_DIR=/app/data
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
@@ -17,7 +18,9 @@ COPY --from=build --chown=node:node /app/migrations ./migrations
 COPY --from=build --chown=node:node /app/lib ./lib
 COPY --from=build --chown=node:node /app/scripts/manage.ts ./scripts/manage.ts
 COPY --from=build --chown=node:node /app/scripts/start.mjs /app/scripts/prepare-setup.ts ./scripts/
+COPY --from=build --chown=node:node /app/scripts/install-browser.mjs ./scripts/
 COPY --from=build --chown=node:node /app/package.json ./package.json
+RUN node node_modules/playwright-core/cli.js install --with-deps --only-shell chromium
 RUN mkdir -p /app/data /app/backups && chown node:node /app/data /app/backups
 USER node
 EXPOSE 3000

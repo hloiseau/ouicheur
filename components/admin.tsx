@@ -1,13 +1,22 @@
 "use client";
+import { useI18n } from "./language";
+
 import { useEffect, useState } from "react";
 import type { Gift } from "../lib/gifts";
-import { decimal, formatMoney, stateLabel } from "../lib/format";
+import {
+  appearanceStyle,
+  defaultAppearance,
+  type Appearance,
+} from "../lib/appearance";
+import { ProfileHeader } from "./profile-header";
 import { api, Brand, Field, Icon, Notice } from "./ui";
-import { GiftEditor, ImagePicker } from "./admin-gifts";
+import { ImagePicker } from "./admin-gifts";
 import { Payments, type Contribution } from "./admin-payments";
 import { Imports } from "./admin-imports";
+import { PublicWishlist } from "./public-wishlist";
+import type { Category } from "./categories";
 
-type Profile = {
+type Profile = Appearance & {
   name: string;
   bio: string;
   avatar: string;
@@ -19,7 +28,7 @@ type Profile = {
 type AdminData = {
   profile: Profile;
   gifts: Gift[];
-  categories: { id: string; name: string }[];
+  categories: Category[];
   contributions: Contribution[];
   imports: {
     id: string;
@@ -37,20 +46,18 @@ type AdminData = {
   }[];
 };
 const navigation = [
-  { key: "overview", label: "Vue d’ensemble", icon: "grid" },
   { key: "gifts", label: "Mes envies", icon: "gift" },
   { key: "payments", label: "Contributions", icon: "heart" },
   { key: "imports", label: "Importer une liste", icon: "upload" },
   { key: "profile", label: "Mon profil", icon: "user" },
-  { key: "audit", label: "Journal", icon: "book" },
 ];
 export function Admin() {
+  const { t, date } = useI18n();
   const [data, setData] = useState<AdminData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState("overview");
+  const [page, setPage] = useState("gifts");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [editor, setEditor] = useState<Gift | "new" | null>(null);
   const refresh = async () => {
     try {
       setData(await api<AdminData>("admin"));
@@ -66,7 +73,7 @@ export function Admin() {
   if (loading)
     return (
       <main id="main" className="status-page container" role="status">
-        Ouverture de votre espace…
+        {t("Ouverture de votre espace…")}{" "}
       </main>
     );
   if (!data)
@@ -75,7 +82,7 @@ export function Admin() {
         <header className="site-header">
           <div className="container header-inner">
             <Brand />
-            <a href="/">Voir la wishlist ↗</a>
+            <a href="/">{t("Voir la Ouichlist ↗")}</a>
           </div>
         </header>
         <main id="main" className="login-page">
@@ -83,30 +90,31 @@ export function Admin() {
             <span className="empty-icon">
               <Icon name="lock" size={30} />
             </span>
-            <span className="eyebrow">Rien qu’à vous</span>
-            <h1>Le coin des envies.</h1>
+            <span className="eyebrow">{t("Rien qu’à vous")}</span>
+            <h1>{t("Le coin des envies.")}</h1>
             <p>
-              Votre espace pour ajouter des cadeaux et prendre soin des petites
-              attentions.
+              {t(
+                "Votre espace pour ajouter des cadeaux et prendre soin des petites attentions.",
+              )}
             </p>
             <form
               className="stack"
-              onSubmit={async (e) => {
-                e.preventDefault();
+              onSubmit={async (event) => {
+                event.preventDefault();
                 setBusy(true);
                 setError("");
-                const f = new FormData(e.currentTarget);
+                const form = new FormData(event.currentTarget);
                 try {
-                  await api("login", { password: f.get("password") });
+                  await api("login", { password: form.get("password") });
                   await refresh();
-                } catch (e) {
-                  setError((e as Error).message);
+                } catch (error) {
+                  setError((error as Error).message);
                 } finally {
                   setBusy(false);
                 }
               }}
             >
-              <Field label="Mot de passe">
+              <Field label={t("Mot de passe")}>
                 <input
                   type="password"
                   required
@@ -117,27 +125,35 @@ export function Admin() {
               </Field>
               {error && <Notice error>{error}</Notice>}
               <button className="button primary wide" disabled={busy}>
-                {busy ? "Connexion…" : "Entrer dans mon espace"}
+                {busy ? t("Connexion…") : t("Entrer dans mon espace")}
                 <Icon name="arrow" size={17} />
               </button>
             </form>
             <p className="fine-print">
-              Accès perdu ? La commande locale <code>npm run password</code>{" "}
-              permet de réinitialiser votre mot de passe.
+              {t("Accès perdu ? La commande locale")}{" "}
+              <code>npm run password</code>{" "}
+              {t("permet de réinitialiser votre mot de passe.")}
             </p>
           </section>
         </main>
       </>
     );
   const pending = data.contributions.filter(
-    (c) => !c.payment_id && ["declared", "detected"].includes(c.state),
+    (c) =>
+      !c.payment_id &&
+      !c.approved &&
+      ["declared", "detected"].includes(c.state),
   ).length;
   return (
-    <div className="admin-layout">
-      <aside className="admin-sidebar">
+    <div className="owner-space">
+      <header className="owner-topbar container">
         <Brand />
-        <span className="sidebar-label">Mon petit espace</span>
-        <nav aria-label="Administration">
+        <a className="text-link" href="/?preview=1">
+          {t("Ma Ouichlist publique ↗")}
+        </a>
+      </header>
+      <div className="owner-nav container">
+        <nav aria-label={t("Mon espace")}>
           {navigation.map((item) => (
             <button
               key={item.key}
@@ -145,204 +161,57 @@ export function Admin() {
               aria-current={page === item.key ? "page" : undefined}
               onClick={() => {
                 setPage(item.key);
-                setEditor(null);
                 setError("");
               }}
             >
-              <Icon name={item.icon} size={19} />
-              {item.label}
+              <Icon name={item.icon} size={18} />
+              {t(item.label)}
               {item.key === "payments" && pending > 0 && (
                 <span className="nav-count">{pending}</span>
               )}
             </button>
           ))}
           <button
-            className="mobile-signout"
+            className="owner-signout"
             onClick={async () => {
               try {
                 await api("logout", {});
                 setData(null);
-              } catch (e) {
-                setError((e as Error).message);
+              } catch (error) {
+                setError((error as Error).message);
               }
             }}
           >
-            <Icon name="lock" size={19} /> Déconnexion
+            {t("Déconnexion")}
           </button>
         </nav>
-        <div className="sidebar-bottom">
-          <a
-            className="button secondary"
-            href="/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Ma wishlist publique ↗
-          </a>
-          <button
-            className="text-link"
-            onClick={async () => {
-              try {
-                await api("logout", {});
-                setData(null);
-              } catch (e) {
-                setError((e as Error).message);
-              }
-            }}
-          >
-            Se déconnecter
-          </button>
-          <span className="sidebar-person">
-            <span>{data.profile.name.slice(0, 1).toUpperCase()}</span>
-            {data.profile.name}
-            <small>Propriétaire</small>
-          </span>
-        </div>
-      </aside>
-      <main id="main" className="admin-main">
-        <header className="admin-header">
-          <div>
-            <span className="eyebrow">Votre wishlist personnelle</span>
+      </div>
+      <main id="main" className="owner-main container">
+        {page !== "gifts" && (
+          <header className="admin-header">
             <h1>
-              {page === "overview"
-                ? `Bonjour ${data.profile.name} ✦`
-                : navigation.find((n) => n.key === page)?.label}
+              {page === "audit"
+                ? t("Journal")
+                : t(navigation.find((n) => n.key === page)?.label || "")}
             </h1>
-          </div>
-          <button
-            className="button primary"
-            onClick={() => {
-              setPage("gifts");
-              setEditor("new");
-            }}
-          >
-            <Icon name="plus" size={18} />
-            Ajouter une envie
-          </button>
-        </header>
-        {error && <Notice error>{error}</Notice>}
-        {page === "overview" && (
-          <>
-            <div className="stat-grid">
-              <div className="stat-card">
-                <Icon name="gift" />
-                <strong>
-                  {data.gifts.filter((g) => g.visibility === "visible").length}
-                </strong>
-                <span>envies à partager</span>
-              </div>
-              <div className="stat-card">
-                <Icon name="heart" />
-                <strong>{pending}</strong>
-                <span>attentions à vérifier</span>
-              </div>
-              <div className="stat-card">
-                <Icon name="check" />
-                <strong>
-                  {data.gifts.filter((g) => g.confirmed >= g.target).length}
-                </strong>
-                <span>objectifs atteints</span>
-              </div>
-            </div>
-            {!data.profile.paypal && (
-              <Notice>
-                Configurez votre lien PayPal.Me dans « Mon profil » pour ouvrir
-                les contributions.
-              </Notice>
-            )}
-            <section className="panel">
-              <div className="panel-heading">
-                <h2>Vérifier les contributions</h2>
-                <span className="badge amber">Confirmation manuelle</span>
-              </div>
-              <p>
-                Vous recevez directement les versements sur votre compte
-                particulier. Vérifiez chaque transaction dans PayPal, puis
-                confirmez-la dans « Contributions ». Aucune déclaration visiteur
-                n’est créditée automatiquement.
-              </p>
-              <button
-                className="button secondary"
-                onClick={() => setPage("payments")}
-              >
-                Consulter les contributions <Icon name="arrow" size={17} />
-              </button>
-            </section>
-          </>
+          </header>
         )}
-        {page === "gifts" &&
-          (editor ? (
-            <GiftEditor
-              key={editor === "new" ? "new" : editor.id}
-              gift={editor === "new" ? null : editor}
-              categories={data.categories}
-              currency={data.profile.currency}
-              onDone={() => {
-                setEditor(null);
-                void refresh();
-              }}
-            />
-          ) : (
-            <>
-              <div className="panel">
-                <div className="panel-heading">
-                  <h2>Ma collection</h2>
-                  <span className="muted">{data.gifts.length} envie(s)</span>
-                </div>
-                {!data.gifts.length ? (
-                  <div className="empty-state compact">
-                    <Icon name="gift" size={36} />
-                    <h3>Votre première envie vous attend.</h3>
-                    <p>
-                      Ajoutez un lien produit ou importez votre liste existante.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="admin-gifts">
-                    {data.gifts.map((g) => (
-                      <article className="admin-gift-row" key={g.id}>
-                        <div className="mini-art">
-                          {g.image ? (
-                            <img src={g.image} alt="" />
-                          ) : (
-                            <Icon name="gift" size={28} />
-                          )}
-                        </div>
-                        <div>
-                          <h3>{g.title}</h3>
-                          <p>
-                            {formatMoney(g.confirmed, g.currency)} nets /{" "}
-                            {formatMoney(g.target, g.currency)} ·{" "}
-                            {g.category || "Sans catégorie"}
-                          </p>
-                          {g.currency !== data.profile.currency && (
-                            <small>
-                              Ancienne devise : nouvelles contributions fermées.
-                            </small>
-                          )}
-                        </div>
-                        <span className="badge">
-                          {g.purchased ? "Acheté" : stateLabel[g.visibility]}
-                        </span>
-                        <button
-                          className="button secondary"
-                          onClick={() => setEditor(g)}
-                        >
-                          Modifier
-                        </button>
-                      </article>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <Categories categories={data.categories} refresh={refresh} />
-            </>
-          ))}
-        {page === "payments" && (
-          <Payments
-            contributions={data.contributions}
-            refresh={() => void refresh()}
+        {error && <Notice error>{error}</Notice>}
+        {page === "gifts" && (
+          <PublicWishlist
+            embedded
+            profile={{
+              ...data.profile,
+              payments_enabled: Number(!!data.profile.paypal),
+            }}
+            gifts={data.gifts}
+            categories={data.categories}
+            owner={{ gifts: data.gifts, currency: data.profile.currency }}
+            onRefresh={() => void refresh()}
           />
+        )}
+        {page === "payments" && (
+          <Payments contributions={data.contributions} refresh={refresh} />
         )}
         {page === "imports" && (
           <Imports
@@ -350,6 +219,9 @@ export function Admin() {
             currency={data.profile.currency}
             jobs={data.imports}
             refresh={() => void refresh()}
+            onViewGifts={() => {
+              setPage("gifts");
+            }}
           />
         )}
         {page === "profile" && (
@@ -358,123 +230,37 @@ export function Admin() {
         {page === "audit" && (
           <section className="panel">
             <div className="panel-heading">
-              <h2>Journal d’administration</h2>
+              <h2>{t("Journal d’administration")}</h2>
               <a href="/api/admin/export" className="button secondary" download>
-                Exporter mes données
+                {t("Exporter mes données")}{" "}
               </a>
             </div>
             <p className="muted">
-              Les 100 dernières opérations. L’export JSON contient l’intégralité
-              du journal et du registre, sans mot de passe ni session.
+              {t(
+                "Les 100 dernières opérations. L’export JSON contient l’intégralité du journal et du registre, sans mot de passe ni session.",
+              )}{" "}
             </p>
             {data.audit.map((a) => (
               <details className="audit-entry" key={a.id}>
                 <summary>
-                  {new Date(a.created_at).toLocaleString("fr-FR")} · {a.action}
+                  {date(a.created_at)} · {a.action}
                 </summary>
-                <p className="wrap-code">Référence : {a.entity_id}</p>
+                <p className="wrap-code">
+                  {t("Référence :")} {a.entity_id}
+                </p>
                 <pre>{JSON.stringify(JSON.parse(a.detail), null, 2)}</pre>
               </details>
             ))}
           </section>
         )}
         <footer className="admin-footer">
-          Vos données, chez vous. <span>Wishlister · 1.0</span>
+          <button className="text-link" onClick={() => setPage("audit")}>
+            {t("Journal")}
+          </button>
+          {t("Vos données, chez vous.")} <span>Ouicheur · 1.0</span>
         </footer>
       </main>
     </div>
-  );
-}
-function Categories({
-  categories,
-  refresh,
-}: {
-  categories: { id: string; name: string }[];
-  refresh: () => void;
-}) {
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  return (
-    <section className="panel">
-      <h2>Les catégories</h2>
-      {error && <Notice error>{error}</Notice>}
-      <div className="category-edit-list">
-        {categories.map((c) => (
-          <form
-            key={c.id}
-            className="inline-input"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setError("");
-              const f = new FormData(e.currentTarget);
-              try {
-                await api("admin/categories", {
-                  id: c.id,
-                  name: f.get("name"),
-                });
-                refresh();
-              } catch (e) {
-                setError((e as Error).message);
-              }
-            }}
-          >
-            <input
-              aria-label={`Nom de la catégorie ${c.name}`}
-              name="name"
-              defaultValue={c.name}
-              required
-              maxLength={80}
-            />
-            <button className="button secondary">Renommer</button>
-            <button
-              className="text-link"
-              type="button"
-              onClick={async () => {
-                try {
-                  await api("admin/categories/delete", { id: c.id });
-                  refresh();
-                } catch (e) {
-                  setError((e as Error).message);
-                }
-              }}
-            >
-              Supprimer
-            </button>
-          </form>
-        ))}
-      </div>
-      <form
-        className="inline-input"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const form = e.currentTarget;
-          setBusy(true);
-          setError("");
-          try {
-            await api("admin/categories", {
-              name: new FormData(form).get("name"),
-            });
-            form.reset();
-            refresh();
-          } catch (e) {
-            setError((e as Error).message);
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        <input
-          name="name"
-          required
-          maxLength={80}
-          aria-label="Nom de la nouvelle catégorie"
-          placeholder="Une nouvelle catégorie…"
-        />
-        <button className="button secondary" disabled={busy}>
-          Ajouter
-        </button>
-      </form>
-    </section>
   );
 }
 function ProfileEditor({
@@ -484,15 +270,27 @@ function ProfileEditor({
   profile: Profile;
   refresh: () => void;
 }) {
+  const { t } = useI18n();
   const [avatar, setAvatar] = useState(profile.avatar);
   const [banner, setBanner] = useState(profile.banner);
+  const [name, setName] = useState(profile.name);
+  const [bio, setBio] = useState(profile.bio);
+  const [socials, setSocials] = useState(
+    (JSON.parse(profile.socials) as string[]).join("\n"),
+  );
+  const [appearance, setAppearance] = useState<Appearance>({
+    background: profile.background,
+    accent: profile.accent,
+    banner_position: profile.banner_position,
+    layout: profile.layout,
+  });
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   return (
     <div className="stack">
       <form
-        className="panel stack"
+        className="panel profile-editor"
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
@@ -505,6 +303,7 @@ function ProfileEditor({
               bio: f.get("bio"),
               avatar,
               banner,
+              ...appearance,
               paypal: f.get("paypal"),
               currency: f.get("currency"),
               socials: String(f.get("socials"))
@@ -512,7 +311,7 @@ function ProfileEditor({
                 .map((v) => v.trim())
                 .filter(Boolean),
             });
-            setNotice("Votre profil est enregistré.");
+            setNotice(t("Votre profil est enregistré."));
             refresh();
           } catch (e) {
             setError((e as Error).message);
@@ -521,59 +320,213 @@ function ProfileEditor({
           }
         }}
       >
-        <h2>Votre profil public</h2>
-        <Field label="Pseudonyme public">
-          <input
-            name="name"
-            required
-            defaultValue={profile.name}
-            maxLength={80}
+        <div className="profile-editor-fields stack">
+          <h2>{t("Votre profil public")}</h2>
+          <Field label={t("Pseudonyme public")}>
+            <input
+              name="name"
+              required
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={80}
+            />
+          </Field>
+          <Field label={t("Présentation")}>
+            <textarea
+              name="bio"
+              value={bio}
+              onChange={(event) => setBio(event.target.value)}
+              rows={4}
+              maxLength={2000}
+            />
+          </Field>
+          <ImagePicker
+            value={avatar}
+            onChange={setAvatar}
+            label={t("Avatar")}
           />
-        </Field>
-        <Field label="Présentation">
-          <textarea
-            name="bio"
-            defaultValue={profile.bio}
-            rows={4}
-            maxLength={2000}
+          <ImagePicker
+            value={banner}
+            onChange={setBanner}
+            label={t("Bannière")}
           />
-        </Field>
-        <ImagePicker value={avatar} onChange={setAvatar} label="Avatar" />
-        <ImagePicker value={banner} onChange={setBanner} label="Bannière" />
-        <Field label="Liens sociaux (un par ligne, six maximum)">
-          <textarea
-            name="socials"
-            defaultValue={(JSON.parse(profile.socials) as string[]).join("\n")}
-            rows={3}
-          />
-        </Field>
-        <h3>Recevoir les contributions</h3>
-        <Field
-          label="Votre lien PayPal.Me personnel"
-          hint="Visible dans le parcours de paiement. Votre adresse e-mail PayPal n’est pas demandée."
-        >
-          <input
-            name="paypal"
-            defaultValue={profile.paypal}
-            placeholder="https://paypal.me/votre-nom"
-            maxLength={100}
-          />
-        </Field>
-        <Field
-          label="Devise des nouveaux cadeaux"
-          hint="Les cadeaux existants conservent leur devise. Ceux dans une ancienne devise sont fermés aux nouvelles contributions ; le rapprochement des versements déjà engagés reste possible."
-        >
-          <select name="currency" defaultValue={profile.currency}>
-            {["EUR", "USD", "GBP", "CAD", "CHF", "AUD"].map((c) => (
-              <option key={c}>{c}</option>
+          {banner && (
+            <Field
+              label={t("Position de la bannière")}
+              hint={t("Déplacez le cadrage vertical dans l’aperçu.")}
+            >
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={appearance.banner_position}
+                onChange={(event) =>
+                  setAppearance({
+                    ...appearance,
+                    banner_position: Number(event.target.value),
+                  })
+                }
+              />
+            </Field>
+          )}
+          <Field label={t("Liens sociaux (un par ligne, six maximum)")}>
+            <textarea
+              name="socials"
+              value={socials}
+              onChange={(event) => setSocials(event.target.value)}
+              rows={3}
+            />
+          </Field>
+          <h3>{t("L’ambiance de votre Ouichlist")}</h3>
+          <Field label={t("Couleur d’accent")}>
+            <input
+              type="color"
+              value={appearance.accent}
+              onChange={(event) =>
+                setAppearance({ ...appearance, accent: event.target.value })
+              }
+            />
+          </Field>
+          <div className="accent-presets">
+            {[
+              ["#ff6682", t("Rose")],
+              ["#b8ff3d", t("Acidulé")],
+              ["#45e6cf", t("Menthe")],
+            ].map(([color, label]) => (
+              <button
+                type="button"
+                key={color}
+                className="accent-swatch"
+                aria-pressed={appearance.accent === color}
+                onClick={() => setAppearance({ ...appearance, accent: color })}
+              >
+                <span style={{ backgroundColor: color }} />
+                {label}
+              </button>
             ))}
-          </select>
-        </Field>
-        {error && <Notice error>{error}</Notice>}
-        {notice && <Notice>{notice}</Notice>}
-        <button className="button primary" disabled={busy}>
-          {busy ? "Enregistrement…" : "Enregistrer mon profil"}
-        </button>
+          </div>
+          <ImagePicker
+            value={appearance.background}
+            onChange={(background) =>
+              setAppearance((current) => ({ ...current, background }))
+            }
+            label={t("Image de fond")}
+          />
+          <Field label={t("Disposition des cadeaux")}>
+            <select
+              value={appearance.layout}
+              onChange={(event) =>
+                setAppearance({
+                  ...appearance,
+                  layout: event.target.value as Appearance["layout"],
+                })
+              }
+            >
+              <option value="compact">{t("Compacte · plus de cadeaux")}</option>
+              <option value="comfortable">{t("Aérée · grandes cartes")}</option>
+            </select>
+          </Field>
+          <button
+            type="button"
+            className="text-link"
+            onClick={() => setAppearance({ ...defaultAppearance })}
+          >
+            {t("Restaurer le style Ouicheur")}
+          </button>
+          <h3>{t("Recevoir les contributions")}</h3>
+          <Field
+            label={t("Votre lien PayPal.Me personnel")}
+            hint={t(
+              "Visible dans le parcours de paiement. Votre adresse e-mail PayPal n’est pas demandée.",
+            )}
+          >
+            <input
+              name="paypal"
+              defaultValue={profile.paypal}
+              placeholder="https://paypal.me/yourName"
+              maxLength={100}
+            />
+          </Field>
+          <Field
+            label={t("Devise des nouveaux cadeaux")}
+            hint={t(
+              "Les cadeaux existants conservent leur devise. Ceux dans une ancienne devise sont fermés aux nouvelles contributions ; le rapprochement des versements déjà engagés reste possible.",
+            )}
+          >
+            <select name="currency" defaultValue={profile.currency}>
+              {["EUR", "USD", "GBP", "CAD", "CHF", "AUD"].map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+          </Field>
+          {error && <Notice error>{error}</Notice>}
+          {notice && <Notice>{notice}</Notice>}
+          <button className="button primary" disabled={busy}>
+            {busy ? t("Enregistrement…") : t("Enregistrer mon profil")}
+          </button>
+        </div>
+        <aside
+          className="profile-live-preview"
+          aria-label={t("Aperçu du profil")}
+        >
+          <div className="preview-heading">
+            <strong>{t("Aperçu du profil")}</strong>
+            <span>{t("En direct")}</span>
+          </div>
+          <div
+            className="profile-preview-page"
+            style={{
+              ...appearanceStyle(appearance),
+              ...(appearance.background
+                ? {
+                    backgroundImage: `linear-gradient(#08090cd9, #08090cd9), url("${appearance.background}")`,
+                  }
+                : {}),
+            }}
+          >
+            <ProfileHeader
+              preview
+              profile={{
+                name,
+                bio,
+                avatar,
+                banner,
+                banner_position: appearance.banner_position,
+                socials: JSON.stringify(
+                  socials
+                    .split("\n")
+                    .map((value) => value.trim())
+                    .filter((value) => {
+                      try {
+                        return ["https:", "http:"].includes(
+                          new URL(value).protocol,
+                        );
+                      } catch {
+                        return false;
+                      }
+                    }),
+                ),
+              }}
+            />
+            <div
+              className="preview-gift-grid"
+              data-layout={appearance.layout}
+              aria-hidden="true"
+            >
+              {[0, 1, 2, 3].map((i) => (
+                <span key={i}>
+                  <Icon name="gift" size={22} />
+                  <i />
+                </span>
+              ))}
+            </div>
+          </div>
+          <p>
+            {t(
+              "Les changements apparaissent ici avant de publier votre profil.",
+            )}
+          </p>
+        </aside>
       </form>
       <form
         className="panel stack"
@@ -595,8 +548,8 @@ function ProfileEditor({
           }
         }}
       >
-        <h2>Protéger mon espace</h2>
-        <Field label="Mot de passe actuel">
+        <h2>{t("Protéger mon espace")}</h2>
+        <Field label={t("Mot de passe actuel")}>
           <input
             name="current"
             type="password"
@@ -604,7 +557,7 @@ function ProfileEditor({
             autoComplete="current-password"
           />
         </Field>
-        <Field label="Nouveau mot de passe (12 caractères minimum)">
+        <Field label={t("Nouveau mot de passe (12 caractères minimum)")}>
           <input
             name="password"
             type="password"
@@ -615,18 +568,18 @@ function ProfileEditor({
           />
         </Field>
         <button className="button secondary" disabled={busy}>
-          Changer le mot de passe et fermer les sessions
+          {t("Changer le mot de passe et fermer les sessions")}{" "}
         </button>
       </form>
       <section className="panel">
-        <h2>Emporter mes données</h2>
+        <h2>{t("Emporter mes données")}</h2>
         <p>
-          Export JSON du profil, des cadeaux, des contributions et de leur
-          historique. Il contient des messages privés : conservez-le pour vous.
-          Les images se sauvegardent avec la commande locale de sauvegarde.
+          {t(
+            "Export JSON du profil, des cadeaux, des contributions et de leur historique. Il contient des messages privés : conservez-le pour vous. Les images se sauvegardent avec la commande locale de sauvegarde.",
+          )}{" "}
         </p>
         <a className="button secondary" href="/api/admin/export" download>
-          Télécharger mes données
+          {t("Télécharger mes données")}{" "}
         </a>
       </section>
     </div>

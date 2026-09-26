@@ -1,10 +1,15 @@
 import { z } from "zod";
+import { interpolate } from "./i18n.ts";
 
 export class AppError extends Error {
   status: number;
-  constructor(message: string, status = 400) {
-    super(message);
+  key: string;
+  values: (string | number)[];
+  constructor(message: string, status = 400, values: (string | number)[] = []) {
+    super(interpolate(message, values));
     this.status = status;
+    this.key = message;
+    this.values = values;
   }
 }
 export const currencies = ["EUR", "USD", "GBP", "CAD", "CHF", "AUD"] as const;
@@ -84,11 +89,18 @@ export const giftSchema = z.object({
   description: text(2000).default(""),
   image: imageSchema.default(""),
   target: amountSchema,
+  quantity: z.number().int().min(1).max(999).default(1),
+  allow_duplicate: z.boolean().default(false),
   category_id: text(64).nullable().default(null),
   priority: z.number().int().min(0).max(2).default(0),
-  visibility: z.enum(["draft", "visible", "archived"]).default("draft"),
+  visibility: z.preprocess(
+    // Accept old saved forms while removing drafts from the current model.
+    (value) => (value === "draft" ? "visible" : value),
+    z.enum(["visible", "archived"]).default("visible"),
+  ),
   purchased: z.boolean().default(false),
   closed: z.boolean().default(false),
+  japan_search: z.boolean().default(false),
   suggested_price: z
     .number()
     .int()

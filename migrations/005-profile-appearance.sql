@@ -1,0 +1,4 @@
+ALTER TABLE owner ADD COLUMN background TEXT NOT NULL DEFAULT '';
+ALTER TABLE owner ADD COLUMN accent TEXT NOT NULL DEFAULT '#ff6682';
+ALTER TABLE owner ADD COLUMN banner_position INTEGER NOT NULL DEFAULT 50 CHECK(banner_position BETWEEN 0 AND 100);
+ALTER TABLE owner ADD COLUMN layout TEXT NOT NULL DEFAULT 'compact' CHECK(layout IN ('compact','comfortable'));

@@ -99,10 +99,22 @@ export function rateLimit(
     throw new AppError("Trop de tentatives. Réessayez un peu plus tard.", 429);
 }
 export function requireOrigin(request: Request) {
-  const origin = process.env.APP_ORIGIN || "http://localhost:3000";
-  if (request.headers.get("origin") !== new URL(origin).origin)
+  const origin = request.headers.get("origin");
+  const source = URL.parse(origin || "");
+  const configured = URL.parse(process.env.APP_ORIGIN || "");
+  // Next can expose the container's internal URL; Host retains the browser's
+  // address and port. Forwarded hosts are never trusted for this comparison.
+  const sameOrigin =
+    source?.host === request.headers.get("host") &&
+    source?.protocol === new URL(request.url).protocol;
+  if (
+    !source ||
+    !["http:", "https:"].includes(source.protocol) ||
+    source.origin !== origin ||
+    (!sameOrigin && origin !== configured?.origin)
+  )
     throw new AppError(
-      "Origine de la requête refusée. Rechargez depuis l’adresse officielle du site.",
+      "Origine de la requête refusée. Rechargez la page ; derrière un proxy, vérifiez APP_ORIGIN.",
       403,
     );
   if (!request.headers.get("content-type")?.startsWith("application/json"))

@@ -1,10 +1,11 @@
+import { getI18n } from "../../../lib/i18n-server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { database } from "../../../lib/db";
 import { listGifts, publicProfile } from "../../../lib/gifts";
 import { GiftArt, Progress } from "../../../components/public-wishlist";
 import { ContributionForm } from "../../../components/contribution";
-import { formatMoney } from "../../../lib/format";
+import { JapanSearch } from "../../../components/japan-search";
 
 export const dynamic = "force-dynamic";
 export default async function GiftPage({
@@ -12,6 +13,7 @@ export default async function GiftPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { t, money, date } = await getI18n();
   const { id } = await params;
   const db = database();
   const gift = listGifts(db).find((g) => g.id === id);
@@ -20,22 +22,23 @@ export default async function GiftPage({
   const supporters = db
     .prepare(
       `SELECT CASE WHEN c.public_name=1 THEN c.nickname ELSE '' END nickname,
-    CASE WHEN c.public_message=1 THEN c.message ELSE '' END message,p.provenance
-    FROM contributions c JOIN payments p ON p.contribution_id=c.id WHERE c.gift_id=? AND (c.public_name=1 OR c.public_message=1)
-    AND p.net IS NOT NULL AND p.net>p.net_reversed ORDER BY c.created_at DESC LIMIT 30`,
+    CASE WHEN c.public_message=1 THEN c.message ELSE '' END message,COALESCE(p.provenance,'manual') provenance
+    FROM contributions c LEFT JOIN payments p ON p.contribution_id=c.id WHERE c.gift_id=? AND (c.public_name=1 OR c.public_message=1)
+    AND CASE WHEN p.id IS NULL THEN c.approved=1 ELSE COALESCE(p.net-p.net_reversed,p.gross-MAX(p.refunded,p.net_reversed))>0 END
+    ORDER BY c.created_at DESC LIMIT 30`,
     )
     .all();
   const closed =
     !!gift.closed ||
     !!gift.purchased ||
-    gift.confirmed >= gift.target ||
+    gift.funded >= gift.target ||
     gift.currency !== profile.currency;
   return (
     <>
       <header className="site-header">
         <div className="container public-subheader">
           <Link className="text-link" href="/">
-            ← La wishlist de {profile.name}
+            {t("← La Ouichlist de {0}", profile.name)}
           </Link>
         </div>
       </header>
@@ -44,70 +47,90 @@ export default async function GiftPage({
           <GiftArt gift={gift} />
         </div>
         <section className="detail-content">
-          <span className="eyebrow">{gift.category || "Une petite envie"}</span>
+          <span className="eyebrow">
+            {gift.category || t("Une petite envie")}
+          </span>
           <h1>{gift.title}</h1>
           <p className="detail-description">{gift.description}</p>
+          {gift.quantity > 1 && (
+            <p className="fine-print">
+              {t(
+                "Quantité : {0} × {1}",
+                gift.quantity,
+                money(gift.target / gift.quantity, gift.currency),
+              )}
+            </p>
+          )}
           <a
             className="text-link"
             href={gift.url}
             target="_blank"
             rel="noopener noreferrer"
           >
-            Voir le produit chez le marchand ↗
+            {t("Voir le produit chez le marchand ↗")}{" "}
           </a>
+          <JapanSearch
+            japan_search={gift.japan_search}
+            title={gift.title}
+            url={gift.url}
+            description={gift.description}
+            target={gift.target}
+            currency={gift.currency}
+          />
           <div className="detail-progress">
             <Progress gift={gift} />
           </div>
           {!!gift.purchased && (
             <p className="notice">
-              Ce cadeau a été acheté par le propriétaire.
+              {t("Ce cadeau a été acheté par le propriétaire.")}{" "}
             </p>
           )}
           {gift.suggested_price != null && (
             <p className="fine-print">
-              Prix suggéré lors de l’extraction :{" "}
-              {formatMoney(
+              {t("Prix suggéré lors de l’extraction :")}{" "}
+              {money(
                 gift.suggested_price,
                 gift.suggested_currency || gift.currency,
               )}{" "}
-              ({gift.extracted_at?.slice(0, 10)}). Prix et disponibilité non
-              garantis.
+              ({gift.extracted_at ? date(gift.extracted_at, true) : "—"}
+              {t("). Prix et disponibilité non garantis.")}{" "}
             </p>
           )}
           <ContributionForm
             giftId={id}
             currency={gift.currency}
+            remaining={Math.max(0, gift.target - gift.funded)}
             closed={closed}
             enabled={!!profile.payments_enabled}
           />
         </section>
         <section className="detail-explanation">
-          <h2>Votre geste, en toute clarté.</h2>
+          <h2>{t("Votre geste, en toute clarté.")}</h2>
           <p>
-            Votre contribution va directement à {profile.name}, qui achètera
-            ensuite le cadeau. Les sommes reçues restent chez le bénéficiaire
-            même si l’objectif n’est pas atteint. Atteindre l’objectif ne
-            déclenche aucun achat automatique.
+            {t(
+              "Votre contribution va directement à {0}, qui achètera ensuite le cadeau. Les sommes reçues restent chez le bénéficiaire même si l’objectif n’est pas atteint. Atteindre l’objectif ne déclenche aucun achat automatique.",
+              profile.name,
+            )}
           </p>
           <p>
-            Le total net augmente après vérification manuelle du versement par
-            le propriétaire. Un prix marchand peut évoluer sans modifier les
-            contributions déjà reçues.
+            {t(
+              "Votre participation compte dès que vous indiquez l’avoir envoyée. Le total inclut les envois déclarés et s’ajuste ensuite aux frais et remboursements vérifiés par le propriétaire.",
+            )}{" "}
           </p>
         </section>
         {supporters.length > 0 && (
           <section className="supporters">
-            <h2>Des petites attentions ♡</h2>
+            <h2>{t("Des petites attentions ♡")}</h2>
             {supporters.map((s, i) => (
               <blockquote key={i}>
                 <strong>
-                  {String(s.nickname || "Une personne attentionnée")}
+                  {String(s.nickname || t("Une personne attentionnée"))}
                 </strong>
                 {s.message ? <p>{String(s.message)}</p> : null}
                 <small>
                   {s.provenance === "manual"
-                    ? "Confirmé par le propriétaire"
-                    : "Confirmé automatiquement par une source vérifiée"}
+                    ? t("Confirmé par le propriétaire")
+                    : t("Confirmé automatiquement par une source vérifiée")}
                 </small>
               </blockquote>
             ))}

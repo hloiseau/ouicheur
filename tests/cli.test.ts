@@ -28,9 +28,7 @@ function run(
       child.stdout.on("data", (chunk) => {
         const line = chunk.toString();
         output += line;
-        if (
-          /Pseudonyme|Nouveau mot de passe|Confirmez le mot de passe/.test(line)
-        )
+        if (/Owner nickname|New password|Confirm password/.test(line))
           child.stdin.write(`${replies.shift() || ""}\n`);
       });
       child.stderr.on("data", (chunk) => {

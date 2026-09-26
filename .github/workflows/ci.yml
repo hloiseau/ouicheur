@@ -1,0 +1,121 @@
+name: Test, publish and deploy
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ouicheur-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.publish.outputs.image }}
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.local/pw-browsers
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          cache: npm
+      - run: npm ci --no-fund
+      - run: npm run format:check
+      - run: npm run check
+      - run: npm test
+      - run: python3 -m unittest discover -s tests -p '*_test.py'
+      - run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - run: npm run build
+      - run: npm run test:e2e
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          load: true
+          tags: ouicheur:local
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=MIT
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - run: npm run test:docker
+      - name: Log in to GHCR
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish the tested image
+        id: publish
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          REPOSITORY: ${{ github.repository }}
+          REVISION: ${{ github.sha }}
+        run: |
+          image="ghcr.io/${REPOSITORY,,}"
+          docker tag ouicheur:local "$image:sha-$REVISION"
+          docker push "$image:sha-$REVISION"
+          docker tag ouicheur:local "$image:main"
+          docker push "$image:main"
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$image:sha-$REVISION")
+          echo "image=$digest" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: browser-test-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
+  deploy:
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.TRUENAS_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://ouicheur.hugoloiseau.fr
+    steps:
+      - name: Join the private deployment network
+        uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ouicheur-ci
+          ping: ${{ vars.TRUENAS_HOST }}
+      - name: Deploy the verified image
+        env:
+          SSH_KEY: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.TRUENAS_KNOWN_HOSTS }}
+          NAS_HOST: ${{ vars.TRUENAS_HOST }}
+          NAS_USER: ${{ vars.TRUENAS_USER }}
+          IMAGE: ${{ needs.verify.outputs.image }}
+        run: |
+          [[ "$NAS_HOST" =~ ^[a-zA-Z0-9.-]+$ && "$NAS_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          [[ "$IMAGE" =~ ^ghcr.io/hloiseau/ouicheur@sha256:[a-f0-9]{64}$ ]]
+          test -n "$SSH_KEY" && test -n "$KNOWN_HOSTS"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=20 "$NAS_USER@$NAS_HOST" \
+            "sudo -n /root/ouicheur/deploy.py '$IMAGE'"
+      - name: Check the public site
+        run: curl --fail --silent --show-error --retry 10 --retry-delay 3 --retry-all-errors --max-time 15 https://ouicheur.hugoloiseau.fr/api/health

@@ -1,38 +1,51 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useI18n } from "./language";
+
+import { useEffect, useId, useState } from "react";
 import { api, Field, Icon, Notice } from "./ui";
-import { formatMoney, stateLabel } from "../lib/format";
+import { stateLabel } from "../lib/format";
 
 export function ContributionForm({
   giftId,
   currency,
+  remaining,
   closed,
   enabled,
 }: {
   giftId: string;
   currency: string;
+  remaining: number;
   closed: boolean;
   enabled: boolean;
 }) {
-  const [amount, setAmount] = useState("10");
+  const { t, money } = useI18n();
+  const amountHelpId = useId();
+  const [amount, setAmount] = useState(String(Math.min(1000, remaining) / 100));
   const [nickname, setNickname] = useState("");
   const [message, setMessage] = useState("");
   const [publicName, setPublicName] = useState(false);
   const [publicMessage, setPublicMessage] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  if (closed)
+  const numericAmount = Number(amount.replace(",", "."));
+  const overLimit = numericAmount > remaining / 100;
+  const suggestions = [500, 1000, 2500, 5000].filter(
+    (value) => value < remaining,
+  );
+  if (closed || remaining <= 0)
     return (
       <Notice>
-        Les nouvelles contributions sont fermées pour ce cadeau. Merci pour
-        toutes vos attentions !
+        {t(
+          "Les nouvelles contributions sont fermées pour ce cadeau. Merci pour toutes vos attentions !",
+        )}{" "}
       </Notice>
     );
   if (!enabled)
     return (
       <Notice>
-        Le propriétaire prépare encore la réception des contributions. Revenez
-        bientôt.
+        {t(
+          "Le propriétaire prépare encore la réception des contributions. Revenez bientôt.",
+        )}{" "}
       </Notice>
     );
   return (
@@ -40,63 +53,101 @@ export function ContributionForm({
       className="contribution-form"
       onSubmit={async (e) => {
         e.preventDefault();
+        if (busy || overLimit) return;
         setBusy(true);
         setError("");
+        // Open during the click so browsers allow the PayPal tab.
+        const paypalTab = window.open("about:blank", "_blank");
+        if (paypalTab) paypalTab.opener = null;
         try {
-          const result = await api<{ id: string }>("contributions", {
-            gift_id: giftId,
-            amount,
-            nickname,
-            message,
-            public_name: publicName,
-            public_message: publicMessage,
-          });
+          const result = await api<{ id: string; paypal_url: string }>(
+            "contributions",
+            {
+              gift_id: giftId,
+              amount,
+              nickname,
+              message,
+              public_name: publicName,
+              public_message: publicMessage,
+            },
+          );
+          if (paypalTab && !paypalTab.closed)
+            paypalTab.location.replace(result.paypal_url);
           location.assign(`/contribution/${result.id}`);
         } catch (e) {
-          setError(e instanceof Error ? e.message : "Contribution impossible.");
+          paypalTab?.close();
+          setError(
+            e instanceof Error ? e.message : t("Contribution impossible."),
+          );
           setBusy(false);
         }
       }}
     >
-      <h2>Un petit coup de pouce ?</h2>
-      <div className="amount-options">
-        {[5, 10, 25, 50].map((value) => (
+      <h2>{t("Un petit coup de pouce ?")}</h2>
+      <div
+        className="amount-options"
+        style={{
+          gridTemplateColumns: `repeat(${Math.max(1, suggestions.length)}, 1fr)`,
+        }}
+      >
+        {suggestions.map((value) => (
           <button
             type="button"
             key={value}
-            aria-pressed={Number(amount) === value}
-            className={Number(amount) === value ? "selected" : ""}
-            onClick={() => setAmount(String(value))}
+            aria-pressed={numericAmount === value / 100}
+            className={numericAmount === value / 100 ? "selected" : ""}
+            onClick={() => setAmount(String(value / 100))}
           >
-            {formatMoney(value * 100, currency)}
+            {money(value, currency)}
           </button>
         ))}
+        <button
+          type="button"
+          style={{ gridColumn: "1 / -1" }}
+          aria-pressed={numericAmount === remaining / 100}
+          className={numericAmount === remaining / 100 ? "selected" : ""}
+          onClick={() => setAmount(String(remaining / 100))}
+        >
+          {t("Financer le reste ({0})", money(remaining, currency))}
+        </button>
       </div>
-      <Field label={`Votre contribution (${currency})`}>
+      <Field label={t("Votre contribution ({0})", currency)}>
         <input
           required
           inputMode="decimal"
+          aria-describedby={amountHelpId}
+          aria-invalid={overLimit}
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           maxLength={10}
         />
       </Field>
-      <Field label="Votre petit nom (facultatif)">
+      <p className="fine-print" id={amountHelpId}>
+        {t("Maximum : {0}", money(remaining, currency))}
+      </p>
+      {overLimit && (
+        <Notice error>
+          {t(
+            "La contribution ne peut pas dépasser le montant restant à financer.",
+          )}
+        </Notice>
+      )}
+      <Field label={t("Votre petit nom (facultatif)")}>
         <input
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
           maxLength={60}
           autoComplete="nickname"
-          placeholder="Une personne attentionnée"
+          placeholder={t("Une personne attentionnée")}
         />
       </Field>
-      <Field label="Un mot qui fait sourire (facultatif)">
+      <Field label={t("Un mot qui fait sourire (facultatif)")}>
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           maxLength={1000}
           rows={3}
-          placeholder="Pour tes prochaines aventures…"
+          placeholder={t("Pour tes prochaines aventures…")}
         />
       </Field>
       <label className="checkbox">
@@ -105,7 +156,7 @@ export function ContributionForm({
           checked={publicName}
           onChange={(e) => setPublicName(e.target.checked)}
         />
-        Afficher mon pseudonyme sur la wishlist après confirmation
+        {t("Afficher mon pseudonyme sur la Ouichlist après confirmation")}{" "}
       </label>
       <label className="checkbox">
         <input
@@ -113,21 +164,21 @@ export function ContributionForm({
           checked={publicMessage}
           onChange={(e) => setPublicMessage(e.target.checked)}
         />
-        Afficher mon message sur la wishlist après confirmation
+        {t("Afficher mon message sur la Ouichlist après confirmation")}{" "}
       </label>
       <p className="fine-print">
-        Vos choix concernent uniquement cette wishlist. PayPal et l’autre partie
-        peuvent voir les informations liées au paiement. Choisissez le type de
-        transfert adapté à votre situation ; des frais peuvent s’appliquer.
+        {t(
+          "Vos choix concernent uniquement cette Ouichlist. PayPal et l’autre partie peuvent voir les informations liées au paiement. Choisissez le type de transfert adapté à votre situation ; des frais peuvent s’appliquer.",
+        )}{" "}
       </p>
       {error && <Notice error>{error}</Notice>}
-      <button className="button primary wide" disabled={busy}>
-        {busy ? "Création de votre intention…" : "Continuer vers PayPal"}
+      <button className="button primary wide" disabled={busy || overLimit}>
+        {busy ? t("Ouverture de PayPal…") : t("Continuer vers PayPal")}
         <Icon name="arrow" size={18} />
       </button>
       <p className="form-footnote">
         <Icon name="lock" size={13} />
-        Sans compte visiteur · Confirmation par le propriétaire
+        {t("Sans compte · Participation comptée dès l’envoi déclaré")}{" "}
       </p>
     </form>
   );
@@ -138,6 +189,7 @@ type Status = {
   amount: number;
   currency: string;
   state: string;
+  approved: number;
   paypal_url: string | null;
   payment: null | {
     gross: number;
@@ -150,6 +202,7 @@ type Status = {
   };
 };
 export function ContributionStatus({ id }: { id: string }) {
+  const { t, money } = useI18n();
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -166,41 +219,51 @@ export function ContributionStatus({ id }: { id: string }) {
   };
   useEffect(() => {
     void load();
+    const refresh = () => void load();
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
   }, [id]);
+  const counted = !!status?.payment || status?.state === "declared";
   return (
     <section className="status-card">
       <span className="status-icon">
-        <Icon name={status?.payment ? "check" : "heart"} size={38} />
+        <Icon name={counted ? "check" : "heart"} size={38} />
       </span>
-      <span className="eyebrow">Votre petite attention</span>
+      <span className="eyebrow">{t("Votre petite attention")}</span>
       <h1>
-        {status?.payment
-          ? "Votre versement est confirmé."
-          : "Une envie se rapproche."}
+        {status?.payment || status?.approved
+          ? t("Votre versement est confirmé.")
+          : counted
+            ? t("Merci pour votre participation !")
+            : t("Une envie se rapproche.")}
       </h1>
       {error && <Notice error>{error}</Notice>}
       {!status && !error && (
-        <p role="status">Chargement de votre contribution…</p>
+        <p role="status">{t("Chargement de votre contribution…")}</p>
       )}
       {status && (
         <>
           <p className="status-amount">
-            {formatMoney(status.amount, status.currency)}
+            {money(status.amount, status.currency)}
           </p>
           <p className="status-badge">
             {status.payment
               ? status.payment.provenance === "manual"
-                ? "Confirmé par le propriétaire"
-                : "Confirmé automatiquement par une source vérifiée"
-              : stateLabel[status.state]}
+                ? t("Confirmé par le propriétaire")
+                : t("Confirmé automatiquement par une source vérifiée")
+              : status.approved
+                ? t("Confirmé par le propriétaire")
+                : counted
+                  ? t("Participation comptabilisée")
+                  : t(stateLabel[status.state])}
           </p>
           {status.payment ? (
             <>
               <p>
-                Net conservé pour ce cadeau :{" "}
+                {t("Net conservé pour ce cadeau :")}{" "}
                 {status.payment.net === null
-                  ? "frais encore inconnus, hors total net confirmé"
-                  : formatMoney(
+                  ? t("frais encore inconnus, hors total net confirmé")
+                  : money(
                       status.payment.net - status.payment.net_reversed,
                       status.currency,
                     )}
@@ -208,42 +271,36 @@ export function ContributionStatus({ id }: { id: string }) {
               </p>
               {status.payment.refunded > 0 && (
                 <p>
-                  Remboursement enregistré :{" "}
-                  {formatMoney(status.payment.refunded, status.currency)}.
+                  {t("Remboursement enregistré :")}{" "}
+                  {money(status.payment.refunded, status.currency)}.
                 </p>
               )}
               {status.payment.disputed > 0 && (
                 <Notice>
-                  Un litige est en cours. Cela ne signifie pas qu’un
-                  remboursement a eu lieu.
+                  {t(
+                    "Un litige est en cours. Cela ne signifie pas qu’un remboursement a eu lieu.",
+                  )}{" "}
                 </Notice>
               )}
             </>
+          ) : counted ? (
+            <p role="status">
+              {t(
+                "Votre participation est déjà incluse dans la progression du cadeau. Merci !",
+              )}
+            </p>
+          ) : status.state === "rejected" ? (
+            <p>{t("Cette participation a été refusée par le propriétaire.")}</p>
           ) : (
             <>
               <p>
-                L’intention a bien été enregistrée. Elle ne constitue pas une
-                preuve de paiement.
-              </p>
-              {status.paypal_url && (
-                <a
-                  className="button primary wide"
-                  href={status.paypal_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Ouvrir PayPal pour envoyer{" "}
-                  {formatMoney(status.amount, status.currency)} ↗
-                </a>
-              )}
-              <p>
-                Après l’envoi, revenez ici pour prévenir le propriétaire. Il
-                vérifiera le versement dans son compte PayPal avant de
-                confirmer.
+                {t(
+                  "Une fois le paiement envoyé sur PayPal, indiquez-le ici pour compter votre participation.",
+                )}{" "}
               </p>
               {["intent", "expired"].includes(status.state) && (
                 <button
-                  className="button secondary wide"
+                  className="button primary wide"
                   disabled={busy}
                   onClick={async () => {
                     setBusy(true);
@@ -257,38 +314,49 @@ export function ContributionStatus({ id }: { id: string }) {
                     }
                   }}
                 >
-                  J’ai envoyé l’argent
+                  {t("J’ai envoyé l’argent")}{" "}
                 </button>
+              )}
+              {status.paypal_url && (
+                <a
+                  className="text-link"
+                  href={status.paypal_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {t("Ouvrir PayPal si nécessaire ↗")}
+                </a>
               )}
               {status.state === "expired" && (
                 <Notice>
-                  L’intention a expiré. Un versement déjà envoyé peut toujours
-                  être rapproché par le propriétaire.
+                  {t(
+                    "L’intention a expiré. Un versement déjà envoyé peut toujours être rapproché par le propriétaire.",
+                  )}{" "}
                 </Notice>
               )}
-              <p className="fine-print">
-                Un clic sur ce bouton ne confirme aucun versement. N’envoyez pas
-                une seconde fois l’argent si le statut reste en attente.
-              </p>
             </>
           )}
+          <a
+            className={counted ? "button primary wide" : "text-link"}
+            href={`/cadeaux/${status.gift_id}`}
+          >
+            {t("Retour au cadeau")}
+          </a>
           <details className="private-reference">
-            <summary>Ma référence de suivi privée</summary>
+            <summary>{t("Ma référence de suivi privée")}</summary>
             <code>{id}</code>
             <p>
-              Conservez cette page. Vous pouvez communiquer cette référence au
-              propriétaire pour l’aider à retrouver votre intention ; elle ne
-              vaut pas preuve de paiement et n’est pas transmise automatiquement
-              à PayPal.
+              {t(
+                "Conservez cette page. Vous pouvez communiquer cette référence au propriétaire pour l’aider à retrouver votre intention ; elle ne vaut pas preuve de paiement et n’est pas transmise automatiquement à PayPal.",
+              )}{" "}
             </p>
           </details>
-          <button className="text-link" disabled={busy} onClick={load}>
-            {busy ? "Vérification…" : "Actualiser le statut"}
-          </button>
-          <a className="text-link" href={`/cadeaux/${status.gift_id}`}>
-            Retour au cadeau
-          </a>
         </>
+      )}
+      {error && (
+        <button className="text-link" disabled={busy} onClick={load}>
+          {t("Actualiser le statut")}
+        </button>
       )}
     </section>
   );

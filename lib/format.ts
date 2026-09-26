@@ -1,5 +1,5 @@
-export function formatMoney(amount: number, currency = "EUR") {
-  return new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(
+export function formatMoney(amount: number, currency = "EUR", locale = "en") {
+  return new Intl.NumberFormat(locale, { style: "currency", currency }).format(
     amount / 100,
   );
 }
@@ -11,7 +11,6 @@ export const stateLabel: Record<string, string> = {
   detected: "Détectée, à vérifier",
   expired: "Intention expirée",
   rejected: "Refusée",
-  draft: "Brouillon",
   visible: "Visible",
   archived: "Archivé",
   queued: "En attente",

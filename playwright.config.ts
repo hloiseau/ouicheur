@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { resolve } from "node:path";
+import { randomUUID } from "node:crypto";
+process.env.E2E_RUN_ID ||= randomUUID();
 process.env.PLAYWRIGHT_BROWSERS_PATH = resolve(".local/pw-browsers");
 export default defineConfig({
   testDir: "./tests/e2e",

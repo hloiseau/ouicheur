@@ -15,6 +15,7 @@ import {
   declareIntent,
   expireIntents,
   contributionStatus,
+  reviewContribution,
 } from "../lib/payments";
 import { money, paypalLink } from "../lib/validation";
 
@@ -166,10 +167,222 @@ test("deux intentions de même montant ne sont jamais rapprochées arbitrairemen
     db.close();
   }
 });
+
+test("un envoi déclaré compte immédiatement, une seule fois, et reste corrigeable", async () => {
+  const { db, a, b } = await fixture();
+  const total = () => listGifts(db).find((gift) => gift.id === a)!;
+  try {
+    const sent = createIntent(db, { gift_id: a, amount: "25" });
+    const rejected = createIntent(db, { gift_id: a, amount: "75" });
+    const expired = createIntent(db, { gift_id: a, amount: "10" });
+    db.prepare(
+      "UPDATE contributions SET expires_at='2000-01-01' WHERE id=?",
+    ).run(expired.id);
+    expireIntents(db);
+    const detected = createIntent(db, { gift_id: a, amount: "10" });
+    db.prepare("UPDATE contributions SET state='detected' WHERE id=?").run(
+      detected.id,
+    );
+    assert.equal(total().funded, 0);
+
+    declareIntent(db, sent.id);
+    declareIntent(db, sent.id);
+    assert.equal(total().funded, 2500);
+    assert.equal(total().confirmed, 0);
+    assert.equal(contributionStatus(db, sent.id).payment, null);
+    assert.equal(listGifts(db).find((gift) => gift.id === b)!.funded, 0);
+    assert.throws(
+      () => createIntent(db, { gift_id: a, amount: "75.01" }),
+      /montant restant/,
+    );
+    declareIntent(db, rejected.id);
+    assert.equal(total().funded, 10000);
+    assert.throws(
+      () => createIntent(db, { gift_id: a, amount: "1" }),
+      /terminé/,
+    );
+    db.prepare("UPDATE contributions SET state='rejected' WHERE id=?").run(
+      rejected.id,
+    );
+    declareIntent(db, rejected.id);
+    assert.equal(total().funded, 2500);
+    assert.ok(createIntent(db, { gift_id: a, amount: "75" }).id);
+
+    const confirmation = { ...confirm(sent.id), fee: "" };
+    const payment = confirmManual(db, confirmation);
+    confirmManual(db, confirmation);
+    assert.equal(total().funded, 2500);
+    assert.equal(total().unknown_gross, 2500);
+    const correction = {
+      payment_id: payment,
+      event_id: randomUUID(),
+      revision: 1,
+      gross: "25",
+      fee: "1",
+      refunded: "10",
+      net_reversed: "10",
+      disputed: false,
+      reason: "Remboursement partiel vérifié",
+    };
+    correctPayment(db, correction);
+    correctPayment(db, correction);
+    assert.equal(total().funded, 1400);
+    correctPayment(db, {
+      ...correction,
+      event_id: randomUUID(),
+      revision: 2,
+      fee: "",
+      refunded: "0",
+    });
+    assert.equal(total().funded, 1500);
+    assert.equal(total().unknown_gross, 1500);
+    correctPayment(db, {
+      ...correction,
+      event_id: randomUUID(),
+      revision: 3,
+      refunded: "25",
+      net_reversed: "24",
+    });
+    declareIntent(db, sent.id);
+    assert.equal(total().funded, 0);
+    declareIntent(db, expired.id);
+    assert.equal(total().funded, 1000);
+  } finally {
+    db.close();
+  }
+});
+test("le propriétaire valide ou refuse en un clic sans inventer de transaction", async () => {
+  const { db, a } = await fixture();
+  const total = () => listGifts(db).find((gift) => gift.id === a)!.funded;
+  try {
+    const { id } = createIntent(db, { gift_id: a, amount: "25" });
+    declareIntent(db, id);
+    assert.equal(contributionStatus(db, id).approved, 0);
+    reviewContribution(db, {
+      id,
+      approved: true,
+      amount: "500",
+      provenance: "verified",
+    });
+    reviewContribution(db, { id, approved: true });
+    assert.equal(total(), 2500);
+    assert.equal(contributionStatus(db, id).approved, 1);
+    assert.equal(contributionStatus(db, id).payment, null);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM payments").get()!.n, 0);
+    assert.equal(
+      db
+        .prepare(
+          "SELECT COUNT(*) n FROM audit WHERE action='contribution.review'",
+        )
+        .get()!.n,
+      1,
+    );
+    reviewContribution(db, { id, approved: false });
+    reviewContribution(db, { id, approved: false });
+    declareIntent(db, id);
+    assert.equal(total(), 0);
+    assert.equal(contributionStatus(db, id).approved, 0);
+    assert.equal(contributionStatus(db, id).state, "rejected");
+    reviewContribution(db, { id, approved: true });
+    assert.equal(total(), 2500);
+    assert.equal(
+      db
+        .prepare(
+          "SELECT COUNT(*) n FROM audit WHERE action='contribution.review'",
+        )
+        .get()!.n,
+      3,
+    );
+    assert.throws(() => reviewContribution(db, { id, approved: "yes" }));
+    assert.throws(
+      () => reviewContribution(db, { id: "0".repeat(64), approved: true }),
+      /introuvable/,
+    );
+    confirmManual(db, confirm(id));
+    assert.equal(total(), 2400);
+    assert.throws(
+      () => reviewContribution(db, { id, approved: false }),
+      /correction/,
+    );
+    assert.equal(total(), 2400);
+  } finally {
+    db.close();
+  }
+});
+
+test("une intention ne dépasse ni le prix du cadeau ni le reste à financer", async () => {
+  const { db, a } = await fixture();
+  try {
+    db.prepare("UPDATE gifts SET target=795 WHERE id=?").run(a);
+    for (const amount of ["7.96", "10", "25", "50"])
+      assert.throws(
+        () => createIntent(db, { gift_id: a, amount }),
+        /montant restant à financer/,
+      );
+    assert.equal(
+      db.prepare("SELECT COUNT(*) n FROM contributions").get()!.n,
+      0,
+    );
+    const full = createIntent(db, { gift_id: a, amount: "7,95" });
+    assert.match(full.paypal_url, /\/7\.95EUR$/);
+    const first = createIntent(db, { gift_id: a, amount: "5" });
+    const payment = confirmManual(db, {
+      ...confirm(first.id),
+      gross: "5",
+      fee: "0.50",
+    });
+    assert.throws(
+      () => createIntent(db, { gift_id: a, amount: "3.46" }),
+      /montant restant à financer/,
+    );
+    const rest = createIntent(db, { gift_id: a, amount: "3.45" });
+    assert.match(rest.paypal_url, /\/3\.45EUR$/);
+    confirmManual(db, {
+      ...confirm(rest.id, "TEST-REMAINING"),
+      gross: "3.44",
+      fee: "0",
+    });
+    assert.throws(
+      () => createIntent(db, { gift_id: a, amount: "0.02" }),
+      /montant restant à financer/,
+    );
+    const cent = createIntent(db, { gift_id: a, amount: "0.01" });
+    confirmManual(db, {
+      ...confirm(cent.id, "TEST-LAST-CENT"),
+      gross: "0.01",
+      fee: "0",
+    });
+    assert.throws(
+      () => createIntent(db, { gift_id: a, amount: "0.01" }),
+      /terminé/,
+    );
+    correctPayment(db, {
+      payment_id: payment,
+      event_id: randomUUID(),
+      revision: 1,
+      gross: "5",
+      fee: "0.50",
+      refunded: "1",
+      net_reversed: "1",
+      disputed: false,
+      reason: "Remboursement partiel vérifié",
+    });
+    assert.throws(
+      () => createIntent(db, { gift_id: a, amount: "1.01" }),
+      /montant restant à financer/,
+    );
+    assert.match(
+      createIntent(db, { gift_id: a, amount: "1" }).paypal_url,
+      /\/1\.00EUR$/,
+    );
+  } finally {
+    db.close();
+  }
+});
 test("frais inconnus, dépassement, fermeture et devises préservent les montants", async () => {
   const { db, a } = await fixture();
   try {
-    const first = createIntent(db, { gift_id: a, amount: "120" });
+    const first = createIntent(db, { gift_id: a, amount: "100" });
     const late = createIntent(db, { gift_id: a, amount: "25" });
     const v = { ...confirm(first.id), gross: "120", fee: "" };
     const id = confirmManual(db, v);

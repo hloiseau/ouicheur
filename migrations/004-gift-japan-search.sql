@@ -1,0 +1,1 @@
+ALTER TABLE gifts ADD COLUMN japan_search INTEGER NOT NULL DEFAULT 0 CHECK(japan_search IN (0,1));

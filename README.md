@@ -1,8 +1,10 @@
-# Wishlister
+# Ouicheur
 
-Une wishlist personnelle en français, libre et auto-hébergeable. Un propriétaire, des cadeaux ajoutés par liens, des contributions sans compte visiteur et des versements directs sur son **compte PayPal particulier**.
+Une Ouichlist personnelle libre et auto-hébergeable, en anglais par défaut avec une interface française au choix. Un propriétaire, des cadeaux ajoutés par liens, des contributions sans compte visiteur et des versements directs sur son **compte PayPal particulier**.
 
-**La confirmation des versements est manuelle en V1.** Le propriétaire vérifie son activité PayPal et rapproche explicitement chaque transaction. L’application ne commande aucun produit, ne détient pas l’argent et n’ajoute aucune commission. Elle ne promet pas l’absence de frais PayPal.
+Le sélecteur **English / Français** est disponible sur toutes les pages, y compris l’installation. Le choix reste mémorisé dans ce navigateur pendant un an. Textes, erreurs, titres, dates et montants suivent cette préférence ; les contenus personnels ne sont pas traduits. Le changement de langue conserve les formulaires en cours. [Localization and upgrade notes](docs/localization.md).
+
+**Les participations comptent dès l’envoi déclaré.** Le propriétaire peut ensuite les valider ou les refuser en un clic. L’application ne commande aucun produit, ne détient pas l’argent et n’ajoute aucune commission. Elle ne promet pas l’absence de frais PayPal.
 
 ## Démarrer avec Docker
 
@@ -25,45 +27,65 @@ Compléter ensuite le profil, le lien PayPal.Me personnel et les catégories, pu
 
 Le port est lié à `127.0.0.1` pour l’accès local et le reverse proxy. Deux volumes conservent les données et les sauvegardes : `wishlister-data` et `wishlister-backups` (préfixés par Compose). `docker compose down` conserve ces volumes. `down -v` les supprimerait.
 
+## Personnaliser sa Ouichlist
+
+Dans **My profile / Mon profil**, choisir l’avatar, la bannière et son cadrage, la présentation, les liens sociaux, une image de fond et la couleur d’accent. Les presets rose, acidulé et menthe reprennent la palette Ouicheur ; le sélecteur de couleur accepte aussi une teinte personnelle. L’aperçu réagit avant l’enregistrement, et la teinte des textes est ajustée pour rester lisible sur fond sombre.
+
+La grille peut être compacte ou aérée. Les catégories deviennent des collections visuelles dont la vignette vient des cadeaux ; les onglets permettent de retrouver toutes les envies, les coups de cœur et les envies réalisées. Les photos, réglages et contenus restent locaux et sont inclus dans les sauvegardes. Les anciens profils conservent leurs contenus et reçoivent le style Ouicheur par défaut.
+
+La disposition s’inspire du [profil présenté par Throne](https://blog.throne.com/the-ultimate-throne-wishlist-setup-checklist-8-steps-to-start-strong/), en conservant les couleurs sombres de Ouicheur et son fonctionnement personnel.
+
 ## Développement sans Docker
 
 Node **24 LTS** et npm. Un binaire Node 24 exact est également verrouillé dans les dépendances de développement pour harmoniser les scripts npm, sans modifier Node globalement.
 
 ```sh
 npm ci
+npm run browser:install
 cp .env.example .env
 npm run dev
 ```
 
 Production locale : `npm run build`, puis `npm start`. Ces démarrages affichent le code d’installation dans le terminal si le compte n’existe pas encore. Si `.env` est déjà configuré, ne le remplacez pas. Le moteur SQLite intégré à Node est utilisé directement ; il n’y a ni ORM ni serveur de base à administrer. Les migrations SQL de `migrations/` sont appliquées transactionnellement à l’ouverture de la base.
 
-| Commande                                             | Usage                                                             |
-| ---------------------------------------------------- | ----------------------------------------------------------------- |
-| `npm run dev`                                        | Développement sur localhost:3000                                  |
-| `npm run build` / `npm start`                        | Compiler / démarrer en production                                 |
-| `npm run setup`                                      | Alternative locale facultative au setup web, une seule fois       |
-| `npm run password`                                   | Récupérer l’accès depuis le serveur, révoquer toutes les sessions |
-| `npm run check`                                      | Vérifier TypeScript                                               |
-| `npm test`                                           | Tests du registre, sécurité, imports, sauvegarde/restauration     |
-| `npm run browser:install`                            | Installer Chromium de test dans `.local/`                         |
-| `npm run test:e2e`                                   | Parcours navigateur ordinateur + mobile, après compilation        |
-| `npm run backup -- chemin/nouveau-dossier`           | Sauvegarde cohérente, utilisable application ouverte              |
-| `npm run restore -- sauvegarde nouveau-data-dir`     | Restaurer vers une destination sans base existante                |
-| `npm run probe:imports -- "URL_AMAZON" "URL_THRONE"` | Tester vos liens autorisés, sans contournement                    |
+| Commande                                             | Usage                                                               |
+| ---------------------------------------------------- | ------------------------------------------------------------------- |
+| `npm run dev`                                        | Développement sur localhost:3000                                    |
+| `npm run build` / `npm start`                        | Compiler / démarrer en production                                   |
+| `npm run setup`                                      | Alternative locale facultative au setup web, une seule fois         |
+| `npm run password`                                   | Récupérer l’accès depuis le serveur, révoquer toutes les sessions   |
+| `npm run check`                                      | Vérifier TypeScript                                                 |
+| `npm test`                                           | Tests du registre, sécurité, imports, sauvegarde/restauration       |
+| `npm run browser:install`                            | Installer Chromium pour l’import Throne et les tests dans `.local/` |
+| `npm run test:fetch-browser`                         | Vérifier le téléchargement Chromium et ses restrictions réseau      |
+| `npm run test:e2e`                                   | Parcours navigateur ordinateur + mobile, après compilation          |
+| `npm run backup -- chemin/nouveau-dossier`           | Sauvegarde cohérente, utilisable application ouverte                |
+| `npm run restore -- sauvegarde nouveau-data-dir`     | Restaurer vers une destination sans base existante                  |
+| `npm run probe:imports -- "URL_AMAZON" "URL_THRONE"` | Tester vos liens autorisés, sans contournement                      |
 
 ## Utiliser les cadeaux et contributions
 
-1. Dans **Mes envies**, coller un lien produit. Les métadonnées HTML / JSON-LD alimentent un aperçu modifiable. Un refus d’accès laisse le lien et tous les champs manuels disponibles. Les images se téléchargent explicitement ou se choisissent depuis un fichier ; elles sont décodées, nettoyées et stockées localement.
-2. Définir un objectif, une catégorie et la visibilité. Un brouillon ou un cadeau archivé reste privé. Le prix extrait est une suggestion datée. Le prix cible peut inclure la livraison et être modifié sans modifier les contributions reçues.
-3. Le visiteur choisit son montant. L’intention est enregistrée avant l’ouverture du lien PayPal.Me. Le lien comprend uniquement le nom PayPal.Me, le montant et la devise. Aucune référence marchande n’y est inventée.
-4. « J’ai envoyé l’argent » annonce un versement ; cela ne crédite rien. Le visiteur conserve sa page de suivi privée. La référence aléatoire locale peut aider une discussion avec le propriétaire, mais ne prouve pas le paiement et n’est pas automatiquement transmise à PayPal.
-5. Dans **Contributions**, le propriétaire vérifie le versement réellement reçu et son association au bon cadeau. Il saisit la référence réelle de transaction, brut, frais connus et justification. Les éléments incertains restent « Détectée, à vérifier » ; le montant et l’heure seuls ne suffisent pas.
+Chaque envie accepte une **quantité de 1 à 999**. Le montant saisi est celui d’un exemplaire, livraison comprise ; l’objectif total est **montant unitaire × quantité**. Le total est prévisualisé dans le formulaire et sert au calcul des participations. Les envies existantes conservent leur objectif avec une quantité de 1. Modifier la quantité conserve les contributions déjà reçues.
 
-Les cadeaux affichent le **net confirmé restant** : somme des nets reçus moins les retraits nets constatés. Avec frais inconnus, le brut reçu restant est affiché séparément et **ne compte pas dans le net confirmé**. Saisir `0` seulement quand l’absence de frais est vérifiée. Toutes les valeurs en base sont des centimes entiers ; aucune arithmétique flottante de paiement.
+Pour garder plusieurs envies avec le même lien, cocher **Autoriser un doublon**. À l’import, cette option crée une nouvelle envie indépendante ; **remplacer** modifie l’envie existante et conserve ses contributions et sa devise. Les doublons restent désélectionnés par défaut. Si plusieurs envies correspondent, modifier celle voulue dans **Mes envies** plutôt que choisir un remplacement ambigu.
+
+Le [workflow GitHub Actions](.github/workflows/ci.yml) vérifie les tests, construit et teste l’image Docker, puis la publie sur GHCR. Le [guide TrueNAS et Caddy](docs/truenas.md) décrit l’installation et l’activation du déploiement automatique sur `ouicheur.hugoloiseau.fr`.
+
+1. Dans **Mes envies**, coller un lien produit et choisir **Récupérer les informations**. Les données Schema.org (JSON-LD, Microdata, RDFa) et Open Graph alimentent un aperçu modifiable. L’image trouvée est téléchargée automatiquement, nettoyée et stockée localement ; elle reste remplaçable par une autre URL ou un fichier. Un échec de l’image conserve les autres informations. L’envie n’est enregistrée qu’après confirmation. Les liens Amazon, Back Market et Chrono24 fournis ont été vérifiés avec titre, prix et image ; [résultats et limites](docs/imports-status.md).
+2. Définir un objectif et une catégorie, puis enregistrer : l’envie est immédiatement visible sur la page publique. Les imports publient aussi les envies sélectionnées avec leurs images récupérées automatiquement. L’archivage permet de retirer une envie de la page publique. Le prix extrait est une suggestion datée. Le prix cible peut inclure la livraison et être modifié sans modifier les contributions reçues.
+3. Le visiteur choisit son montant. « Continuer vers PayPal » enregistre l’intention et ouvre directement PayPal.Me dans un autre onglet ; la page de suivi reste disponible. Si l’onglet est bloqué, cette page permet d’ouvrir PayPal. Le lien comprend uniquement le nom PayPal.Me, le montant et la devise.
+4. Au retour, « J’ai envoyé l’argent » compte immédiatement la participation dans la progression, sans attendre le propriétaire. Le visiteur conserve sa page de suivi privée. La référence aléatoire locale peut aider une discussion avec le propriétaire, mais ne prouve pas le paiement et n’est pas automatiquement transmise à PayPal.
+5. Dans **Contributions**, le propriétaire clique sur **Valider** ou **Refuser**. Aucun champ, référence PayPal, case à cocher ou justification n’est demandé. Valider conserve le montant déjà compté ; refuser le retire de la progression. Les filtres **Validées** et **Refusées** permettent de retrouver une participation et de corriger la décision. Le choix est enregistré dans le journal.
+
+Les cadeaux affichent le **total des participations** : envois déclarés ou validés sans versement détaillé enregistré, plus montants reçus restants. Valider conserve le montant annoncé et ne compte jamais deux fois le même envoi. Aucun frais ni référence de transaction n’est inventé. Pour les versements détaillés existants, le net restant remplace la déclaration, ou le brut restant si les frais sont inconnus. Un refus retire la déclaration du total ; les remboursements ajustent le versement détaillé. Les simples intentions, expirations et détections sans déclaration ne comptent pas. Toutes les valeurs en base sont des centimes entiers.
 
 Un dépassement d’objectif est conservé et affiché intégralement. L’objectif atteint, la fermeture manuelle ou l’achat effectif empêchent de nouvelles intentions. Les intentions déjà créées restent rapprochables, même après expiration. Une intention non annoncée expire après sept jours ; aucune contribution historique n’est supprimée.
 
 Un changement de devise de l’instance concerne les nouveaux cadeaux. Les cadeaux existants conservent leur devise et ceux dans une ancienne devise sont fermés aux nouvelles intentions. Le destinataire PayPal.Me est conservé sur chaque intention afin qu’une modification ultérieure du profil n’en change pas le lien.
+
+Pour les objets à chiner au Japon, cocher **Activer la recherche au Japon avec ChatGPT et Sendico** lors de la création ou de la modification de l’envie (également disponible dans l’aperçu d’import). Cette option est désactivée par défaut, y compris pour les envies existantes, et peut être décochée à tout moment. Le bloc **Chiner au Japon avec ChatGPT** apparaît uniquement pour les envies activées, sur leur fiche et dans **Mes envies**. **Copier le prompt et le lien** reprend le produit, sa description et l’objectif de la Ouichlist ; le texte demande des annonces sur Yahoo! Flea Market et d’autres sites japonais, puis les étapes d’achat via Sendico avec vérification des frais et de la compatibilité. **Ouvrir ChatGPT** permet ensuite d’y coller le texte. Si le navigateur bloque le presse-papiers, le prompt reste sélectionnable pour une copie manuelle. Aucun compte API n’est nécessaire et aucune recherche ni commande n’est lancée automatiquement.
+
+Le prompt tient compte des accès bloqués depuis la France : consultation via Sendico lorsqu’elle est possible, distinction entre annonces vérifiées et simples pistes, puis requêtes japonaises et message au support si nécessaire. Pour modifier cette fonctionnalité ou reprendre son développement, lire le [contexte du parcours Japon depuis la France](docs/japan-search.md).
 
 ## Corrections, remboursements et journal
 
@@ -77,17 +99,19 @@ La révision attendue empêche qu’une ancienne page de correction écrase une 
 
 **Statuts distincts, sans succès d’intégration externe inventé :**
 
-| Source     | Implémentation V1                                                                       | Validation                                                                                     |
-| ---------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Amazon     | Adaptateur de lignes produit du HTML public, identifiants ASIN, métadonnées disponibles | Fixtures testées ; accès réseau local interrompu. Aucune liste personnelle réelle validée      |
-| Throne     | Adaptateur de produits JSON-LD dans le HTML public                                      | Fixtures testées ; entrée publique répondant HTTP 429. Aucune liste personnelle réelle validée |
-| CSV / JSON | Format commun, aperçu, sélection, édition et dédoublonnage                              | Tests locaux exécutés ; exemples fournis                                                       |
+| Source     | Implémentation V1                                                                             | Validation                                                                                                 |
+| ---------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Amazon     | Import par URL avec pagination publique, identifiants ASIN, prix EUR et images                | Liste réelle `21JDMRZC1ARHC` : 20 articles sur deux pages, 20 images et réimport vérifiés sur Docker Linux |
+| Throne     | Import automatique par URL, HTML public (Next.js / JSON-LD), transport Chromium si nécessaire | `claw61` vérifié sur Windows et Docker Linux : 11 cadeaux, 2 doublons de lien signalés                     |
+| CSV / JSON | Format commun, aperçu, sélection, édition et dédoublonnage                                    | Tests locaux exécutés ; exemples fournis                                                                   |
 
-L’import natif ne se connecte pas aux comptes, n’appelle aucune API privée et n’exécute pas JavaScript. Si une source n’expose que sa coquille JavaScript, refuse l’accès ou présente un CAPTCHA, le traitement s’arrête avec son diagnostic. Aucun contournement. Un fichier générique n’est pas présenté comme une réussite de l’import natif.
+Le client partagé négocie HTTP/2 ou HTTP/1.1 et privilégie une adresse IPv4 publique lorsqu’elle existe. Pour les listes comme pour les fiches produit, un refus 403/429 ou une connexion interrompue déclenche automatiquement une lecture du document par Chromium côté serveur, dans une session neuve, sans scripts ni ressources annexes. Chromium est inclus dans l’image Docker ; hors Docker, l’installer avec `npm run browser:install`. Chaque changement d’origine repasse par la validation DNS avant connexion. Les adresses privées, documents trop volumineux et délais excessifs restent refusés. L’import ne se connecte pas aux comptes et n’appelle aucune API privée.
+
+**Importer Throne :** choisir **Liste Throne — profil public**, coller le lien et préparer l’aperçu. Les produits et variantes sont identifiés dans la liste, puis leurs prix et images sont récupérés chez les marchands. Aucun prix, frais ou montant financé de Throne n’est repris. Les prix marchands étrangers sont automatiquement convertis dans la devise du profil avec les taux de référence de la BCE ; l’objectif est prérempli et la date du taux reste visible. Les liens répétés sont désélectionnés par défaut. L’option de page HTML enregistrée reste disponible séparément.
 
 Les travaux et aperçus sont persistés en SQLite. Une tâche interrompue peut être reprise depuis l’administration après expiration du verrou de 30 secondes, avec trois prises de tâche au maximum. Une erreur explicite demande de créer un nouvel import après résolution du problème ; il n’y a pas de boucle de requêtes ni de synchronisation permanente.
 
-Les exemples [CSV](public/examples/import.csv) et [JSON](public/examples/import.json) contiennent : `source_id`, `url`, `title`, `description`, `image_url`, `price`, `currency`. Prix décimal sous forme de texte, 200 éléments / 900 Ko maximum, CSV UTF-8 avec en-tête et séparateur virgule. Les champs inconnus sont ignorés. Aucune adresse personnelle, donnée de contributeur ni ancien financement n’est importé. Les devises ne sont jamais converties implicitement.
+Les exemples [CSV](public/examples/import.csv) et [JSON](public/examples/import.json) contiennent : `source_id`, `url`, `title`, `description`, `image_url`, `price`, `currency`. Prix décimal sous forme de texte, 200 éléments / 900 Ko maximum, CSV UTF-8 avec en-tête et séparateur virgule. Les champs inconnus sont ignorés. Aucune adresse personnelle, donnée de contributeur ni ancien financement n’est importé. La conversion automatique est affichée dans l’aperçu avec son montant d’origine et la date du taux.
 
 Une URL marchande manquante reste signalée avant publication. Réimporter ne remplace pas vos modifications sans choix explicite. La validation finale est atomique : un conflit annule l’enregistrement du lot et conserve son aperçu. Voir [l’état détaillé des importateurs](docs/imports-status.md).
 
@@ -127,7 +151,11 @@ envies.example.org {
 }
 ```
 
-Configurer `APP_ORIGIN=https://envies.example.org`, puis recréer le conteneur avec `docker compose up -d`. Cette valeur doit correspondre exactement à l’origine utilisée dans le navigateur, faute de quoi les écritures sont refusées. Avec HTTPS, les cookies portent `Secure` ; ils sont toujours `HttpOnly` et `SameSite=Strict`, avec expiration à douze heures.
+Configurer `APP_ORIGIN=https://envies.example.org`, puis recréer le conteneur avec `docker compose up -d`. Cette origine publique reste acceptée derrière un reverse proxy, même si celui-ci réécrit l’adresse interne.
+
+Pour les tests et l’accès direct, `localhost`, `127.0.0.1`, l’adresse du NAS ou son nom local fonctionnent aussi sans changer `APP_ORIGIN` : chaque requête doit venir du même protocole, hôte et port que l’adresse ouverte dans le navigateur. Le contrôle compare `Origin` à `Host`, selon la [recommandation OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#identifying-the-target-origin), et ne se fie pas à `X-Forwarded-Host`. Les origines absentes, invalides ou étrangères sont refusées, et JSON reste obligatoire. Cela ne change pas les interfaces réseau sur lesquelles le serveur écoute.
+
+Les cookies portent `Secure` lorsque la connexion utilise une origine HTTPS validée ; une connexion HTTP locale reste possible même si `APP_ORIGIN` indique le domaine public HTTPS. Ils sont toujours `HttpOnly` et `SameSite=Strict`, avec expiration à douze heures. Chaque adresse conserve sa propre session : changer d’hôte demande de se reconnecter, sans refaire le setup.
 
 `TRUST_PROXY=1` ne doit être activé que si le proxy de confiance remplace réellement `X-Forwarded-For`, et qu’un client ne peut pas contourner ce proxy. Sinon la limitation utilise un quota partagé. Les valeurs par défaut sont 10 tentatives de connexion / 15 minutes, 30 intentions / heure par adresse de confiance ou quota partagé, 300 intentions / heure sur l’instance, et des limites supplémentaires sur extraction/imports/images.
 
@@ -139,7 +167,7 @@ Monolithe Next.js / React / TypeScript, SQLite Node, images WebP locales. Les do
 
 L’initialisation web exige un code aléatoire de 192 bits généré au démarrage et conservé dans le stockage privé jusqu’à utilisation. Il n’est jamais renvoyé par HTTP. `/api/setup` vérifie l’origine, limite les essais à 10 par 15 minutes sur l’instance et borne le corps à 16 Ko. La création du propriétaire et la suppression du code sont atomiques, y compris en cas de requêtes concurrentes. Une instance déjà configurée refuse toute nouvelle initialisation.
 
-Le téléchargement refuse les protocoles non HTTP(S), les identifiants dans les URLs, les ports inattendus, les IP privées/réservées IPv4 et IPv6 et les résolutions DNS mixtes. Il fixe l’IP validée pour la connexion, revalide chaque redirection et impose trois redirections / 15 secondes / 2 Mo HTML / 5 Mo image. Les images raster sont décodées avec une limite de pixels, réencodées et débarrassées de leurs métadonnées ; SVG refusé. Les textes sont échappés par React, le HTML externe n’est jamais rendu ni exécuté.
+Le téléchargement refuse les protocoles non HTTP(S), les identifiants dans les URLs, les ports inattendus, les IP privées/réservées IPv4 et IPv6 et les résolutions DNS mixtes. Il fixe l’IP validée pour la connexion, revalide chaque redirection et impose trois redirections / 15 secondes / 8 Mo HTML / 5 Mo image. Les images raster sont décodées avec une limite de pixels, réencodées et débarrassées de leurs métadonnées ; SVG refusé. Les textes sont échappés par React, le HTML externe n’est jamais rendu ni exécuté.
 
 Le journal et les contributions sont conservés. L’écran affiche les 1 000 dernières intentions, les 50 derniers imports et les 100 dernières opérations ; l’export contient le registre et le journal complets. Cette limite de vue convient à la V1 personnelle ; prévoir une pagination avant un usage dépassant ces volumes.
 

@@ -31,7 +31,7 @@ export function backupInstance(
     const names = new Set<string>();
     const rows = snapshot
       .prepare(
-        "SELECT image path FROM gifts UNION SELECT avatar FROM owner UNION SELECT banner FROM owner",
+        "SELECT image path FROM gifts UNION SELECT image FROM categories UNION SELECT avatar FROM owner UNION SELECT banner FROM owner UNION SELECT background FROM owner UNION SELECT json_extract(item.value, '$.image') FROM imports, json_each(imports.items) item",
       )
       .all();
     for (const row of rows) {

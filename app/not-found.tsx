@@ -1,10 +1,14 @@
+"use client";
+import { useI18n } from "../components/language";
+
 export default function NotFound() {
+  const { t } = useI18n();
   return (
     <main id="main" className="container status-page">
-      <h1>Cette envie est introuvable.</h1>
-      <p>Elle est peut-être encore en préparation ou a été archivée.</p>
+      <h1>{t("Cette envie est introuvable.")}</h1>
+      <p>{t("Elle a peut-être été archivée.")}</p>
       <a className="button primary" href="/">
-        Retrouver la wishlist
+        {t("Retrouver la Ouichlist")}{" "}
       </a>
     </main>
   );

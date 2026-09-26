@@ -4,7 +4,7 @@ const config: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: process.cwd(),
   poweredByHeader: false,
-  serverExternalPackages: ["sharp"],
+  serverExternalPackages: ["sharp", "playwright-core"],
   outputFileTracingIncludes: { "/*": ["./migrations/**/*"] },
   async headers() {
     return [

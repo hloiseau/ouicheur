@@ -1,7 +1,9 @@
+# Stable project name for upgrades from Wishlister, even if the checkout is renamed.
+name: wishlister
 services:
   app:
     build: .
-    image: wishlister:local
+    image: ouicheur:local
     restart: unless-stopped
     ports:
       - "127.0.0.1:3000:3000"
@@ -17,6 +19,7 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+# Keep legacy volume keys so existing installations retain their data.
 volumes:
   wishlister-data:
   wishlister-backups:

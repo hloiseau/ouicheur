@@ -52,6 +52,22 @@ test("SSRF : protocoles, IP privées/réservées, IPv6 et DNS mixtes refusés", 
     assert.equal(publicAddress(ip), false, ip);
   assert.equal(publicAddress("8.8.8.8"), true);
   assert.equal(publicAddress("2606:4700:4700::1111"), true);
+  const ipv6 = { address: "2606:4700:4700::1111", family: 6 };
+  const ipv4 = { address: "8.8.8.8", family: 4 };
+  assert.deepEqual(
+    await resolvePublic(
+      new URL("https://example.com"),
+      async () => [ipv6, ipv4] as never,
+    ),
+    ipv4,
+  );
+  assert.deepEqual(
+    await resolvePublic(
+      new URL("https://example.com"),
+      async () => [ipv6] as never,
+    ),
+    ipv6,
+  );
   for (const url of [
     "file:///etc/passwd",
     "http://127.0.0.1",
@@ -129,7 +145,7 @@ test("importeurs distincts, aperçu éditable, doublons et aucune reprise de fin
     );
     assert.equal(amazon.length, 2);
     assert.equal(amazon[0].source_id, "B000TEST01");
-    assert.equal(amazon[0].price, "49,90");
+    assert.equal(amazon[0].price, "49.90");
     assert.ok(amazon[1].errors.some((e) => e.includes("URL")));
     const throne = parseThrone(
       readFileSync("tests/fixtures/throne.html", "utf8"),
@@ -202,6 +218,26 @@ test("métadonnées non exécutées, prix daté, SVG téléversé refusé", asyn
   assert.equal(meta.currency, "EUR");
   assert.equal(meta.image_url, "https://example.com/lamp.png");
   assert.ok(meta.extracted_at);
+  for (const image of [
+    [{ "@type": "ImageObject", contentUrl: "/watch.jpg" }],
+    { "@type": "ImageObject", url: "/watch.jpg" },
+    {},
+  ]) {
+    const watch = parseMetadata(
+      `<meta property="og:image" content="/watch.jpg"><script type="application/ld+json">${JSON.stringify(
+        {
+          "@type": "Product",
+          name: "Seiko Astron",
+          image,
+          offers: { price: "2500.00", priceCurrency: "EUR" },
+        },
+      )}</script>`,
+      "https://merchant.example/watch",
+    );
+    assert.equal(watch.title, "Seiko Astron");
+    assert.equal(watch.price, 250000);
+    assert.equal(watch.image_url, "https://merchant.example/watch.jpg");
+  }
   await assert.rejects(
     storeImage(
       Buffer.from(
