@@ -25,6 +25,8 @@ Compléter ensuite le profil, le lien PayPal.Me personnel et les catégories, pu
 
 **TrueNAS 25.04 / 25.10 :** voir le [guide d’installation comme application](docs/truenas.md) et le [modèle YAML](compose.truenas.yaml). Le setup s’effectue dans le navigateur ; seule la lecture du code dans les journaux de l’application est nécessaire.
 
+Pour le référencement dans les catalogues **TrueNAS Apps**, **Unraid Community Applications** et les autres plateformes, voir le [parcours de publication](docs/app-catalogs.md).
+
 Le port est lié à `127.0.0.1` pour l’accès local et le reverse proxy. Deux volumes conservent les données et les sauvegardes : `wishlister-data` et `wishlister-backups` (préfixés par Compose). `docker compose down` conserve ces volumes. `down -v` les supprimerait.
 
 ## Personnaliser sa Ouichlist
