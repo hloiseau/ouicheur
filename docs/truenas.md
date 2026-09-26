@@ -1,6 +1,8 @@
-# Installer Ouicheur sur TrueNAS 25.10
+# Installer Ouicheur sur TrueNAS
 
 Ouicheur fonctionne dans un conteneur Docker unique. Le premier accès ouvre `/setup` : aucun `npm run setup`, SSH ou shell de conteneur n’est nécessaire pour créer le compte.
+
+Le NAS inspecté utilise TrueNAS **25.04.2.6**. Les appels d’installation et de mise à jour du modèle sont présents sur cette version et sur 25.10.
 
 ## État de livraison
 
@@ -64,9 +66,9 @@ En cas de problème d’écriture, vérifier le dataset et ses permissions. Si l
 
 Les pull requests exécutent les tests sur les machines GitHub. Seuls les changements de `main` peuvent publier une image et lancer le déploiement. La production accepte uniquement les branches protégées. Les Actions sont verrouillées sur leurs commits et les déploiements sont sérialisés.
 
-Le job rejoint le réseau privé avec [l’Action Tailscale](https://github.com/tailscale/github-action), puis appelle le script fixe `/root/ouicheur/deploy.py` via SSH. Aucun runner GitHub n’est installé sur le NAS. Le script met à jour l’app TrueNAS par [app.update](https://api.truenas.com/v25.10/api_methods_app.update.html), en conservant sa configuration et ses montages.
+Le job rejoint le réseau privé avec [l’Action Tailscale](https://github.com/tailscale/github-action), en utilisant OIDC et le tag `tag:ci`, comme la CI existante de `hloiseau-os`. Il appelle ensuite le script fixe `/root/ouicheur/deploy.py` via SSH. Aucun runner GitHub n’est installé sur le NAS. Le script met à jour l’app TrueNAS par [app.update](https://api.truenas.com/v25.10/api_methods_app.update.html), en conservant sa configuration et ses montages.
 
-Installer [scripts/deploy-truenas.py](../scripts/deploy-truenas.py) à cet emplacement, propriété de `root`, dans un dossier non modifiable par le compte de déploiement. Accorder à ce compte uniquement l’exécution sans mot de passe de ce script. Utiliser une clé SSH dédiée à ce dépôt, limitée à cette commande dans `authorized_keys` :
+Installer [scripts/deploy-truenas.py](../scripts/deploy-truenas.py) à cet emplacement, propriété de `root`, dans un dossier non modifiable par le compte de déploiement. Dans les paramètres du compte TrueNAS, ajouter uniquement ce chemin aux commandes sudo autorisées sans mot de passe (`sudo_commands_nopasswd`), en conservant les autorisations existantes. TrueNAS génère sa configuration sudo à partir de ces paramètres. Utiliser une clé SSH dédiée à ce dépôt, limitée à cette commande dans `authorized_keys` :
 
 ```text
 restrict,command="sudo -n /root/ouicheur/deploy.py \"$SSH_ORIGINAL_COMMAND\"" ssh-ed25519 CLE_PUBLIQUE github-actions-ouicheur
@@ -76,17 +78,17 @@ Le workflow transmet uniquement le digest comme commande SSH ; le script forcé 
 
 Configurer les valeurs suivantes dans **Settings → Secrets and variables → Actions** du dépôt :
 
-| Type     | Nom                       | Valeur                                                                        |
-| -------- | ------------------------- | ----------------------------------------------------------------------------- |
-| Secret   | `TS_OAUTH_CLIENT_ID`      | Identifiant du client OAuth Tailscale dédié                                   |
-| Secret   | `TS_OAUTH_SECRET`         | Secret du client OAuth, avec droit de créer des clés et tag `tag:ouicheur-ci` |
-| Secret   | `TRUENAS_SSH_PRIVATE_KEY` | Clé privée SSH dédiée au déploiement                                          |
-| Secret   | `TRUENAS_KNOWN_HOSTS`     | Clé hôte SSH du NAS, vérifiée avant enregistrement                            |
-| Variable | `TRUENAS_HOST`            | Adresse Tailscale du NAS                                                      |
-| Variable | `TRUENAS_USER`            | Compte de déploiement                                                         |
-| Variable | `TRUENAS_DEPLOY_ENABLED`  | `true`, seulement après installation et configuration des accès               |
+| Type     | Nom                       | Valeur                                                          |
+| -------- | ------------------------- | --------------------------------------------------------------- |
+| Secret   | `TS_OAUTH_CLIENT_ID`      | Identifiant de la fédération OIDC Tailscale existante           |
+| Secret   | `TS_AUDIENCE`             | Audience attendue par cette fédération OIDC                     |
+| Secret   | `TRUENAS_SSH_PRIVATE_KEY` | Clé privée SSH dédiée au déploiement                            |
+| Secret   | `TRUENAS_KNOWN_HOSTS`     | Clé hôte SSH du NAS, vérifiée avant enregistrement              |
+| Variable | `TRUENAS_HOST`            | Adresse Tailscale du NAS                                        |
+| Variable | `TRUENAS_USER`            | Compte de déploiement                                           |
+| Variable | `TRUENAS_DEPLOY_ENABLED`  | `true`, seulement après installation et configuration des accès |
 
-Dans Tailscale, autoriser le tag `tag:ouicheur-ci` à joindre uniquement le port SSH du NAS. Le client OAuth et la politique doivent utiliser ce même tag. Les secrets se saisissent directement dans GitHub ; ne jamais les committer ni les coller dans une conversation.
+Réutiliser le tag `tag:ci` et son accès au port SSH du NAS. La [fédération OIDC](https://tailscale.com/docs/features/workload-identity-federation) doit accepter l’identité GitHub de ce dépôt et de son environnement `production` : `repo:hloiseau/ouicheur:environment:production`. Vérifier les conditions existantes avant de les modifier ; le fait qu’une fédération accepte `hloiseau-os` ne garantit pas qu’elle accepte aussi Ouicheur. Aucun secret OAuth durable n’est requis. Les paramètres GitHub conservés dans les secrets d’un autre dépôt ne sont pas automatiquement partagés avec celui-ci.
 
 Avant chaque mise à jour, le script télécharge l’image, crée une sauvegarde cohérente de la base et des images dans `/app/backups/pre-deploy-DATE`, et conserve l’ancienne configuration dans `/root/ouicheur/compose-DATE.json`. Une sauvegarde échouée bloque la mise à jour. Le digest accepté est limité au package Ouicheur. Après redémarrage, les contrôles vérifient la santé du conteneur et l’URL publique.
 

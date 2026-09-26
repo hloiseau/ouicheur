@@ -88,6 +88,9 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.TRUENAS_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
     environment:
       name: production
       url: https://ouicheur.hugoloiseau.fr
@@ -96,8 +99,8 @@ jobs:
         uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ouicheur-ci
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:ci
           ping: ${{ vars.TRUENAS_HOST }}
       - name: Deploy the verified image
         env:

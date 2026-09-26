@@ -1,4 +1,4 @@
-# Modèle pour TrueNAS 25.10 > Apps > Discover Apps > Install via YAML.
+# Modèle pour les Apps Docker de TrueNAS 25.04 / 25.10 > Install via YAML.
 # Première installation ; les mises à jour automatiques utilisent un digest testé.
 services:
   ouicheur:
