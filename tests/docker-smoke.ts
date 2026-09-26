@@ -11,6 +11,8 @@ import { confirmManual, createIntent } from "../lib/payments";
 const runId = randomUUID();
 const folder = resolve(".local/docker-check", runId);
 mkdirSync(folder, { recursive: true });
+const backups = join(folder, "backups");
+mkdirSync(backups);
 const source = join(folder, "data");
 const db = openDatabase(join(source, "wishlist.sqlite"));
 await initializeOwner(db, "Docker Test", "docker-test-only-password");
@@ -72,6 +74,8 @@ function start(data: string) {
     `${process.getuid?.() ?? 1000}:${process.getgid?.() ?? 1000}`,
     "--mount",
     `type=bind,source=${data},target=/app/data`,
+    "--mount",
+    `type=bind,source=${backups},target=/app/backups`,
     "--env",
     // Direct NAS/test access must work alongside a different public domain.
     "APP_ORIGIN=https://ouicheur.example",
