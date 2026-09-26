@@ -1,4 +1,4 @@
-name: Test, publish and deploy
+name: Test and publish Docker image
 
 on:
   pull_request:
@@ -20,8 +20,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    outputs:
-      image: ${{ steps.publish.outputs.image }}
     env:
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.local/pw-browsers
     steps:
@@ -36,7 +34,6 @@ jobs:
       - run: npm run format:check
       - run: npm run check
       - run: npm test
-      - run: python3 -m unittest discover -s tests -p '*_test.py'
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
       - run: npm run build
       - run: npm run test:e2e
@@ -61,7 +58,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish the tested image
-        id: publish
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
           REPOSITORY: ${{ github.repository }}
@@ -72,8 +68,6 @@ jobs:
           docker push "$image:sha-$REVISION"
           docker tag ouicheur:local "$image:main"
           docker push "$image:main"
-          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$image:sha-$REVISION")
-          echo "image=$digest" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
@@ -82,43 +76,3 @@ jobs:
             test-results/
             playwright-report/
           retention-days: 7
-
-  deploy:
-    needs: verify
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.TRUENAS_DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      id-token: write
-    environment:
-      name: production
-      url: https://ouicheur.hugoloiseau.fr
-    steps:
-      - name: Join the private deployment network
-        uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          audience: ${{ secrets.TS_AUDIENCE }}
-          tags: tag:ci
-          ping: ${{ vars.TRUENAS_HOST }}
-      - name: Deploy the verified image
-        env:
-          SSH_KEY: ${{ secrets.TRUENAS_SSH_PRIVATE_KEY }}
-          KNOWN_HOSTS: ${{ secrets.TRUENAS_KNOWN_HOSTS }}
-          NAS_HOST: ${{ vars.TRUENAS_HOST }}
-          NAS_USER: ${{ vars.TRUENAS_USER }}
-          IMAGE: ${{ needs.verify.outputs.image }}
-        run: |
-          [[ "$NAS_HOST" =~ ^[a-zA-Z0-9.-]+$ && "$NAS_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
-          [[ "$IMAGE" =~ ^ghcr.io/hloiseau/ouicheur@sha256:[a-f0-9]{64}$ ]]
-          test -n "$SSH_KEY" && test -n "$KNOWN_HOSTS"
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
-          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
-          ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
-            -o ConnectTimeout=20 "$NAS_USER@$NAS_HOST" \
-            "$IMAGE"
-      - name: Check the public site
-        run: curl --fail --silent --show-error --retry 10 --retry-delay 3 --retry-all-errors --max-time 15 https://ouicheur.hugoloiseau.fr/api/health

@@ -23,7 +23,7 @@ Un **code d’installation privé** apparaît dans les journaux de l’applicati
 
 Compléter ensuite le profil, le lien PayPal.Me personnel et les catégories, puis ajouter ou importer les cadeaux. L’instance est volontairement vide ; les données fictives restent dans les tests.
 
-**TrueNAS 25.10 :** voir le [guide d’installation comme application](docs/truenas.md) et le [modèle YAML](compose.truenas.yaml). Le setup s’effectue dans le navigateur ; seule la lecture du code dans les journaux de l’application est nécessaire.
+**TrueNAS 25.04 / 25.10 :** voir le [guide d’installation comme application](docs/truenas.md) et le [modèle YAML](compose.truenas.yaml). Le setup s’effectue dans le navigateur ; seule la lecture du code dans les journaux de l’application est nécessaire.
 
 Le port est lié à `127.0.0.1` pour l’accès local et le reverse proxy. Deux volumes conservent les données et les sauvegardes : `wishlister-data` et `wishlister-backups` (préfixés par Compose). `docker compose down` conserve ces volumes. `down -v` les supprimerait.
 
@@ -69,7 +69,7 @@ Chaque envie accepte une **quantité de 1 à 999**. Le montant saisi est celui d
 
 Pour garder plusieurs envies avec le même lien, cocher **Autoriser un doublon**. À l’import, cette option crée une nouvelle envie indépendante ; **remplacer** modifie l’envie existante et conserve ses contributions et sa devise. Les doublons restent désélectionnés par défaut. Si plusieurs envies correspondent, modifier celle voulue dans **Mes envies** plutôt que choisir un remplacement ambigu.
 
-Le [workflow GitHub Actions](.github/workflows/ci.yml) vérifie les tests, construit et teste l’image Docker, puis la publie sur GHCR. Le [guide TrueNAS et Caddy](docs/truenas.md) décrit l’installation et l’activation du déploiement automatique sur `ouicheur.hugoloiseau.fr`.
+Le [workflow GitHub Actions](.github/workflows/ci.yml) vérifie les tests, construit et teste l’image Docker, puis la publie sur GHCR. Chacun installe et met à jour son instance avec Docker ou le [guide TrueNAS et Caddy](docs/truenas.md). La CI ne demande aucun accès au serveur de l’utilisateur.
 
 1. Dans **Mes envies**, coller un lien produit et choisir **Récupérer les informations**. Les données Schema.org (JSON-LD, Microdata, RDFa) et Open Graph alimentent un aperçu modifiable. L’image trouvée est téléchargée automatiquement, nettoyée et stockée localement ; elle reste remplaçable par une autre URL ou un fichier. Un échec de l’image conserve les autres informations. L’envie n’est enregistrée qu’après confirmation. Les liens Amazon, Back Market et Chrono24 fournis ont été vérifiés avec titre, prix et image ; [résultats et limites](docs/imports-status.md).
 2. Définir un objectif et une catégorie, puis enregistrer : l’envie est immédiatement visible sur la page publique. Les imports publient aussi les envies sélectionnées avec leurs images récupérées automatiquement. L’archivage permet de retirer une envie de la page publique. Le prix extrait est une suggestion datée. Le prix cible peut inclure la livraison et être modifié sans modifier les contributions reçues.
@@ -187,4 +187,4 @@ Les tests navigateur utilisent le port 3211 pour les parcours courants et une in
 
 Documentation technique consultée : [installation Next.js](https://nextjs.org/docs/app/getting-started/installation), [déploiement standalone](https://nextjs.org/docs/app/api-reference/config/next-config-js/output), [SQLite Node](https://nodejs.org/api/sqlite.html), [scrypt Node](https://nodejs.org/docs/latest-v24.x/api/crypto.html), [Cheerio](https://cheerio.js.org/docs/basics/loading/), [réencodage Sharp](https://sharp.pixelplumbing.com/api-output/).
 
-Licence [MIT](LICENSE). Le dépôt local n’est pas publié et aucun déploiement public n’est effectué.
+Licence [MIT](LICENSE). Code public : [hloiseau/ouicheur](https://github.com/hloiseau/ouicheur).

@@ -1,0 +1,5 @@
+# Replace the domain and NAS address, then add this block to the existing Caddyfile.
+envies.example.org {
+	encode zstd gzip
+	reverse_proxy 192.0.2.10:31000
+}

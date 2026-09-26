@@ -1,5 +1,5 @@
 # Modèle pour les Apps Docker de TrueNAS 25.04 / 25.10 > Install via YAML.
-# Première installation ; les mises à jour automatiques utilisent un digest testé.
+# Remplacer APP_ORIGIN par l'adresse du NAS ou le domaine HTTPS public.
 services:
   ouicheur:
     image: ghcr.io/hloiseau/ouicheur:main
@@ -8,22 +8,17 @@ services:
     ports:
       - "31000:3000"
     environment:
-      APP_ORIGIN: https://ouicheur.hugoloiseau.fr
+      APP_ORIGIN: http://localhost:31000
       DATA_DIR: /app/data
       TRUST_PROXY: "0"
       NEXT_TELEMETRY_DISABLED: "1"
     volumes:
-      - type: bind
-        source: /mnt/Main/tank/ouicheur/data
-        target: /app/data
-        bind:
-          create_host_path: false
-      - type: bind
-        source: /mnt/Main/tank/ouicheur/backups
-        target: /app/backups
-        bind:
-          create_host_path: false
+      - ouicheur-data:/app/data
+      - ouicheur-backups:/app/backups
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
+volumes:
+  ouicheur-data:
+  ouicheur-backups:
