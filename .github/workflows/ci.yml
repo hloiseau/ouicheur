@@ -116,6 +116,6 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
           ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
             -o ConnectTimeout=20 "$NAS_USER@$NAS_HOST" \
-            "sudo -n /root/ouicheur/deploy.py '$IMAGE'"
+            "$IMAGE"
       - name: Check the public site
         run: curl --fail --silent --show-error --retry 10 --retry-delay 3 --retry-all-errors --max-time 15 https://ouicheur.hugoloiseau.fr/api/health

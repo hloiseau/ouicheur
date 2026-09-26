@@ -104,12 +104,16 @@ test("quantités et doublons volontaires dans le formulaire, l’import et la pa
       .getByText(/Quantité : 5/),
   ).toContainText("19,99");
   await page.getByRole("link", { name: title, exact: true }).click();
-  await expect(page.getByText(/Quantité : 4/)).toContainText("19,99");
+  await expect(
+    page.locator(".detail-content").getByText(/Quantité : 4/),
+  ).toContainText("19,99");
   await expect(page.locator(".funding-goal")).toContainText("79,96");
   await page
     .getByRole("combobox", { name: "Langue", exact: true })
     .selectOption("en");
-  await expect(page.getByText(/Quantity: 4/)).toContainText("19.99");
+  await expect(
+    page.locator(".detail-content").getByText(/Quantity: 4/),
+  ).toContainText("19.99");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth > innerWidth,

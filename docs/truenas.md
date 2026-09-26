@@ -66,7 +66,13 @@ Les pull requests exécutent les tests sur les machines GitHub. Seuls les change
 
 Le job rejoint le réseau privé avec [l’Action Tailscale](https://github.com/tailscale/github-action), puis appelle le script fixe `/root/ouicheur/deploy.py` via SSH. Aucun runner GitHub n’est installé sur le NAS. Le script met à jour l’app TrueNAS par [app.update](https://api.truenas.com/v25.10/api_methods_app.update.html), en conservant sa configuration et ses montages.
 
-Installer [scripts/deploy-truenas.py](../scripts/deploy-truenas.py) à cet emplacement, propriété de `root`, dans un dossier non modifiable par le compte de déploiement. Accorder à ce compte uniquement l’exécution sans mot de passe de ce script. Utiliser une clé SSH dédiée à ce dépôt, avec les options `restrict` dans `authorized_keys`.
+Installer [scripts/deploy-truenas.py](../scripts/deploy-truenas.py) à cet emplacement, propriété de `root`, dans un dossier non modifiable par le compte de déploiement. Accorder à ce compte uniquement l’exécution sans mot de passe de ce script. Utiliser une clé SSH dédiée à ce dépôt, limitée à cette commande dans `authorized_keys` :
+
+```text
+restrict,command="sudo -n /root/ouicheur/deploy.py \"$SSH_ORIGINAL_COMMAND\"" ssh-ed25519 CLE_PUBLIQUE github-actions-ouicheur
+```
+
+Le workflow transmet uniquement le digest comme commande SSH ; le script forcé le valide avant toute modification. Cette clé n’ouvre pas de shell et ne peut pas modifier les autres sites.
 
 Configurer les valeurs suivantes dans **Settings → Secrets and variables → Actions** du dépôt :
 
