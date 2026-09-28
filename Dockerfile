@@ -6,7 +6,7 @@ RUN npm ci --no-fund
 COPY . .
 RUN npm run build \
     && mkdir -p third-party-licenses \
-    && npm sbom --omit=dev --sbom-format=cyclonedx > third-party-licenses/npm-sbom.cdx.json \
+    && npm sbom --sbom-format=cyclonedx > third-party-licenses/npm-sbom.cdx.json \
     && npm prune --omit=dev --no-fund \
     && node scripts/licenses.mjs
 

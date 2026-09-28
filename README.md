@@ -43,6 +43,13 @@ Le [guide produit](docs/product-features.md) décrit les parcours, leurs limites
 la migration d’une installation existante. Ces changements ne sont disponibles
 dans les images publiques qu’après fusion et publication de cette version.
 
+![Ouicheur avec des données fictives](docs/screenshots/wishlist-desktop.png)
+
+[Vue mobile](docs/screenshots/wishlist-mobile.png) ·
+[Réglages et sauvegardes](docs/screenshots/instance-desktop.png).
+Ces captures utilisent uniquement des données de démonstration ; une installation
+neuve reste vide.
+
 ## Personnaliser sa Ouichlist
 
 Dans **My profile / Mon profil**, choisir l’avatar, la bannière et son cadrage, la présentation, les liens sociaux, une image de fond et la couleur d’accent. Les presets rose, acidulé et menthe reprennent la palette Ouicheur ; le sélecteur de couleur accepte aussi une teinte personnelle. L’aperçu réagit avant l’enregistrement, et la teinte des textes est ajustée pour rester lisible sur fond sombre.

@@ -29,8 +29,9 @@ source is https://github.com/lovell/sharp-libvips. The lockfile also includes
 The Dockerfile uses Next.js standalone output and also collects the production
 dependency license/notice texts and package inventory into
 `/app/third-party-licenses` before reducing the runtime files. A CycloneDX npm
-SBOM is included as `npm-sbom.cdx.json`; it covers npm packages, not the Debian
-base or Chromium system dependencies. It explicitly
+SBOM is included as `npm-sbom.cdx.json`; it covers npm build and runtime packages,
+not the Debian base or Chromium system dependencies. Build-only tools are removed
+before collecting the production inventory in `packages.json`. The image explicitly
 includes this file and Ouicheur's license. Debian notices are normally under `/usr/share/doc`.
 Do not strip bundled notices when reducing the image size.
 

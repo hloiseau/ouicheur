@@ -7,6 +7,12 @@ and events; visitors can reserve a gift without an account or contribute directl
 through the owner's PayPal.Me link. The interface supports English and French.
 Ouicheur never holds money or automatically buys products.
 
+![Ouicheur with fictional demonstration data](docs/screenshots/wishlist-desktop.png)
+
+[Mobile view](docs/screenshots/wishlist-mobile.png) ·
+[Instance settings and backups](docs/screenshots/instance-desktop.png)
+— screenshots use synthetic data; new installations start empty.
+
 ## Quick start
 
 With Docker and Docker Compose installed:

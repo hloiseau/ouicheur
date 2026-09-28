@@ -3,13 +3,16 @@
 Les soumissions aux catalogues sont suspendues à la demande du propriétaire,
 le temps de finaliser le produit. Le propriétaire confirme un essai positif sur
 son TrueNAS de la version précédant la finalisation ; il ne s’agit pas encore
-une validation des nouveaux parcours ni d’Unraid.
+d’une validation des nouveaux parcours ni d’Unraid.
 
 Cette liste est un suivi de travail, pas une déclaration de validation.
 
-- [ ] Fusionner la préparation NAS après CI verte et revue.
-- [ ] Compléter les notices de redistribution de l'image finale, y compris les
-      composants natifs ; archiver un inventaire/SBOM avec la version.
+- [ ] Fusionner la finalisation produit après CI verte et revue.
+- [x] Embarquer MIT, les notices des dépendances de production et un inventaire
+      npm CycloneDX de construction/exécution ; conserver les notices Debian
+      et Chromium de l’image.
+- [ ] Archiver l’inventaire de l’image publiée avec la release ; l’inventaire npm
+      ne couvre pas les paquets Debian ni Chromium.
 - [x] Rédiger un changelog, noter les migrations et documenter une restauration
       depuis une sauvegarde de la version précédente.
 - [x] Préparer la version `1.1.0` ; `package.json` et `package-lock.json` sont cohérents.
@@ -19,8 +22,9 @@ Cette liste est un suivi de travail, pas une déclaration de validation.
 - [ ] Vérifier le téléchargement anonyme de l'image, son architecture, le digest,
       `/app/LICENSE` et les notices. Créer la GitHub Release avec changelog et digest.
 - [ ] Mettre à jour les références dans le XML Unraid et le candidat TrueNAS.
-- [ ] Activer un canal privé de signalement GitHub et ajouter des captures avec
-      données fictives et un démarrage rapide anglais.
+- [x] Ajouter le démarrage rapide anglais et le guide des nouvelles fonctionnalités.
+- [x] Ajouter les captures avec données fictives après vérification visuelle.
+- [ ] Activer un canal privé de signalement GitHub si souhaité.
 
 ## Essais à réaliser sur chaque NAS
 
