@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — product completion
+## 1.1.0 — unreleased, product completion
 
 - Multiple lists and dated events, public/unlisted/private visibility, archival,
   revocable sharing, image authorization and locally generated QR codes.

@@ -39,6 +39,16 @@ test("accessibilité WCAG A/AA des pages principales", async ({
         fullPage: true,
         scale: "css",
       });
+      if (info.project.name === "desktop") {
+        const viewport = page.viewportSize()!;
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.screenshot({
+          path: "test-results/demo-responsive.png",
+          fullPage: true,
+          scale: "css",
+        });
+        await page.setViewportSize(viewport);
+      }
     }
   }
   await context.request.post("/api/login", {

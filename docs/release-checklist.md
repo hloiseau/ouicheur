@@ -12,7 +12,7 @@ Cette liste est un suivi de travail, pas une déclaration de validation.
       composants natifs ; archiver un inventaire/SBOM avec la version.
 - [x] Rédiger un changelog, noter les migrations et documenter une restauration
       depuis une sauvegarde de la version précédente.
-- [ ] Choisir la version ; garder `package.json` et `package-lock.json` cohérents.
+- [x] Préparer la version `1.1.0` ; `package.json` et `package-lock.json` sont cohérents.
 - [ ] Créer le tag `vX.Y.Z` correspondant après tests. La CI reconstruit, teste et
       publie `ghcr.io/hloiseau/ouicheur:X.Y.Z` ainsi que son tag de commit. Elle ne
       crée pas automatiquement la GitHub Release et ne publie pas `latest`.

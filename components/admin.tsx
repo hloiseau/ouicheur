@@ -1,4 +1,5 @@
 "use client";
+import { version } from "../package.json";
 import { ListsEditor } from "./lists";
 import { Operations } from "./operations";
 import { History } from "./history";
@@ -294,7 +295,7 @@ export function Admin() {
           <button className="text-link" onClick={() => setPage("audit")}>
             {t("Journal")}
           </button>
-          {t("Vos données, chez vous.")} <span>Ouicheur · 1.0</span>
+          {t("Vos données, chez vous.")} <span>Ouicheur · {version}</span>
         </footer>
       </main>
     </div>

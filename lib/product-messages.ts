@@ -1,4 +1,5 @@
 export const productEnglish: Record<string, string> = {
+  "Ce lien de partage est indisponible.": "This share link is unavailable.",
   "Réservation indisponible : envie fermée ou contributions existantes.":
     "Reservations are unavailable: this wish is closed or already has contributions.",
   "Les envies sélectionnées suivront la confidentialité de la liste choisie. Les images sont récupérées automatiquement. Vérifiez les montants et la devise.":

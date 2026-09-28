@@ -4,7 +4,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
 RUN npm ci --no-fund
 COPY . .
-RUN npm run build && npm prune --omit=dev --no-fund && node scripts/licenses.mjs && npm sbom --omit=dev --sbom-format=cyclonedx > third-party-licenses/npm-sbom.cdx.json
+RUN npm run build \
+    && mkdir -p third-party-licenses \
+    && npm sbom --omit=dev --sbom-format=cyclonedx > third-party-licenses/npm-sbom.cdx.json \
+    && npm prune --omit=dev --no-fund \
+    && node scripts/licenses.mjs
 
 FROM node:24.21.0-bookworm-slim AS runtime
 WORKDIR /app
