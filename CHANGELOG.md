@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — first 1.2 development batch
+
+- Budget filters by unit price, total goal or remaining funding, with explicit
+  currency selection and inclusive minimum/maximum amounts.
+- Availability filter, additional monetary/name sorts and accent-insensitive
+  search, combined with existing lists, categories and favorites.
+- List-scoped navigation counts and pagination reset when filters change.
+- A sourced review of 16 wishlist alternatives and a prioritized GitHub backlog
+  for the self-hosted edition.
+
+This batch does not change the database schema.
+It is not the complete 1.2.0 release.
+
 ## 1.1.0 — unreleased, product completion
 
 - Multiple lists and dated events, public/unlisted/private visibility, archival,
