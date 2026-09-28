@@ -145,6 +145,13 @@ test("profile appearance previews, saves and persists; public collections and fa
     await page
       .getByRole("button", { name: "Reset filters", exact: true })
       .click();
+    await expect(page.locator(".gift-card")).toHaveCount(
+      Math.min(24, visibleGifts.length),
+    );
+    for (let shown = 24; shown < visibleGifts.length; shown += 24)
+      await page
+        .getByRole("button", { name: "Show more", exact: true })
+        .click();
     await expect(page.locator(".gift-card")).toHaveCount(visibleGifts.length);
     expect(
       await page.evaluate(

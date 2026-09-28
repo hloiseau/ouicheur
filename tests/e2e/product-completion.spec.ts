@@ -214,6 +214,9 @@ test("owner maintenance, protected backup download and authenticated mobile shar
       () => document.documentElement.scrollWidth > innerWidth,
     ),
   ).toBe(false);
+  await page
+    .getByRole("heading", { name: "Mon instance", exact: true })
+    .click();
   await page.screenshot({
     path: `test-results/operations-${info.project.name}.png`,
     fullPage: true,

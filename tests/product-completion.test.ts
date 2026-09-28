@@ -336,6 +336,11 @@ test("complete managed backups restore images, settings and lists, and prune onl
     });
     saveGift(db, { ...input, list_id: list, image: "/media/" + name });
     saveSettings(db, { ...getSettings(db), backup_keep: 1 });
+    const shared = saveList(db, {
+      name: "Share restored",
+      visibility: "unlisted",
+    });
+    const shareToken = rotateShare(db, shared)!;
     const first = await createBackup(db, join(folder, "data"), root);
     assert.equal(backupHistory(db)[0].state, "done");
     assert.ok(
@@ -357,6 +362,13 @@ test("complete managed backups restore images, settings and lists, and prune onl
         "synthetic image",
       );
       assert.equal(getSettings(check).backup_keep, 1);
+      assert.equal(resolveShare(check, shareToken), undefined);
+      assert.equal(
+        check
+          .prepare("SELECT COUNT(*) n FROM backup_jobs WHERE state='running'")
+          .get()!.n,
+        0,
+      );
     } finally {
       check.close();
     }
