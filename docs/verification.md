@@ -1,5 +1,7 @@
 # Vérifications de livraison
 
+**Actualisation du 28 septembre 2026 :** les paragraphes ci-dessous sont des résultats historiques. L’image GHCR est désormais publiée et lisible anonymement ; la [CI du commit étudié](https://github.com/hloiseau/ouicheur/actions/runs/36264329576) est verte. L’[audit du 28 septembre](review-2026-09-28.md) distingue les nouveaux contrôles des essais non réalisés. Aucun test natif TrueNAS ou Unraid n’est revendiqué à ce stade.
+
 Exécution le **24 septembre 2026**, sous Windows, avec Node 24.21.0 local au projet et Docker Desktop / moteur Linux 28.3.3. Application Next.js 16.3.6, React 19.3.0. Dépendances verrouillées dans `package-lock.json`.
 
 ## Résultats
@@ -61,7 +63,7 @@ Ces contrôles et captures ne constituent pas une certification ni un test exhau
 - Aucun compte PayPal connecté, aucun transfert, remboursement ou webhook PayPal réel/sandbox. Seule la construction documentée du lien est vérifiée. Les confirmations des tests sont fictives. L’interface interne `recordConfirmedPayment` sépare le registre d’un futur adaptateur, mais **aucun adaptateur automatique n’est livré ou activé**. Une route web ne peut sélectionner la provenance `verified`.
 - Les listes privées ou exigeant une connexion ne sont pas couvertes. Les résultats Amazon, Throne et Chrono24 ci-dessus sont des vérifications datées des liens testés, sans garantie sur tous les formats de listes ou annonces. [Détail](imports-status.md).
 - Aucun domaine, certificat public ou déploiement Internet configuré. L’accès local est limité à la machine ; le README explique HTTPS.
-- Aucun déploiement réel sur TrueNAS. Le modèle Compose pour TrueNAS 25.10 passe la validation de syntaxe Docker Compose. L’image est construite localement et doit encore être publiée dans un registre accessible au NAS ; son adresse dans le modèle est un exemple à remplacer. [Guide TrueNAS](truenas.md).
+- Aucun déploiement réel sur TrueNAS documenté dans ces vérifications. Le modèle Compose pour TrueNAS 25.10 a passé la validation de syntaxe Docker Compose. Depuis le 26 septembre, l’image `ghcr.io/hloiseau/ouicheur:main` est publiée ; son accès anonyme a été vérifié le 28 septembre. La publication de l’image ne valide pas l’installation native NAS. [Guide TrueNAS](truenas.md).
 - Le module SQLite natif est fourni par Node LTS et son API conserve un statut de stabilité évolutif dans la documentation Node. Le runtime est verrouillé ; vérifier migrations, sauvegarde et concurrence avant tout changement majeur.
 
 ## Rejouer

@@ -15,7 +15,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Sous PowerShell, remplacer la première ligne par `Copy-Item .env.example .env` si `.env` n’existe pas encore. Le projet livré dispose déjà d’un `.env` local sans secret.
+Sous PowerShell, remplacer la première ligne par `Copy-Item .env.example .env` si `.env` n’existe pas encore. Le fichier `.env` est local et n’est pas versionné.
 
 Ouvrir **http://localhost:3000** : au premier démarrage, un assistant web demande votre pseudonyme, un mot de passe d’au moins 12 caractères, sa confirmation et votre devise. PayPal.Me est facultatif. **Aucun compte ni mot de passe par défaut.**
 
@@ -26,6 +26,8 @@ Compléter ensuite le profil, le lien PayPal.Me personnel et les catégories, pu
 **TrueNAS 25.04 / 25.10 :** voir le [guide d’installation comme application](docs/truenas.md) et le [modèle YAML](compose.truenas.yaml). Le setup s’effectue dans le navigateur ; seule la lecture du code dans les journaux de l’application est nécessaire.
 
 Pour le référencement dans les catalogues **TrueNAS Apps**, **Unraid Community Applications** et les autres plateformes, voir le [parcours de publication](docs/app-catalogs.md).
+
+Les [modèles Unraid](docs/unraid.md) et le [candidat TrueNAS](deploy/truenas/README.md) sont en préparation et ne constituent pas encore une présence dans les catalogues. Voir l’[audit et la feuille de route](docs/review-2026-09-28.md), la [liste de validation de release](docs/release-checklist.md), le [guide de contribution](CONTRIBUTING.md) et les [consignes de sécurité](SECURITY.md).
 
 Le port est lié à `127.0.0.1` pour l’accès local et le reverse proxy. Deux volumes conservent les données et les sauvegardes : `wishlister-data` et `wishlister-backups` (préfixés par Compose). `docker compose down` conserve ces volumes. `down -v` les supprimerait.
 
