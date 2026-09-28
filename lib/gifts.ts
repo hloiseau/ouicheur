@@ -2,10 +2,15 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { atomic, audit } from "./db";
 import { AppError, dateNow, giftSchema } from "./validation";
+import { listLists, publicAccess, type Access } from "./lists.ts";
+import { reservedQuantity } from "./reservations.ts";
 import type { Appearance } from "./appearance";
 
 export type Gift = {
   id: string;
+  list_id: string;
+  reserved: number;
+  declared: number;
   url: string;
   title: string;
   description: string;
@@ -35,11 +40,12 @@ export type PublicProfile = Appearance & {
   socials: string;
   currency: string;
   payments_enabled: number;
+  strict_contributions?: number;
 };
 export function publicProfile(db: DatabaseSync) {
   const row = db
     .prepare(
-      "SELECT name,bio,avatar,banner,socials,currency,background,accent,banner_position,layout,CASE WHEN paypal<>'' THEN 1 ELSE 0 END payments_enabled FROM owner WHERE id=1",
+      "SELECT strict_contributions,name,bio,avatar,banner,socials,currency,background,accent,banner_position,layout,CASE WHEN paypal<>'' THEN 1 ELSE 0 END payments_enabled FROM owner WHERE id=1",
     )
     .get();
   return row ? ({ ...row } as PublicProfile) : undefined;
@@ -47,21 +53,29 @@ export function publicProfile(db: DatabaseSync) {
 // A recorded payment replaces its declaration, including after a refund.
 export const fundingTotalsSql = `SELECT c.gift_id,
   SUM(CASE WHEN p.id IS NOT NULL THEN COALESCE(p.net-p.net_reversed,p.gross-MAX(p.refunded,p.net_reversed))
-    WHEN c.state='declared' THEN c.amount ELSE 0 END) funded
+    WHEN c.state='declared' AND (c.approved=1 OR (SELECT strict_contributions FROM owner WHERE id=1)=0) THEN c.amount ELSE 0 END) funded
   FROM contributions c LEFT JOIN payments p ON p.contribution_id=c.id GROUP BY c.gift_id`;
 
-export function listGifts(db: DatabaseSync, admin = false) {
-  return db
+export function listGifts(
+  db: DatabaseSync,
+  admin = false,
+  access: Access = publicAccess,
+) {
+  const allowed = listLists(db, access).map((l) => l.id);
+  const rows = db
     .prepare(
       `SELECT g.*,c.name category,COALESCE(f.funded,0) funded,
+    COALESCE((SELECT SUM(quantity) FROM reservations r WHERE r.gift_id=g.id AND (r.state='purchased' OR (r.state='reserved' AND r.expires_at>?))),0) reserved,
+    COALESCE((SELECT SUM(amount) FROM contributions c WHERE c.gift_id=g.id AND c.state='declared' AND c.approved=0 AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.contribution_id=c.id)),0) declared,
     COALESCE((SELECT SUM(p.net-p.net_reversed) FROM payments p JOIN contributions n ON n.id=p.contribution_id WHERE n.gift_id=g.id AND p.net IS NOT NULL),0) confirmed,
     COALESCE((SELECT SUM(p.gross-MAX(p.refunded,p.net_reversed)) FROM payments p JOIN contributions n ON n.id=p.contribution_id WHERE n.gift_id=g.id AND p.net IS NULL),0) unknown_gross
     FROM gifts g LEFT JOIN categories c ON c.id=g.category_id
     LEFT JOIN (${fundingTotalsSql}) f ON f.gift_id=g.id ${admin ? "" : "WHERE g.visibility='visible'"}
     ORDER BY g.priority DESC,g.created_at DESC`,
     )
-    .all()
+    .all(dateNow())
     .map((row) => ({ ...row })) as Gift[];
+  return admin ? rows : rows.filter((g) => allowed.includes(g.list_id));
 }
 export function saveGift(db: DatabaseSync, input: unknown, id?: string) {
   const gift = giftSchema.parse(input);
@@ -77,6 +91,14 @@ export function saveGiftInTransaction(
   const owner = db.prepare("SELECT currency FROM owner WHERE id=1").get();
   if (!owner) throw new AppError("Instance non initialisée.");
   const existing = db.prepare("SELECT * FROM gifts WHERE id=?").get(id);
+  const listId = gift.list_id || String(existing?.list_id || "default");
+  if (!db.prepare("SELECT 1 FROM lists WHERE id=?").get(listId))
+    throw new AppError("Liste introuvable.", 404);
+  if (reservedQuantity(db, id) > gift.quantity)
+    throw new AppError(
+      "La quantité ne peut pas être inférieure aux réservations actives.",
+      409,
+    );
   if (
     gift.category_id &&
     !db.prepare("SELECT 1 FROM categories WHERE id=?").get(gift.category_id)
@@ -127,6 +149,7 @@ export function saveGiftInTransaction(
     now,
     now,
   );
+  db.prepare("UPDATE gifts SET list_id=? WHERE id=?").run(listId, id);
   if (gift.extracted_at)
     db.prepare(
       "UPDATE gifts SET suggested_price=?,suggested_currency=?,extracted_at=? WHERE id=?",

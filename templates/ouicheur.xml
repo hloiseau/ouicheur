@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Container version="2">
+  <Name>Ouicheur</Name>
+  <Repository>ghcr.io/hloiseau/ouicheur:sha-285b41eca5adb181a9a340dea10a636d12865969</Repository>
+  <Registry>https://github.com/hloiseau/ouicheur/pkgs/container/ouicheur</Registry>
+  <Network>bridge</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/hloiseau/ouicheur/issues</Support>
+  <Project>https://github.com/hloiseau/ouicheur</Project>
+  <ReadMe>https://github.com/hloiseau/ouicheur/blob/main/docs/unraid.md</ReadMe>
+  <Overview>Self-hosted personal wishlist with English and French interfaces, product-link imports, local images and optional direct PayPal.Me contributions. One owner per instance; visitors do not need accounts. Declared contributions are not verified payments. First setup requires the private code from the container logs. Preview template: native Unraid installation and upgrades still need validation.</Overview>
+  <Category>Tools:Utilities</Category>
+  <WebUI>http://[IP]:[PORT:3000]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/hloiseau/ouicheur/main/templates/ouicheur.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/hloiseau/ouicheur/main/public/icon.png</Icon>
+  <License>https://github.com/hloiseau/ouicheur/blob/main/LICENSE</License>
+  <Beta>true</Beta>
+  <Requires>Linux amd64. Data and backup folders must be writable by UID 99 / GID 100. This image does not implement PUID/PGID variables.</Requires>
+  <ExtraParams>--user=99:100 --security-opt=no-new-privileges:true --cap-drop=ALL</ExtraParams>
+  <Config Name="Web UI port" Target="3000" Default="31000" Mode="tcp" Description="Local HTTP port. Use an HTTPS reverse proxy for public access." Type="Port" Display="always" Required="true" Mask="false">31000</Config>
+  <Config Name="Application data" Target="/app/data" Default="/mnt/user/appdata/ouicheur/data" Mode="rw" Description="SQLite database, images and owner configuration. Keep on local storage and writable by 99:100. Preserve on upgrade." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/ouicheur/data</Config>
+  <Config Name="Backups" Target="/app/backups" Default="/mnt/user/appdata/ouicheur/backups" Mode="rw" Description="Manual application backups. Writable by 99:100. Also export backups off this NAS." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/ouicheur/backups</Config>
+  <Config Name="Public origin (optional for direct LAN access)" Target="APP_ORIGIN" Default="" Mode="" Description="For a reverse proxy, enter the exact HTTPS origin, without a trailing path. Leave empty for direct LAN access." Type="Variable" Display="always" Required="false" Mask="false" />
+  <Config Name="Trust proxy" Target="TRUST_PROXY" Default="0" Mode="" Description="Keep 0 unless the trusted proxy replaces X-Forwarded-For and direct access is blocked." Type="Variable" Display="advanced" Required="true" Mask="false">0</Config>
+  <Config Name="Data directory" Target="DATA_DIR" Default="/app/data" Mode="" Description="Internal data path; must match the data mount." Type="Variable" Display="advanced" Required="true" Mask="false">/app/data</Config>
+  <Config Name="Disable Next.js telemetry" Target="NEXT_TELEMETRY_DISABLED" Default="1" Mode="" Description="Disable framework telemetry." Type="Variable" Display="advanced" Required="true" Mask="false">1</Config>
+</Container>

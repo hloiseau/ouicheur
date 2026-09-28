@@ -88,6 +88,7 @@ const child = spawn(process.execPath, ["scripts/start.mjs"], {
     PORT: "3211",
     APP_ORIGIN: "http://localhost:3211",
     DATA_DIR: folder,
+    BACKUP_DIR: join(folder, "backups"),
     NEXT_TELEMETRY_DISABLED: "1",
   },
 });

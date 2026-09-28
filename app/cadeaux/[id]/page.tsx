@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+import { accessFromCookies } from "../../../lib/lists";
+import { ReservationForm } from "../../../components/reservation";
 import { getI18n } from "../../../lib/i18n-server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -7,6 +10,7 @@ import { GiftArt, Progress } from "../../../components/public-wishlist";
 import { ContributionForm } from "../../../components/contribution";
 import { JapanSearch } from "../../../components/japan-search";
 
+export const metadata = { robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 export default async function GiftPage({
   params,
@@ -16,7 +20,8 @@ export default async function GiftPage({
   const { t, money, date } = await getI18n();
   const { id } = await params;
   const db = database();
-  const gift = listGifts(db).find((g) => g.id === id);
+  const access = accessFromCookies(db, await cookies());
+  const gift = listGifts(db, access.owner, access).find((g) => g.id === id);
   const profile = publicProfile(db);
   if (!gift || !profile) notFound();
   const supporters = db
@@ -27,17 +32,19 @@ export default async function GiftPage({
     AND CASE WHEN p.id IS NULL THEN c.approved=1 ELSE COALESCE(p.net-p.net_reversed,p.gross-MAX(p.refunded,p.net_reversed))>0 END
     ORDER BY c.created_at DESC LIMIT 30`,
     )
-    .all();
+    .all(id);
   const closed =
     !!gift.closed ||
     !!gift.purchased ||
     gift.funded >= gift.target ||
     gift.currency !== profile.currency;
+  const reservationClosed =
+    !!gift.closed || !!gift.purchased || gift.visibility !== "visible";
   return (
     <>
       <header className="site-header">
         <div className="container public-subheader">
-          <Link className="text-link" href="/">
+          <Link className="text-link" href={`/lists/${gift.list_id}`}>
             {t("← La Ouichlist de {0}", profile.name)}
           </Link>
         </div>
@@ -96,12 +103,33 @@ export default async function GiftPage({
               {t("). Prix et disponibilité non garantis.")}{" "}
             </p>
           )}
+          {profile.strict_contributions ? (
+            <p className="notice">
+              {t(
+                "Seules les contributions validées par le propriétaire comptent dans l’objectif.",
+              )}
+            </p>
+          ) : null}
+          {gift.declared > 0 && (
+            <p className="fine-print">
+              {t(
+                "Déclaré, en attente de validation : {0}",
+                money(gift.declared, gift.currency),
+              )}
+            </p>
+          )}
+          <ReservationForm
+            giftId={id}
+            available={Math.max(0, gift.quantity - gift.reserved)}
+            closed={reservationClosed || gift.funded > 0 || gift.declared > 0}
+          />
           <ContributionForm
             giftId={id}
             currency={gift.currency}
             remaining={Math.max(0, gift.target - gift.funded)}
-            closed={closed}
+            closed={closed || gift.reserved > 0}
             enabled={!!profile.payments_enabled}
+            strict={!!profile.strict_contributions}
           />
         </section>
         <section className="detail-explanation">
@@ -113,9 +141,13 @@ export default async function GiftPage({
             )}
           </p>
           <p>
-            {t(
-              "Votre participation compte dès que vous indiquez l’avoir envoyée. Le total inclut les envois déclarés et s’ajuste ensuite aux frais et remboursements vérifiés par le propriétaire.",
-            )}{" "}
+            {profile.strict_contributions
+              ? t(
+                  "Seules les contributions validées par le propriétaire comptent dans l’objectif.",
+                )
+              : t(
+                  "Votre participation compte dès que vous indiquez l’avoir envoyée. Le total inclut les envois déclarés et s’ajuste ensuite aux frais et remboursements vérifiés par le propriétaire.",
+                )}{" "}
           </p>
         </section>
         {supporters.length > 0 && (

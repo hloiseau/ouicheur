@@ -1,5 +1,44 @@
 # Vérifications de livraison
 
+## Évolution produit 1.1.0 — 28 septembre 2026
+
+Les résultats associés au commit final sont accessibles depuis la
+[pull request de finalisation](https://github.com/hloiseau/ouicheur/pull/1).
+La matrice de CI utilise deux machines natives, Ubuntu AMD64 et ARM64. Chaque
+architecture exécute le formatage, TypeScript, **59 tests unitaires/intégration**,
+un contrôle réseau Chromium, la compilation, **34 scénarios navigateur**
+ordinateur/mobile, puis la construction et le test du conteneur réel. Une
+publication d’image requiert le succès des deux architectures.
+
+Les nouveaux contrôles couvrent la migration d’une base déjà remplie, la
+conservation des contributions, les listes privées et leurs images, la révocation
+des liens, les réservations concurrentes, le mode strict, les relevés de prix,
+les notifications avec reprise, la planification des sauvegardes, la restauration
+avec révocation des accès, les quotas et le nettoyage sans perte du registre.
+Le conteneur lance réellement Chromium et Sharp et vérifie le téléchargement
+d’une sauvegarde depuis l’administration, en plus du premier démarrage,
+des redémarrages et de la restauration dans une nouvelle instance.
+
+Les [captures de démonstration](screenshots/README.md) ont été inspectées sur
+ordinateur et en vue étroite. Les contrôles axe-core incluent les nouveaux écrans
+de listes et de maintenance. Toutes ces données sont fictives. Le contrôle npm de
+production signale **0 vulnérabilité connue** à cette date ; son périmètre reste npm.
+
+La CI conserve la taille non compressée donnée par `docker image inspect` dans
+`image-size-amd64.txt` et `image-size-arm64.txt`. Elle mesure aussi l’ancienne image
+AMD64, au digest documenté dans l’audit, avec la même commande pour comparer des
+grandeurs identiques. Ces résultats se trouvent dans les artefacts de la CI ;
+ils ne mesurent ni la RAM ni les performances d’un NAS.
+
+Le retour positif du propriétaire sur TrueNAS concerne la version précédente.
+Cette évolution nécessite encore un essai sur son NAS, avec sauvegarde préalable ;
+Unraid et Safari/iOS réels n’ont pas été essayés. Les soumissions aux catalogues
+restent suspendues. Voir le [guide de mise à jour](product-features.md).
+
+## Historique antérieur à la finalisation produit
+
+**Actualisation du 28 septembre 2026 :** les paragraphes ci-dessous sont des résultats historiques. L’image GHCR est désormais publiée et lisible anonymement ; la [CI du commit étudié](https://github.com/hloiseau/ouicheur/actions/runs/36264329576) est verte. L’[audit du 28 septembre](review-2026-09-28.md) distingue les nouveaux contrôles des essais non réalisés. Le propriétaire a ensuite signalé un essai positif de cette version sur son TrueNAS. Ce retour ne couvre pas encore l’évolution produit en cours ; Unraid reste à essayer.
+
 Exécution le **24 septembre 2026**, sous Windows, avec Node 24.21.0 local au projet et Docker Desktop / moteur Linux 28.3.3. Application Next.js 16.3.6, React 19.3.0. Dépendances verrouillées dans `package-lock.json`.
 
 ## Résultats
@@ -61,7 +100,7 @@ Ces contrôles et captures ne constituent pas une certification ni un test exhau
 - Aucun compte PayPal connecté, aucun transfert, remboursement ou webhook PayPal réel/sandbox. Seule la construction documentée du lien est vérifiée. Les confirmations des tests sont fictives. L’interface interne `recordConfirmedPayment` sépare le registre d’un futur adaptateur, mais **aucun adaptateur automatique n’est livré ou activé**. Une route web ne peut sélectionner la provenance `verified`.
 - Les listes privées ou exigeant une connexion ne sont pas couvertes. Les résultats Amazon, Throne et Chrono24 ci-dessus sont des vérifications datées des liens testés, sans garantie sur tous les formats de listes ou annonces. [Détail](imports-status.md).
 - Aucun domaine, certificat public ou déploiement Internet configuré. L’accès local est limité à la machine ; le README explique HTTPS.
-- Aucun déploiement réel sur TrueNAS. Le modèle Compose pour TrueNAS 25.10 passe la validation de syntaxe Docker Compose. L’image est construite localement et doit encore être publiée dans un registre accessible au NAS ; son adresse dans le modèle est un exemple à remplacer. [Guide TrueNAS](truenas.md).
+- Ces essais automatisés ne documentent pas un déploiement natif TrueNAS. Le propriétaire a confirmé le 28 septembre le bon fonctionnement de la version précédente sur son propre TrueNAS. Le modèle Compose pour TrueNAS 25.10 a passé la validation de syntaxe Docker Compose. Depuis le 26 septembre, l’image `ghcr.io/hloiseau/ouicheur:main` est publiée ; son accès anonyme a été vérifié le 28 septembre. La publication de l’image ne valide pas l’installation native NAS. [Guide TrueNAS](truenas.md).
 - Le module SQLite natif est fourni par Node LTS et son API conserve un statut de stabilité évolutif dans la documentation Node. Le runtime est verrouillé ; vérifier migrations, sauvegarde et concurrence avant tout changement majeur.
 
 ## Rejouer

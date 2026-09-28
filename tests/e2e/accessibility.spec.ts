@@ -30,6 +30,26 @@ test("accessibilité WCAG A/AA des pages principales", async ({
         })),
       })),
     ).toEqual([]);
+    if (path === "/") {
+      await page
+        .getByRole("heading", { name: "La Ouichlist de Camille" })
+        .click();
+      await page.screenshot({
+        path: `test-results/demo-${info.project.name}.png`,
+        fullPage: true,
+        scale: "css",
+      });
+      if (info.project.name === "desktop") {
+        const viewport = page.viewportSize()!;
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.screenshot({
+          path: "test-results/demo-responsive.png",
+          fullPage: true,
+          scale: "css",
+        });
+        await page.setViewportSize(viewport);
+      }
+    }
   }
   await context.request.post("/api/login", {
     headers: { origin: "http://localhost:3211" },

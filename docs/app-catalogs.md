@@ -2,6 +2,8 @@
 
 Ouicheur dispose déjà d’une image Docker publique, d’un assistant de premier démarrage et de volumes persistants. L’installation TrueNAS par YAML est disponible ; l’application n’est pas encore référencée dans les catalogues TrueNAS ou Unraid. Les étapes ci-dessous décrivent le travail restant, pas des soumissions déjà effectuées.
 
+Préparation du 28 septembre 2026 : [audit et fonctionnalités proposées](review-2026-09-28.md), [candidat TrueNAS](../deploy/truenas/README.md), [XML et guide Unraid](unraid.md), [validation de release](release-checklist.md). Les modèles épinglent pour l’évaluation une image de commit existante ; adopter l’image corrigée et numérotée avant la diffusion stable.
+
 ## TrueNAS Apps
 
 Créer une entrée `ix-dev/community/ouicheur` dans un fork de `truenas/apps`, avec les métadonnées `app.yaml`, les champs d’installation `questions.yaml` et le modèle Compose Jinja2. Le formulaire doit proposer le port, l’adresse publique, le stockage et l’utilisateur du conteneur. Ajouter l’icône, la documentation de premier démarrage et les tests de rendu, puis tester installation et mise à jour sur TrueNAS.
@@ -10,9 +12,9 @@ La publication se fait par pull request dans le catalogue, avec vérifications a
 
 ## Unraid Community Applications
 
-Créer et tester un modèle Docker XML v2 dans l’interface Docker d’Unraid, puis le publier dans un dépôt de modèles. Ce modèle décrit l’image, le port, les volumes, les variables, l’URL d’ouverture de l’application, l’icône et les liens de projet/support. Le mainteneur de Community Applications recommande le XML généré par Unraid pour éviter les incompatibilités avec son parseur : [schéma et consignes](https://forums.unraid.net/topic/38619-docker-template-xml-schema/).
+Le [XML v2 préparé](../templates/ouicheur.xml) décrit l’image, le port, les volumes, les variables, la WebUI et le support. Le dépôt contient aussi `ca_profile.xml` à la racine avec un profil non vide, exigé par la procédure actuelle. Les champs sont documentés dans la [référence officielle du parseur](https://ca.unraid.net/submit/help/xml-field-reference).
 
-Faire ensuite référencer le dépôt auprès des mainteneurs de Community Applications selon leur procédure en vigueur. La présence du dépôt sur GitHub ne constitue pas à elle seule une publication dans l’onglet Apps. [Présentation du catalogue](https://docs.unraid.net/community-applications/).
+Après tests et fusion des fichiers sur la branche par défaut, ouvrir le [portail de soumission](https://ca.unraid.net/submit/new), se connecter au compte Unraid, puis exécuter **Validate** et **Scan** avant la soumission à revue. La présence du dépôt sur GitHub ne constitue pas à elle seule une publication dans l’onglet Apps. [Consignes actuelles](https://ca.unraid.net/submit/help).
 
 Tester les permissions des dossiers `appdata` avec l’utilisateur choisi. L’image Ouicheur tourne par défaut sous `1000:1000` et ne traite pas de variables `PUID`/`PGID` : il faut configurer l’utilisateur Docker et les droits des volumes, sans ajouter de variables inopérantes.
 

@@ -11,12 +11,14 @@ export function ContributionForm({
   remaining,
   closed,
   enabled,
+  strict = false,
 }: {
   giftId: string;
   currency: string;
   remaining: number;
   closed: boolean;
   enabled: boolean;
+  strict?: boolean;
 }) {
   const { t, money } = useI18n();
   const amountHelpId = useId();
@@ -178,12 +180,15 @@ export function ContributionForm({
       </button>
       <p className="form-footnote">
         <Icon name="lock" size={13} />
-        {t("Sans compte · Participation comptée dès l’envoi déclaré")}{" "}
+        {strict
+          ? t("Sans compte · Participation soumise à validation")
+          : t("Sans compte · Participation comptée dès l’envoi déclaré")}{" "}
       </p>
     </form>
   );
 }
 type Status = {
+  strict_contributions: number;
   id: string;
   gift_id: string;
   amount: number;
@@ -223,7 +228,10 @@ export function ContributionStatus({ id }: { id: string }) {
     window.addEventListener("focus", refresh);
     return () => window.removeEventListener("focus", refresh);
   }, [id]);
-  const counted = !!status?.payment || status?.state === "declared";
+  const counted =
+    !!status?.payment ||
+    !!status?.approved ||
+    (!status?.strict_contributions && status?.state === "declared");
   return (
     <section className="status-card">
       <span className="status-icon">
@@ -288,6 +296,10 @@ export function ContributionStatus({ id }: { id: string }) {
               {t(
                 "Votre participation est déjà incluse dans la progression du cadeau. Merci !",
               )}
+            </p>
+          ) : status.state === "declared" && status.strict_contributions ? (
+            <p role="status">
+              {t("Votre déclaration attend la validation du propriétaire.")}
             </p>
           ) : status.state === "rejected" ? (
             <p>{t("Cette participation a été refusée par le propriétaire.")}</p>

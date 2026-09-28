@@ -1,4 +1,9 @@
 "use client";
+import { version } from "../package.json";
+import { ListsEditor } from "./lists";
+import { Operations } from "./operations";
+import { History } from "./history";
+import type { Wishlist } from "../lib/lists";
 import { useI18n } from "./language";
 
 import { useEffect, useState } from "react";
@@ -24,8 +29,11 @@ type Profile = Appearance & {
   socials: string;
   paypal: string;
   currency: string;
+  strict_contributions: number;
 };
 type AdminData = {
+  pending_contributions: number;
+  lists: Wishlist[];
   profile: Profile;
   gifts: Gift[];
   categories: Category[];
@@ -49,6 +57,9 @@ const navigation = [
   { key: "gifts", label: "Mes envies", icon: "gift" },
   { key: "payments", label: "Contributions", icon: "heart" },
   { key: "imports", label: "Importer une liste", icon: "upload" },
+  { key: "lists", label: "Listes et partage", icon: "book" },
+  { key: "history", label: "Historique", icon: "book" },
+  { key: "operations", label: "Mon instance", icon: "lock" },
   { key: "profile", label: "Mon profil", icon: "user" },
 ];
 export function Admin() {
@@ -60,7 +71,13 @@ export function Admin() {
   const [busy, setBusy] = useState(false);
   const refresh = async () => {
     try {
-      setData(await api<AdminData>("admin"));
+      const updated = await api<AdminData>("admin");
+      const add = new URLSearchParams(location.search).get("add");
+      if (add !== null) {
+        location.assign(`/add?url=${encodeURIComponent(add)}`);
+        return;
+      }
+      setData(updated);
     } catch {
       setData(null);
     } finally {
@@ -138,12 +155,7 @@ export function Admin() {
         </main>
       </>
     );
-  const pending = data.contributions.filter(
-    (c) =>
-      !c.payment_id &&
-      !c.approved &&
-      ["declared", "detected"].includes(c.state),
-  ).length;
+  const pending = data.pending_contributions;
   return (
     <div className="owner-space">
       <header className="owner-topbar container">
@@ -206,15 +218,36 @@ export function Admin() {
             }}
             gifts={data.gifts}
             categories={data.categories}
+            lists={data.lists}
             owner={{ gifts: data.gifts, currency: data.profile.currency }}
             onRefresh={() => void refresh()}
           />
         )}
         {page === "payments" && (
-          <Payments contributions={data.contributions} refresh={refresh} />
+          <div className="stack">
+            <label className="panel">
+              <input
+                type="checkbox"
+                checked={!!data.profile.strict_contributions}
+                onChange={async (e) => {
+                  try {
+                    await api("admin/strict-contributions", {
+                      enabled: e.target.checked,
+                    });
+                    await refresh();
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
+                }}
+              />
+              {t("Compter uniquement les contributions validées")}
+            </label>
+            <History initialKind="contributions" fixed onChange={refresh} />
+          </div>
         )}
         {page === "imports" && (
           <Imports
+            lists={data.lists}
             categories={data.categories}
             currency={data.profile.currency}
             jobs={data.imports}
@@ -224,6 +257,11 @@ export function Admin() {
             }}
           />
         )}
+        {page === "lists" && (
+          <ListsEditor lists={data.lists} refresh={refresh} />
+        )}
+        {page === "operations" && <Operations />}
+        {page === "history" && <History />}
         {page === "profile" && (
           <ProfileEditor profile={data.profile} refresh={refresh} />
         )}
@@ -257,7 +295,7 @@ export function Admin() {
           <button className="text-link" onClick={() => setPage("audit")}>
             {t("Journal")}
           </button>
-          {t("Vos données, chez vous.")} <span>Ouicheur · 1.0</span>
+          {t("Vos données, chez vous.")} <span>Ouicheur · {version}</span>
         </footer>
       </main>
     </div>

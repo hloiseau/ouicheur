@@ -1,5 +1,7 @@
+import { productEnglish } from "./product-messages.ts";
 // French source messages and their English translations. Keep placeholders in both.
 export const english: Record<string, string> = {
+  ...productEnglish,
   Quantité: "Quantity",
   "Objectif total : {0}": "Total goal: {0}",
   "Quantité : {0} × {1}": "Quantity: {0} × {1}",

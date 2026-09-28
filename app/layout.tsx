@@ -1,3 +1,4 @@
+import { Pwa } from "../components/pwa";
 import type { Metadata } from "next";
 import { getI18n } from "../lib/i18n-server";
 import { LanguageProvider } from "../components/language";
@@ -25,7 +26,10 @@ export default async function RootLayout({
         <a className="skip-link" href="#main">
           {t("Aller au contenu")}
         </a>
-        <LanguageProvider initialLocale={locale}>{children}</LanguageProvider>
+        <LanguageProvider initialLocale={locale}>
+          {children}
+          <Pwa />
+        </LanguageProvider>
       </body>
     </html>
   );

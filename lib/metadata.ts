@@ -50,6 +50,7 @@ function markupProducts($: cheerio.CheerioAPI): JsonObject[] {
             "image",
             "contentUrl",
             "offers",
+            "availability",
             "price",
             "priceCurrency",
             "lowPrice",
@@ -240,7 +241,7 @@ function offerPrice(
   value: unknown,
   url: string,
   depth = 0,
-): { price: number; currency: string } | null {
+): { price: number; currency: string; availability: string } | null {
   if (depth > 8) return null;
   const offers = list(value).filter(
     (v): v is JsonObject => !!v && typeof v === "object",
@@ -254,7 +255,11 @@ function offerPrice(
         (schemaType(offer, "AggregateOffer") ? offer.lowPrice : null),
     );
     if (price != null)
-      return { price, currency: String(offer.priceCurrency || "") };
+      return {
+        price,
+        currency: String(offer.priceCurrency || ""),
+        availability: String(offer.availability || ""),
+      };
     const specifications = list(offer.priceSpecification).filter(
       (v): v is JsonObject => {
         if (!v || typeof v !== "object") return false;
@@ -277,6 +282,7 @@ function offerPrice(
       return {
         ...nested,
         currency: nested.currency || String(offer.priceCurrency || ""),
+        availability: nested.availability || String(offer.availability || ""),
       };
   }
   return null;
@@ -327,7 +333,7 @@ export function parseMetadata(html: string, url: string) {
   const optionPrice = option ? productPrice(option[1]) : null;
   const offer =
     optionPrice !== null
-      ? { price: optionPrice, currency: option![2] }
+      ? { price: optionPrice, currency: option![2], availability: "" }
       : offerPrice(product.offers, url);
   const title = String(
     product.name || amazonTitle || meta("og:title") || $("title").text().trim(),
@@ -390,6 +396,16 @@ export function parseMetadata(html: string, url: string) {
     image_url,
     price,
     currency,
+    availability: (() => {
+      const raw = offer?.availability || meta("product:availability");
+      return /(?:OutOfStock|SoldOut|Discontinued)$/i.test(raw)
+        ? "out_of_stock"
+        : /InStock$/i.test(raw)
+          ? "in_stock"
+          : /PreOrder|BackOrder/i.test(raw)
+            ? "preorder"
+            : "unknown";
+    })(),
     extracted_at: new Date().toISOString(),
   };
 }

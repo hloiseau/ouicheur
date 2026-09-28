@@ -8,7 +8,11 @@ import { money as parseMoney } from "../lib/validation";
 import { api, Field, Icon, Notice } from "./ui";
 import { Modal } from "./modal";
 
+import { ProductRefresh } from "./product-refresh";
+import type { Wishlist } from "../lib/lists";
+
 export type GiftDraft = {
+  list_id?: string;
   url: string;
   title: string;
   description: string;
@@ -40,6 +44,7 @@ export const blankGift = (): GiftDraft => ({
 });
 export function giftDraft(gift: Gift): GiftDraft {
   return {
+    list_id: gift.list_id,
     url: gift.url,
     title: gift.title,
     description: gift.description,
@@ -346,6 +351,8 @@ export function GiftEditor({
   onDone,
   onSaved,
   categoryId = null,
+  listId = "default",
+  initialUrl = "",
 }: {
   gift: Gift | null;
   categories: { id: string; name: string }[];
@@ -353,11 +360,26 @@ export function GiftEditor({
   onDone: () => void;
   onSaved?: () => void;
   categoryId?: string | null;
+  listId?: string;
+  initialUrl?: string;
 }) {
   const { t, date } = useI18n();
   const [value, setValue] = useState(
-    gift ? giftDraft(gift) : { ...blankGift(), category_id: categoryId },
+    gift
+      ? giftDraft(gift)
+      : {
+          ...blankGift(),
+          category_id: categoryId,
+          list_id: listId,
+          url: initialUrl,
+        },
   );
+  const [lists, setLists] = useState<Wishlist[]>([]);
+  useEffect(() => {
+    void api<Wishlist[]>("admin/lists")
+      .then(setLists)
+      .catch(() => {});
+  }, []);
   const [uploading, setUploading] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -489,8 +511,29 @@ export function GiftEditor({
             {busy ? t("Lecture…") : t("Récupérer les informations")}
           </button>
         </div>
+        {gift && (
+          <ProductRefresh
+            id={gift.id}
+            currency={gift.currency}
+            onSaved={onSaved || onDone}
+          />
+        )}
         {notice && <Notice>{notice}</Notice>}
         {error && <Notice error>{error}</Notice>}
+        <Field label={t("Liste")}>
+          <select
+            value={value.list_id || "default"}
+            onChange={(e) =>
+              setValue((v) => ({ ...v, list_id: e.target.value }))
+            }
+          >
+            {lists.map((l) => (
+              <option value={l.id} key={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </Field>
         <GiftFields
           simple
           onImageBusy={setUploading}

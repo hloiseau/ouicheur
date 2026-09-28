@@ -101,6 +101,8 @@ test("premier démarrage web, code privé, session et verrouillage après redém
         })
       ).status(),
     ).toBe(403);
+    // The language switch refreshes streamed metadata after the visible form.
+    await expect(page).toHaveTitle("Installer votre Ouichlist · Ouicheur");
     const accessibility = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
       .analyze();

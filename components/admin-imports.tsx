@@ -2,6 +2,7 @@
 import { useI18n } from "./language";
 
 import { useEffect, useState } from "react";
+import type { Wishlist } from "../lib/lists";
 import type { ImportItem } from "../lib/imports";
 import { blankGift, GiftFields, type GiftDraft } from "./admin-gifts";
 import { api, Field, Notice } from "./ui";
@@ -22,7 +23,9 @@ export function Imports({
   jobs,
   refresh,
   onViewGifts,
+  lists = [],
 }: {
+  lists?: Wishlist[];
   categories: { id: string; name: string }[];
   currency: string;
   jobs: Omit<Job, "items">[];
@@ -30,6 +33,7 @@ export function Imports({
   onViewGifts: () => void;
 }) {
   const { t, storedError, money, date } = useI18n();
+  const [listId, setListId] = useState("default");
   const [source, setSource] = useState("amazon");
   const [content, setContent] = useState("");
   const [job, setJob] = useState<Job | null>(null);
@@ -248,7 +252,7 @@ export function Imports({
               )}
               <p>
                 {t(
-                  "Les envies sélectionnées seront publiées dès l’enregistrement. Les images sont récupérées automatiquement. Vérifiez les montants et la devise.",
+                  "Les envies sélectionnées suivront la confidentialité de la liste choisie. Les images sont récupérées automatiquement. Vérifiez les montants et la devise.",
                 )}
               </p>
               <form
@@ -261,7 +265,13 @@ export function Imports({
                     await api(`admin/imports/${job.id}/commit`, {
                       selection: choices.flatMap((c, index) =>
                         c.selected
-                          ? [{ index, replace: c.replace, gift: c.gift }]
+                          ? [
+                              {
+                                index,
+                                replace: c.replace,
+                                gift: { ...c.gift, list_id: listId },
+                              },
+                            ]
                           : [],
                       ),
                     });
@@ -273,6 +283,18 @@ export function Imports({
                   }
                 }}
               >
+                <Field label={t("Liste")}>
+                  <select
+                    value={listId}
+                    onChange={(e) => setListId(e.target.value)}
+                  >
+                    {lists.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
                 {job.items.map((item, index) => (
                   <article className="import-item" key={index}>
                     <label className="checkbox">

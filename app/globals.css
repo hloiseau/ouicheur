@@ -2625,3 +2625,66 @@ textarea::placeholder {
     animation: none !important;
   }
 }
+
+/* Lists, mobile sharing and instance operations */
+.operations-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  align-items: start;
+}
+.list-toolbar,
+.history-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.list-toolbar label,
+.stack > label {
+  display: grid;
+  gap: 0.5rem;
+}
+.stack input[type="checkbox"] {
+  width: auto;
+  margin-right: 0.6rem;
+}
+.history-row {
+  border-bottom: 1px solid var(--line, #eadfe3);
+  padding: 0.75rem 0;
+  overflow-wrap: anywhere;
+}
+.refresh-product {
+  padding: 1rem;
+  border: 1px solid var(--line, #eadfe3);
+  border-radius: 1rem;
+}
+.owner-nav nav {
+  flex-wrap: wrap;
+}
+.operations-grid input,
+.operations-grid select,
+.operations-grid textarea {
+  max-width: 100%;
+}
+@media (max-width: 700px) {
+  .operations-grid {
+    grid-template-columns: 1fr;
+  }
+  .list-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+.list-intro {
+  padding: 1rem 0;
+  max-width: 55rem;
+}
+.stack > label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}

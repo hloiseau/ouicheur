@@ -1,0 +1,10 @@
+images:
+  image:
+    repository: ghcr.io/hloiseau/ouicheur
+    tag: sha-285b41eca5adb181a9a340dea10a636d12865969
+  container_utils_image:
+    repository: ixsystems/container-utils
+    tag: 1.0.2
+consts:
+  app_container_name: ouicheur
+  perms_container_name: permissions

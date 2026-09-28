@@ -107,6 +107,24 @@ export function restoreInstance(source: string, destination: string) {
     copyFileSync(join(folder, name), join(target, name));
   const restored = new DatabaseSync(join(target, "wishlist.sqlite"));
   restored.exec("DELETE FROM sessions; DELETE FROM rate_limits;");
+  if (
+    restored
+      .prepare(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='lists'",
+      )
+      .get()
+  )
+    restored.exec("UPDATE lists SET share_hash=NULL");
+  if (
+    restored
+      .prepare(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='backup_jobs'",
+      )
+      .get()
+  )
+    restored.exec(
+      "UPDATE backup_jobs SET state='failed' WHERE state='running'",
+    );
   restored.close();
   writeFileSync(
     join(target, "restored-config.json"),
