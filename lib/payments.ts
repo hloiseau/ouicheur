@@ -2,6 +2,9 @@ import { randomBytes, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
 import { atomic, audit } from "./db";
+import { assertGiftAccess, publicAccess, type Access } from "./lists.ts";
+import { reservedQuantity } from "./reservations.ts";
+import { enqueueNotification } from "./notifications.ts";
 import { fundingTotalsSql } from "./gifts";
 import {
   AppError,
@@ -21,16 +24,28 @@ const intentSchema = z.object({
   public_name: z.boolean().default(false),
   public_message: z.boolean().default(false),
 });
-export function createIntent(db: DatabaseSync, input: unknown) {
+export function createIntent(
+  db: DatabaseSync,
+  input: unknown,
+  access: Access = publicAccess,
+) {
   const value = intentSchema.parse(input);
   return atomic(db, () => {
+    assertGiftAccess(db, value.gift_id, access);
+    if (reservedQuantity(db, value.gift_id) > 0)
+      throw new AppError("Cette envie est réservée pour un achat direct.", 409);
     const gift = db
       .prepare(
         `SELECT g.*,COALESCE(f.funded,0) funded FROM gifts g
         LEFT JOIN (${fundingTotalsSql}) f ON f.gift_id=g.id WHERE g.id=? AND g.visibility='visible'`,
       )
       .get(value.gift_id);
-    if (!gift) throw new AppError("Cadeau introuvable.", 404);
+    if (
+      !gift ||
+      db.prepare("SELECT archived FROM lists WHERE id=?").get(gift.list_id)
+        ?.archived
+    )
+      throw new AppError("Cadeau introuvable.", 404);
     if (
       gift.closed ||
       gift.purchased ||
@@ -80,17 +95,30 @@ export function expireIntents(db: DatabaseSync) {
   ).run(dateNow());
 }
 export function declareIntent(db: DatabaseSync, id: string) {
-  const result = db
-    .prepare(
-      "UPDATE contributions SET state='declared' WHERE id=? AND state IN ('intent','expired')",
+  return atomic(db, () => {
+    const c = db
+      .prepare("SELECT gift_id,state FROM contributions WHERE id=?")
+      .get(id);
+    if (
+      c &&
+      ["intent", "expired"].includes(String(c.state)) &&
+      reservedQuantity(db, String(c.gift_id)) > 0
     )
-    .run(id);
-  if (
-    !result.changes &&
-    !db.prepare("SELECT 1 FROM contributions WHERE id=?").get(id)
-  )
-    throw new AppError("Contribution introuvable.", 404);
+      throw new AppError("Cette envie est réservée pour un achat direct.", 409);
+    const result = db
+      .prepare(
+        "UPDATE contributions SET state='declared' WHERE id=? AND state IN ('intent','expired')",
+      )
+      .run(id);
+    if (result.changes) enqueueNotification(db, "declaration", id);
+    if (
+      !result.changes &&
+      !db.prepare("SELECT 1 FROM contributions WHERE id=?").get(id)
+    )
+      throw new AppError("Contribution introuvable.", 404);
+  });
 }
+
 const reviewSchema = z.object({
   id: text(64).regex(/^[a-f0-9]{64}$/),
   approved: z.boolean(),
@@ -304,6 +332,10 @@ export function contributionStatus(db: DatabaseSync, id: string) {
     .get(id)!;
   return {
     ...c,
+    strict_contributions: Number(
+      db.prepare("SELECT strict_contributions FROM owner WHERE id=1").get()!
+        .strict_contributions,
+    ),
     state: String(c.state),
     approved: Number(c.approved),
     payment: payment || null,

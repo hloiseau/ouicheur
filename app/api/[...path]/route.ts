@@ -1,3 +1,15 @@
+import { productGet, productPost } from "../../../lib/product-api";
+import {
+  accessFromCookies,
+  listLists,
+  saveList,
+  rotateShare,
+} from "../../../lib/lists";
+import {
+  createReservation,
+  reservationStatus,
+  updateReservation,
+} from "../../../lib/reservations";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createI18n, localeCookie, resolveLocale } from "../../../lib/i18n";
@@ -151,7 +163,14 @@ async function handle(
     if (path === "contributions" && request.method === "POST") {
       rateLimit(db, `intent:${ip}`, 30, 60 * 60000);
       rateLimit(db, "intent:global", 300, 60 * 60000);
-      return response(createIntent(db, await body(request)), 201);
+      return response(
+        createIntent(
+          db,
+          await body(request),
+          accessFromCookies(db, request.cookies),
+        ),
+        201,
+      );
     }
     if (
       segments[0] === "contributions" &&
@@ -169,8 +188,32 @@ async function handle(
         return response({ ok: true });
       }
     }
+    if (path === "reservations" && request.method === "POST") {
+      rateLimit(db, `reservation:${ip}`, 20, 3600000);
+      rateLimit(db, "reservation:global", 200, 3600000);
+      return response(
+        createReservation(
+          db,
+          await body(request),
+          accessFromCookies(db, request.cookies),
+        ),
+        201,
+      );
+    }
+    if (segments[0] === "reservations" && segments.length === 2) {
+      if (request.method === "GET")
+        return response(reservationStatus(db, segments[1]));
+      if (request.method === "POST") {
+        updateReservation(db, segments[1], await body(request));
+        return response({ ok: true });
+      }
+    }
     if (!authorized(db, token))
       throw new AppError("Connexion administrateur requise.", 401);
+    if (request.method === "GET") {
+      const reply = await productGet(db, path, request.nextUrl);
+      if (reply) return reply;
+    }
     if (path === "logout" && request.method === "POST") {
       db.prepare("DELETE FROM sessions WHERE hash=?").run(hashToken(token!));
       return authCookie(request, response({ ok: true }), "", 0);
@@ -180,9 +223,10 @@ async function handle(
       return response({
         profile: db
           .prepare(
-            "SELECT name,bio,avatar,banner,socials,paypal,currency,background,accent,banner_position,layout FROM owner WHERE id=1",
+            "SELECT strict_contributions,name,bio,avatar,banner,socials,paypal,currency,background,accent,banner_position,layout FROM owner WHERE id=1",
           )
           .get(),
+        lists: listLists(db, { owner: true, lists: [] }),
         gifts: listGifts(db, true),
         categories: db.prepare("SELECT * FROM categories ORDER BY name").all(),
         contributions: db
@@ -201,13 +245,21 @@ async function handle(
           .all(),
       });
     }
+    if (path === "admin/lists" && request.method === "GET")
+      return response(listLists(db, { owner: true, lists: [] }));
     if (path === "admin/export" && request.method === "GET") {
       const data = atomic(db, () => ({
-        version: 1,
+        version: 2,
+        lists: listLists(db, { owner: true, lists: [] }),
+        reservations: db
+          .prepare(
+            "SELECT id,gift_id,quantity,state,created_at,expires_at FROM reservations",
+          )
+          .all(),
         exported_at: new Date().toISOString(),
         owner: db
           .prepare(
-            "SELECT name,bio,avatar,banner,socials,paypal,currency,background,accent,banner_position,layout FROM owner WHERE id=1",
+            "SELECT strict_contributions,name,bio,avatar,banner,socials,paypal,currency,background,accent,banner_position,layout FROM owner WHERE id=1",
           )
           .get(),
         categories: db.prepare("SELECT * FROM categories").all(),
@@ -240,6 +292,25 @@ async function handle(
       request,
       path === "admin/images" ? 7 * 1024 * 1024 : 1024 * 1024,
     );
+    const productReply = await productPost(db, path, data);
+    if (productReply) return productReply;
+    if (path === "admin/lists") return response({ id: saveList(db, data) });
+    if (path === "admin/lists/share") {
+      const v = z
+        .object({ id: text(64).min(1), revoke: z.boolean().default(false) })
+        .parse(data);
+      return response({ token: rotateShare(db, v.id, v.revoke) });
+    }
+    if (path === "admin/strict-contributions") {
+      const v = z.object({ enabled: z.boolean() }).parse(data);
+      atomic(db, () => {
+        db.prepare("UPDATE owner SET strict_contributions=? WHERE id=1").run(
+          Number(v.enabled),
+        );
+        audit(db, "contributions.mode", "1", v);
+      });
+      return response({ ok: true });
+    }
     if (path === "admin/password") {
       rateLimit(db, `password:${ip}`, 5, 15 * 60000);
       const v = z

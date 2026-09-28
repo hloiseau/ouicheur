@@ -1,8 +1,9 @@
 import sharp from "sharp";
 import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdirSync, writeFileSync, existsSync, utimesSync } from "node:fs";
 import { join } from "node:path";
-import { dataDir } from "./db";
+import { assertImageSpace } from "./storage";
+import { dataDir, database } from "./db";
 import { fetchSafe } from "./fetch-safe";
 import { AppError } from "./validation";
 
@@ -24,13 +25,12 @@ export async function storeImage(bytes: Buffer) {
       .toBuffer();
     const name = createHash("sha256").update(output).digest("hex") + ".webp";
     const folder = join(dataDir(), "images");
-    await mkdir(folder, { recursive: true });
-    // Content-addressed files are immutable: backups can safely copy referenced images.
-    await writeFile(join(folder, name), output, { flag: "wx" }).catch(
-      (error) => {
-        if (error.code !== "EEXIST") throw error;
-      },
-    );
+    mkdirSync(folder, { recursive: true });
+    const path = join(folder, name);
+    if (!existsSync(path)) {
+      assertImageSpace(database(), output.length);
+      writeFileSync(path, output, { flag: "wx" });
+    } else utimesSync(path, new Date(), new Date());
     return `/media/${name}`;
   } catch (error) {
     if (error instanceof AppError) throw error;

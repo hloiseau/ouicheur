@@ -84,6 +84,7 @@ export function paypalLink(name: string, amount: number, currency: string) {
   return `https://paypal.me/${paypalName(name)}/${Math.floor(amount / 100)}.${String(amount % 100).padStart(2, "0")}${currencySchema.parse(currency)}`;
 }
 export const giftSchema = z.object({
+  list_id: text(64).min(1).optional(),
   url: urlSchema,
   title: text(160).min(1),
   description: text(2000).default(""),

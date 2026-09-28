@@ -15,3 +15,5 @@ await import(
   pathToFileURL(resolve(container ? "server.js" : ".next/standalone/server.js"))
     .href
 );
+
+await import("./maintenance.ts");

@@ -1,3 +1,4 @@
+import { productFrench } from "./product-messages.ts";
 import { english } from "./messages.ts";
 import { formatMoney } from "./format.ts";
 
@@ -20,7 +21,9 @@ export function createI18n(locale: Locale) {
     interpolate(
       locale === "en" && Object.hasOwn(english, message)
         ? english[message]
-        : message,
+        : locale === "fr" && Object.hasOwn(productFrench, message)
+          ? productFrench[message]
+          : message,
       values,
     );
   return {

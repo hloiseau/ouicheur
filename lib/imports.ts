@@ -1,3 +1,4 @@
+import { enqueueNotification } from "./notifications.ts";
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import * as cheerio from "cheerio";
@@ -428,6 +429,7 @@ export async function runImport(db: DatabaseSync, id: string) {
     await prepareImport(db, id);
     db.prepare("UPDATE imports SET state='preview' WHERE id=?").run(id);
   } catch (error) {
+    enqueueNotification(db, "import_failed", id);
     db.prepare("UPDATE imports SET state='failed',error=? WHERE id=?").run(
       error instanceof AppError
         ? JSON.stringify([error.key, ...error.values])

@@ -170,6 +170,37 @@ try {
   await ready();
   let cookie = await login();
   await check(cookie);
+  // Native dependencies must work on both AMD64 and ARM64, including the smaller runtime image.
+  docker(
+    "exec",
+    name,
+    "node",
+    "--input-type=module",
+    "-e",
+    "import sharp from 'sharp'; import {chromium} from 'playwright-core'; const b=await chromium.launch({headless:true}); await b.close(); await sharp({create:{width:2,height:2,channels:3,background:'#123456'}}).webp().toBuffer(); console.log(process.arch);",
+  );
+  const operations = await fetch("http://localhost:3212/api/admin/operations", {
+    headers: { cookie },
+  });
+  assert.equal(operations.status, 200);
+  assert.equal((await operations.json()).diagnostics.chromium, true);
+  const managed = await fetch("http://localhost:3212/api/admin/backups", {
+    method: "POST",
+    headers: {
+      cookie,
+      origin: "http://localhost:3212",
+      "Content-Type": "application/json",
+    },
+    body: "{}",
+  });
+  assert.equal(managed.status, 200);
+  const backupId = (await managed.json()).id;
+  const download = await fetch(
+    `http://localhost:3212/api/admin/backups/${backupId}`,
+    { headers: { cookie } },
+  );
+  assert.equal(download.status, 200);
+  assert.ok((await download.arrayBuffer()).byteLength > 0);
   const publicPage = await fetch("http://localhost:3212/");
   assert.equal(publicPage.status, 200);
   assert.ok((await publicPage.text()).includes("Docker Test"));

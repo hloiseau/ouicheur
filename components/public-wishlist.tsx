@@ -1,6 +1,7 @@
 "use client";
 import { useI18n } from "./language";
 
+import type { Wishlist } from "../lib/lists";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,6 +15,8 @@ import { JapanSearch } from "./japan-search";
 
 export type PublicGift = Pick<
   Gift,
+  | "list_id"
+  | "reserved"
   | "id"
   | "url"
   | "title"
@@ -91,7 +94,11 @@ export function PublicWishlist({
   owner,
   embedded = false,
   onRefresh,
+  lists = [],
+  initialList = "",
 }: {
+  lists?: Wishlist[];
+  initialList?: string;
   profile: PublicProfile | null;
   gifts: PublicGift[];
   categories: Category[];
@@ -102,6 +109,8 @@ export function PublicWishlist({
   const { t, locale, money } = useI18n();
   const router = useRouter();
   const refresh = () => (onRefresh ? onRefresh() : router.refresh());
+  const [selectedList, setSelectedList] = useState(initialList);
+  const [shown, setShown] = useState(24);
   const [editor, setEditor] = useState<Gift | "new" | null>(null);
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
@@ -128,6 +137,7 @@ export function PublicWishlist({
   const visible = scoped
     .filter(
       (g) =>
+        (!selectedList || g.list_id === selectedList) &&
         (!category || g.category_id === category) &&
         `${g.title} ${g.description}`
           .toLocaleLowerCase(locale)
@@ -199,6 +209,38 @@ export function PublicWishlist({
                 <Icon name="plus" size={18} />
                 {t("Ajouter une envie")}
               </button>
+            </div>
+          )}
+          {lists.length > 0 && (
+            <div className="list-toolbar">
+              <label>
+                {t("Liste")}
+                <select
+                  value={selectedList}
+                  onChange={(e) => {
+                    setSelectedList(e.target.value);
+                    setShown(24);
+                  }}
+                >
+                  <option value="">{t("Toutes les listes")}</option>
+                  {lists.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                      {l.archived ? ` · ${t("Archivées")}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {selectedList && (
+                <a className="text-link" href={`/lists/${selectedList}`}>
+                  {t("Ouvrir cette liste")}
+                </a>
+              )}
+              {owner && (
+                <a className="text-link" href="/add">
+                  {t("Ajout mobile")}
+                </a>
+              )}
             </div>
           )}
           <div
@@ -293,7 +335,7 @@ export function PublicWishlist({
           )}
           {visible.length ? (
             <div className="gift-grid">
-              {visible.map((gift) => (
+              {visible.slice(0, shown).map((gift) => (
                 <article
                   className={`gift-card${owner ? " admin-gift-row" : ""}`}
                   key={gift.id}
@@ -339,6 +381,11 @@ export function PublicWishlist({
                           gift.quantity,
                           money(gift.target / gift.quantity, gift.currency),
                         )}
+                      </p>
+                    )}
+                    {gift.reserved > 0 && (
+                      <p className="notice">
+                        {t("{0} exemplaires réservés", gift.reserved)}
                       </p>
                     )}
                     <Progress gift={gift} compact />
@@ -411,6 +458,14 @@ export function PublicWishlist({
               )}
             </div>
           )}
+          {visible.length > shown && (
+            <button
+              className="button secondary"
+              onClick={() => setShown((n) => n + 24)}
+            >
+              {t("Afficher plus")}
+            </button>
+          )}
         </section>
       </div>
       {owner && editor && (
@@ -420,6 +475,7 @@ export function PublicWishlist({
           categories={categories}
           currency={owner.currency}
           categoryId={category || null}
+          listId={selectedList || "default"}
           onDone={() => setEditor(null)}
           onSaved={() => {
             setEditor(null);
@@ -435,9 +491,13 @@ export function PublicWishlist({
           <details className="participation-info">
             <summary>{t("À propos des participations")}</summary>
             <p>
-              {t(
-                "Choisissez une envie et votre montant, puis envoyez votre participation via PayPal. Elle compte dès que vous indiquez l’avoir envoyée. Le propriétaire achète lui-même le cadeau.",
-              )}{" "}
+              {profile?.strict_contributions
+                ? t(
+                    "Seules les contributions validées par le propriétaire comptent dans l’objectif.",
+                  )
+                : t(
+                    "Choisissez une envie et votre montant, puis envoyez votre participation via PayPal. Elle compte dès que vous indiquez l’avoir envoyée. Le propriétaire achète lui-même le cadeau.",
+                  )}{" "}
             </p>
             <p>
               {t(
