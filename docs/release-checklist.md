@@ -1,11 +1,16 @@
 # Première release pour les catalogues NAS
 
+Les soumissions aux catalogues sont suspendues à la demande du propriétaire,
+le temps de finaliser le produit. Le propriétaire confirme un essai positif sur
+son TrueNAS de la version précédant la finalisation ; il ne s’agit pas encore
+une validation des nouveaux parcours ni d’Unraid.
+
 Cette liste est un suivi de travail, pas une déclaration de validation.
 
 - [ ] Fusionner la préparation NAS après CI verte et revue.
 - [ ] Compléter les notices de redistribution de l'image finale, y compris les
       composants natifs ; archiver un inventaire/SBOM avec la version.
-- [ ] Rédiger un changelog, noter les migrations et documenter une restauration
+- [x] Rédiger un changelog, noter les migrations et documenter une restauration
       depuis une sauvegarde de la version précédente.
 - [ ] Choisir la version ; garder `package.json` et `package-lock.json` cohérents.
 - [ ] Créer le tag `vX.Y.Z` correspondant après tests. La CI reconstruit, teste et

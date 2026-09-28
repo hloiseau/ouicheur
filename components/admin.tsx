@@ -31,6 +31,7 @@ type Profile = Appearance & {
   strict_contributions: number;
 };
 type AdminData = {
+  pending_contributions: number;
   lists: Wishlist[];
   profile: Profile;
   gifts: Gift[];
@@ -153,12 +154,7 @@ export function Admin() {
         </main>
       </>
     );
-  const pending = data.contributions.filter(
-    (c) =>
-      !c.payment_id &&
-      !c.approved &&
-      ["declared", "detected"].includes(c.state),
-  ).length;
+  const pending = data.pending_contributions;
   return (
     <div className="owner-space">
       <header className="owner-topbar container">

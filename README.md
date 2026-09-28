@@ -1,10 +1,12 @@
 # Ouicheur
 
+[English quick start](README.en.md) · [Nouvelles fonctionnalités et mise à jour](docs/product-features.md) · [Changelog](CHANGELOG.md)
+
 Une Ouichlist personnelle libre et auto-hébergeable, en anglais par défaut avec une interface française au choix. Un propriétaire, des cadeaux ajoutés par liens, des contributions sans compte visiteur et des versements directs sur son **compte PayPal particulier**.
 
 Le sélecteur **English / Français** est disponible sur toutes les pages, y compris l’installation. Le choix reste mémorisé dans ce navigateur pendant un an. Textes, erreurs, titres, dates et montants suivent cette préférence ; les contenus personnels ne sont pas traduits. Le changement de langue conserve les formulaires en cours. [Localization and upgrade notes](docs/localization.md).
 
-**Les participations comptent dès l’envoi déclaré.** Le propriétaire peut ensuite les valider ou les refuser en un clic. L’application ne commande aucun produit, ne détient pas l’argent et n’ajoute aucune commission. Elle ne promet pas l’absence de frais PayPal.
+**Par défaut, les participations comptent dès l’envoi déclaré.** Le mode strict optionnel attend la validation du propriétaire. Le propriétaire peut ensuite les valider ou les refuser en un clic. L’application ne commande aucun produit, ne détient pas l’argent et n’ajoute aucune commission. Elle ne promet pas l’absence de frais PayPal.
 
 ## Démarrer avec Docker
 
@@ -30,6 +32,16 @@ Pour le référencement dans les catalogues **TrueNAS Apps**, **Unraid Community
 Les [modèles Unraid](docs/unraid.md) et le [candidat TrueNAS](deploy/truenas/README.md) sont en préparation et ne constituent pas encore une présence dans les catalogues. Voir l’[audit et la feuille de route](docs/review-2026-09-28.md), la [liste de validation de release](docs/release-checklist.md), le [guide de contribution](CONTRIBUTING.md) et les [consignes de sécurité](SECURITY.md).
 
 Le port est lié à `127.0.0.1` pour l’accès local et le reverse proxy. Deux volumes conservent les données et les sauvegardes : `wishlister-data` et `wishlister-backups` (préfixés par Compose). `docker compose down` conserve ces volumes. `down -v` les supprimerait.
+
+## Listes, réservations et maintenance
+
+La nouvelle version propose des listes et événements publics, non répertoriés ou
+privés, des liens révocables avec QR code, des réservations sans PayPal, l’ajout
+mobile/PWA, une actualisation manuelle des prix et stocks, des sauvegardes complètes
+planifiées, des notifications ntfy, un diagnostic et un nettoyage contrôlé.
+Le [guide produit](docs/product-features.md) décrit les parcours, leurs limites et
+la migration d’une installation existante. Ces changements ne sont disponibles
+dans les images publiques qu’après fusion et publication de cette version.
 
 ## Personnaliser sa Ouichlist
 

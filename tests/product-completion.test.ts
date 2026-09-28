@@ -45,6 +45,7 @@ import {
   createBackup,
   diagnostics,
   downloadBackup,
+  runMaintenance,
 } from "../lib/operations";
 import { restoreInstance } from "../lib/backup";
 import { getSettings, saveSettings } from "../lib/settings";
@@ -390,7 +391,8 @@ test("cleanup protects referenced and recent images, active imports, backups and
     ).run(randomUUID(), new Date().toISOString());
     assert.equal(cleanupPreview(db, folder).images, 0);
     db.exec("DELETE FROM backup_jobs");
-    cleanup(db, folder);
+    assert.throws(() => cleanup(db, folder, "0".repeat(64)), /changé/);
+    cleanup(db, folder, cleanupPreview(db, folder).token);
     assert.equal(existsSync(join(folder, "images", names[0])), true);
     assert.equal(existsSync(join(folder, "images", names[1])), false);
     assert.equal(existsSync(join(folder, "images", names[2])), true);
@@ -404,6 +406,36 @@ test("cleanup protects referenced and recent images, active imports, backups and
       /Stockage/,
     );
   } finally {
+    db.close();
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test("scheduled backups catch up once after downtime and respect the next due date", async () => {
+  const folder = mkdtempSync(join(tmpdir(), "ouicheur-schedule-"));
+  const db = await fixture(join(folder, "data", "wishlist.sqlite"));
+  const previous = {
+    data: process.env.DATA_DIR,
+    backup: process.env.BACKUP_DIR,
+  };
+  process.env.DATA_DIR = join(folder, "data");
+  process.env.BACKUP_DIR = join(folder, "backups");
+  try {
+    saveSettings(db, { ...getSettings(db), backup_hours: 24 });
+    await runMaintenance(db);
+    assert.equal(backupHistory(db).length, 1);
+    await runMaintenance(db);
+    assert.equal(backupHistory(db).length, 1);
+    db.exec("UPDATE backup_jobs SET created_at='2000-01-01T00:00:00.000Z'");
+    await runMaintenance(db);
+    assert.equal(backupHistory(db).length, 2);
+    await runMaintenance(db);
+    assert.equal(backupHistory(db).length, 2);
+  } finally {
+    if (previous.data === undefined) delete process.env.DATA_DIR;
+    else process.env.DATA_DIR = previous.data;
+    if (previous.backup === undefined) delete process.env.BACKUP_DIR;
+    else process.env.BACKUP_DIR = previous.backup;
     db.close();
     rmSync(folder, { recursive: true, force: true });
   }

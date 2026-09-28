@@ -121,7 +121,7 @@ export default async function GiftPage({
           <ReservationForm
             giftId={id}
             available={Math.max(0, gift.quantity - gift.reserved)}
-            closed={reservationClosed}
+            closed={reservationClosed || gift.funded > 0 || gift.declared > 0}
           />
           <ContributionForm
             giftId={id}

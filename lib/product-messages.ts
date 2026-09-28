@@ -1,4 +1,10 @@
 export const productEnglish: Record<string, string> = {
+  "Réservation indisponible : envie fermée ou contributions existantes.":
+    "Reservations are unavailable: this wish is closed or already has contributions.",
+  "Les envies sélectionnées suivront la confidentialité de la liste choisie. Les images sont récupérées automatiquement. Vérifiez les montants et la devise.":
+    "Selected wishes follow the chosen list’s privacy. Images are downloaded automatically. Check amounts and currency.",
+  "Le contenu à nettoyer a changé. Vérifiez le nouvel aperçu et confirmez à nouveau.":
+    "The cleanup selection changed. Review the new preview and confirm again.",
   "Seules les contributions validées par le propriétaire comptent dans l’objectif.":
     "Only contributions approved by the owner count towards the goal.",
   "Déclaré, en attente de validation : {0}": "Declared, awaiting approval: {0}",

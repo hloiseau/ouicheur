@@ -10,3 +10,5 @@ backups/
 test-results/
 playwright-report/
 __pycache__/
+
+third-party-licenses/

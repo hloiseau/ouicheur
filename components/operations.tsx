@@ -22,6 +22,7 @@ type OperationsData = {
   };
   backups: { id: string; state: string; created_at: string; bytes: number }[];
   cleanup: {
+    token: string;
     images: number;
     image_bytes: number;
     imports: number;
@@ -267,8 +268,15 @@ export function Operations() {
               disabled={busy || !confirm}
               onClick={() =>
                 void action(async () => {
-                  await api("admin/cleanup", { confirm: true });
-                  setConfirm(false);
+                  try {
+                    await api("admin/cleanup", {
+                      confirm: true,
+                      token: data.cleanup.token,
+                    });
+                  } finally {
+                    setConfirm(false);
+                    await refresh();
+                  }
                 })
               }
             >

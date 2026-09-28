@@ -83,8 +83,13 @@ export async function productPost(
     return json({ id: await createBackup(db) });
   }
   if (path === "admin/cleanup") {
-    z.object({ confirm: z.literal(true) }).parse(data);
-    return json(cleanup(db));
+    const v = z
+      .object({
+        confirm: z.literal(true),
+        token: z.string().regex(/^[a-f0-9]{64}$/),
+      })
+      .parse(data);
+    return json(cleanup(db, undefined, v.token));
   }
   if (path === "admin/notifications/test") {
     rateLimit(db, "notification-test", 5, 60000);

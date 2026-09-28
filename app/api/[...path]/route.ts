@@ -226,13 +226,20 @@ async function handle(
             "SELECT strict_contributions,name,bio,avatar,banner,socials,paypal,currency,background,accent,banner_position,layout FROM owner WHERE id=1",
           )
           .get(),
+        pending_contributions: Number(
+          db
+            .prepare(
+              "SELECT COUNT(*) n FROM contributions c WHERE c.approved=0 AND c.state IN ('declared','detected') AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.contribution_id=c.id)",
+            )
+            .get()!.n,
+        ),
         lists: listLists(db, { owner: true, lists: [] }),
         gifts: listGifts(db, true),
         categories: db.prepare("SELECT * FROM categories ORDER BY name").all(),
         contributions: db
           .prepare(
             `SELECT c.*,g.title gift_title,p.id payment_id,p.transaction_ref,p.gross,p.fee,p.net,p.refunded,p.net_reversed,p.disputed,p.revision,p.provenance
-          FROM contributions c JOIN gifts g ON g.id=c.gift_id LEFT JOIN payments p ON p.contribution_id=c.id ORDER BY c.created_at DESC LIMIT 1000`,
+          FROM contributions c JOIN gifts g ON g.id=c.gift_id LEFT JOIN payments p ON p.contribution_id=c.id ORDER BY c.created_at DESC LIMIT 50`,
           )
           .all(),
         imports: db

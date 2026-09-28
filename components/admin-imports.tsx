@@ -252,7 +252,7 @@ export function Imports({
               )}
               <p>
                 {t(
-                  "Les envies sélectionnées seront publiées dès l’enregistrement. Les images sont récupérées automatiquement. Vérifiez les montants et la devise.",
+                  "Les envies sélectionnées suivront la confidentialité de la liste choisie. Les images sont récupérées automatiquement. Vérifiez les montants et la devise.",
                 )}
               </p>
               <form

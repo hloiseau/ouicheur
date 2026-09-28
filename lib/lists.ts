@@ -44,7 +44,8 @@ export function listLists(db: DatabaseSync, access: Access = publicAccess) {
       .prepare(
         "SELECT id,name,description,visibility,archived,event_date,CASE WHEN share_hash IS NULL THEN 0 ELSE 1 END shared FROM lists ORDER BY created_at,id",
       )
-      .all() as Wishlist[]
+      .all()
+      .map((row) => ({ ...row })) as Wishlist[]
   ).filter(
     (l) =>
       access.owner ||

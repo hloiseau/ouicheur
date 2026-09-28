@@ -4,7 +4,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
 RUN npm ci --no-fund
 COPY . .
-RUN npm run build && npm prune --omit=dev --no-fund
+RUN npm run build && npm prune --omit=dev --no-fund && node scripts/licenses.mjs && npm sbom --omit=dev --sbom-format=cyclonedx > third-party-licenses/npm-sbom.cdx.json
 
 FROM node:24.21.0-bookworm-slim AS runtime
 WORKDIR /app
@@ -19,6 +19,7 @@ COPY --from=build --chown=node:node /app/scripts/manage.ts ./scripts/manage.ts
 COPY --from=build --chown=node:node /app/scripts/start.mjs /app/scripts/prepare-setup.ts /app/scripts/maintenance.ts ./scripts/
 COPY --from=build --chown=node:node /app/scripts/install-browser.mjs ./scripts/
 COPY --from=build --chown=node:node /app/package.json ./package.json
+COPY --from=build --chown=node:node /app/third-party-licenses ./third-party-licenses
 COPY --from=build --chown=node:node /app/LICENSE /app/THIRD_PARTY_NOTICES.md ./
 RUN node node_modules/playwright-core/cli.js install --with-deps --only-shell chromium && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /app/data /app/backups && chown node:node /app/data /app/backups

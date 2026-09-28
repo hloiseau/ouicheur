@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   existsSync,
   readdirSync,
@@ -68,33 +69,50 @@ export function cleanupPreview(db: DatabaseSync, folder = dataDir()) {
         (f) => !referenced.has(f.name) && f.mtimeMs < Date.now() - 86400000,
       );
   const before = new Date(Date.now() - 90 * 86400000).toISOString();
-  const imports = Number(
-    db
-      .prepare(
-        "SELECT COUNT(*) n FROM imports WHERE state IN ('done','failed') AND created_at<?",
-      )
-      .get(before)!.n,
-  );
-  const intents = Number(
-    db
-      .prepare(
-        "SELECT COUNT(*) n FROM contributions c WHERE state IN ('intent','expired') AND expires_at<? AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.contribution_id=c.id)",
-      )
-      .get(before)!.n,
-  );
+  const importIds = db
+    .prepare(
+      "SELECT id FROM imports WHERE state IN ('done','failed') AND created_at<? ORDER BY id",
+    )
+    .all(before)
+    .map((r) => r.id);
+  const intentIds = db
+    .prepare(
+      "SELECT id FROM contributions c WHERE state IN ('intent','expired') AND expires_at<? AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.contribution_id=c.id) ORDER BY id",
+    )
+    .all(before)
+    .map((r) => r.id);
+  const token = createHash("sha256")
+    .update(
+      JSON.stringify([
+        images.map((f) => [f.name, f.size]).sort(),
+        importIds,
+        intentIds,
+      ]),
+    )
+    .digest("hex");
   return {
     images: images.length,
     image_bytes: images.reduce((n, f) => n + f.size, 0),
-    imports,
-    intents,
+    imports: importIds.length,
+    intents: intentIds.length,
+    token,
     importing,
     files: images.map((f) => f.name),
     before,
   };
 }
-export function cleanup(db: DatabaseSync, folder = dataDir()) {
+export function cleanup(
+  db: DatabaseSync,
+  folder = dataDir(),
+  expectedToken?: string,
+) {
   return atomic(db, () => {
     const plan = cleanupPreview(db, folder);
+    if (expectedToken && expectedToken !== plan.token)
+      throw new AppError(
+        "Le contenu à nettoyer a changé. Vérifiez le nouvel aperçu et confirmez à nouveau.",
+        409,
+      );
     for (const name of plan.files) unlinkSync(join(folder, "images", name));
     db.prepare(
       "DELETE FROM imports WHERE state IN ('done','failed') AND created_at<?",

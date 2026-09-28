@@ -31,8 +31,8 @@
     "browser:install": "node scripts/install-browser.mjs",
     "test:e2e": "node node_modules/@playwright/test/cli.js test",
     "test:docker": "node --import tsx tests/docker-smoke.ts",
-    "format": "prettier --write app components lib scripts tests *.ts *.json *.yaml .github README.md docs",
-    "format:check": "prettier --check app components lib scripts tests *.ts *.json *.yaml .github README.md docs"
+    "format": "prettier --write app components lib scripts tests *.ts *.json *.yaml .github *.md docs public/sw.js",
+    "format:check": "prettier --check app components lib scripts tests *.ts *.json *.yaml .github *.md docs public/sw.js"
   },
   "dependencies": {
     "cheerio": "1.2.0",

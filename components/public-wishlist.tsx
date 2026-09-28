@@ -2,7 +2,8 @@
 import { useI18n } from "./language";
 
 import type { Wishlist } from "../lib/lists";
-import { useState } from "react";
+import { ShareLink } from "./lists";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Gift, PublicProfile } from "../lib/gifts";
@@ -106,10 +107,13 @@ export function PublicWishlist({
   embedded?: boolean;
   onRefresh?: () => void;
 }) {
-  const { t, locale, money } = useI18n();
+  const { t, locale, money, date } = useI18n();
+  const [origin, setOrigin] = useState("");
+  useEffect(() => setOrigin(location.origin), []);
   const router = useRouter();
   const refresh = () => (onRefresh ? onRefresh() : router.refresh());
   const [selectedList, setSelectedList] = useState(initialList);
+  const currentList = lists.find((l) => l.id === selectedList);
   const [shown, setShown] = useState(24);
   const [editor, setEditor] = useState<Gift | "new" | null>(null);
   const [category, setCategory] = useState("");
@@ -242,6 +246,23 @@ export function PublicWishlist({
                 </a>
               )}
             </div>
+          )}
+          {currentList && (
+            <section className="list-intro stack">
+              <h2>{currentList.name}</h2>
+              {currentList.description && <p>{currentList.description}</p>}
+              {currentList.event_date && (
+                <p>{date(currentList.event_date, true)}</p>
+              )}
+              {currentList.visibility === "public" &&
+                !currentList.archived &&
+                origin && (
+                  <details>
+                    <summary>{t("Partager")}</summary>
+                    <ShareLink value={`${origin}/lists/${currentList.id}`} />
+                  </details>
+                )}
+            </section>
           )}
           <div
             className="wishlist-navigation"

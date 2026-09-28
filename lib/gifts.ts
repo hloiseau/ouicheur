@@ -65,24 +65,16 @@ export function listGifts(
   const rows = db
     .prepare(
       `SELECT g.*,c.name category,COALESCE(f.funded,0) funded,
+    COALESCE((SELECT SUM(quantity) FROM reservations r WHERE r.gift_id=g.id AND (r.state='purchased' OR (r.state='reserved' AND r.expires_at>?))),0) reserved,
+    COALESCE((SELECT SUM(amount) FROM contributions c WHERE c.gift_id=g.id AND c.state='declared' AND c.approved=0 AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.contribution_id=c.id)),0) declared,
     COALESCE((SELECT SUM(p.net-p.net_reversed) FROM payments p JOIN contributions n ON n.id=p.contribution_id WHERE n.gift_id=g.id AND p.net IS NOT NULL),0) confirmed,
     COALESCE((SELECT SUM(p.gross-MAX(p.refunded,p.net_reversed)) FROM payments p JOIN contributions n ON n.id=p.contribution_id WHERE n.gift_id=g.id AND p.net IS NULL),0) unknown_gross
     FROM gifts g LEFT JOIN categories c ON c.id=g.category_id
     LEFT JOIN (${fundingTotalsSql}) f ON f.gift_id=g.id ${admin ? "" : "WHERE g.visibility='visible'"}
     ORDER BY g.priority DESC,g.created_at DESC`,
     )
-    .all()
-    .map((row) => ({
-      ...row,
-      reserved: reservedQuantity(db, String(row.id)),
-      declared: Number(
-        db
-          .prepare(
-            "SELECT COALESCE(SUM(amount),0) n FROM contributions c WHERE gift_id=? AND state='declared' AND approved=0 AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.contribution_id=c.id)",
-          )
-          .get(row.id)!.n,
-      ),
-    })) as Gift[];
+    .all(dateNow())
+    .map((row) => ({ ...row })) as Gift[];
   return admin ? rows : rows.filter((g) => allowed.includes(g.list_id));
 }
 export function saveGift(db: DatabaseSync, input: unknown, id?: string) {

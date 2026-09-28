@@ -25,6 +25,13 @@ export function ReservationForm({
         )}
       </p>
       <p>{t("{0} exemplaires disponibles", available)}</p>
+      {closed && (
+        <p>
+          {t(
+            "Réservation indisponible : envie fermée ou contributions existantes.",
+          )}
+        </p>
+      )}
       {!closed && available > 0 && (
         <form
           className="stack"

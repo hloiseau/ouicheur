@@ -55,8 +55,16 @@ test("private sharing, image authorization, revocation and reservation managemen
     await guest.addCookies([
       { name: "ouicheur_locale", value: "fr", url: "http://localhost:3211" },
     ]);
-    expect((await guest.request.get(`/lists/${list}`)).status()).toBe(404);
-    expect((await guest.request.get(`/cadeaux/${gift}`)).status()).toBe(404);
+    const visitor = await guest.newPage();
+    for (const path of [`/lists/${list}`, `/cadeaux/${gift}`]) {
+      await visitor.goto(path);
+      await expect(
+        visitor.getByRole("heading", { name: "Cette envie est introuvable." }),
+      ).toBeVisible();
+      expect(await visitor.content()).not.toContain(
+        `Private wish ${info.project.name}`,
+      );
+    }
     expect((await guest.request.get(uploaded.image)).status()).toBe(404);
     expect(
       (
@@ -77,7 +85,6 @@ test("private sharing, image authorization, revocation and reservation managemen
     expect(await (await guest.request.get("/")).text()).not.toContain(
       `Private wish ${info.project.name}`,
     );
-    const visitor = await guest.newPage();
     await visitor.goto(`/s/${token}`);
     await expect(visitor).toHaveURL(new RegExp(`/lists/${list}$`));
     await expect(
@@ -99,7 +106,15 @@ test("private sharing, image authorization, revocation and reservation managemen
     await expect(visitor.getByLabel("Lien personnel")).toHaveValue(management);
     await post("admin/lists/share", { id: list, revoke: true });
     expect((await guest.request.get(uploaded.image)).status()).toBe(404);
-    expect((await guest.request.get(`/cadeaux/${gift}`)).status()).toBe(404);
+    const denied = await guest.newPage();
+    await denied.goto(`/cadeaux/${gift}`);
+    await expect(
+      denied.getByRole("heading", { name: "Cette envie est introuvable." }),
+    ).toBeVisible();
+    expect(await denied.content()).not.toContain(
+      `Private wish ${info.project.name}`,
+    );
+    await denied.close();
     expect((await guest.request.get(`/s/${token}`)).status()).toBe(404);
     // Revoking a list never prevents a donor from releasing their own reservation.
     await visitor
@@ -169,11 +184,14 @@ test("owner maintenance, protected backup download and authenticated mobile shar
     expect((await anon.request.get("/api/admin/diagnostics")).status()).toBe(
       401,
     );
-    const redirect = await anon.request.get(
-      "/add?url=https%3A%2F%2Fexample.com%2Fmobile",
-      { maxRedirects: 0 },
-    );
-    expect(redirect.status()).toBe(307);
+    // Next.js can stream the loading shell before sending a client redirect.
+    const signedOut = await anon.newPage();
+    await signedOut.goto("/add?url=https%3A%2F%2Fexample.com%2Fmobile");
+    await expect(signedOut).toHaveURL(/\/admin\?add=/);
+    await expect(
+      signedOut.getByLabel("Password", { exact: true }),
+    ).toBeVisible();
+    await expect(signedOut.getByRole("dialog")).toHaveCount(0);
   } finally {
     await anon.close();
   }

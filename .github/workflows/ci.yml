@@ -74,6 +74,11 @@ jobs:
         run: |
           docker image inspect ouicheur:local --format '{{.Size}}' > image-size-${{ matrix.arch }}.txt
           cat image-size-${{ matrix.arch }}.txt >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ matrix.arch }}" = amd64 ]; then
+            previous="ghcr.io/hloiseau/ouicheur@sha256:9915f152b0c53f8c41f68bf1aafd6375d0f17d6eb0e721e4a6720842bde93825"
+            docker pull "$previous"
+            docker image inspect "$previous" --format '{{.Size}}' > image-size-baseline-amd64.txt
+          fi
       - name: Log in to GHCR
         if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -91,6 +96,16 @@ jobs:
           image="ghcr.io/${REPOSITORY,,}"
           docker tag ouicheur:local "$image:sha-$REVISION-$ARCH"
           docker push "$image:sha-$REVISION-$ARCH"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: product-screenshots-${{ matrix.arch }}
+          path: |
+            test-results/*.png
+            test-results/**/test-failed-*.png
+            test-results/**/error-context.md
+            image-size-*.txt
+          retention-days: 7
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
