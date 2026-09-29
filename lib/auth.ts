@@ -63,7 +63,7 @@ export function createSession(db: DatabaseSync) {
   const token = randomBytes(32).toString("hex");
   const expires = Date.now() + 12 * 60 * 60 * 1000;
   db.prepare("DELETE FROM sessions WHERE expires < ?").run(Date.now());
-  db.prepare("INSERT INTO sessions VALUES (?,?)").run(
+  db.prepare("INSERT INTO sessions(hash,expires) VALUES (?,?)").run(
     hashToken(token),
     expires,
   );

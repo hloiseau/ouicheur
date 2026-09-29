@@ -69,6 +69,7 @@ const empty = {
   description: "",
   visibility: "private" as Wishlist["visibility"],
   archived: false,
+  surprise_mode: false,
   event_date: "",
 };
 export function ListsEditor({
@@ -85,6 +86,7 @@ export function ListsEditor({
     description: string;
     visibility: Wishlist["visibility"];
     archived: boolean;
+    surprise_mode: boolean;
     event_date: string;
   }>(empty);
   const [error, setError] = useState("");
@@ -111,7 +113,11 @@ export function ListsEditor({
             key={l.id}
             className="button secondary"
             onClick={() => {
-              setValue({ ...l, archived: !!l.archived });
+              setValue({
+                ...l,
+                archived: !!l.archived,
+                surprise_mode: !!l.surprise_mode,
+              });
               setShare(
                 l.visibility === "public" && !l.archived
                   ? `${location.origin}/lists/${l.id}`
@@ -138,8 +144,27 @@ export function ListsEditor({
           className="stack"
           onSubmit={(e) => {
             e.preventDefault();
+            const previous = lists.find((l) => l.id === value.id);
+            const disablingSurprise =
+              !!previous?.surprise_mode && !value.surprise_mode;
+            if (
+              disablingSurprise &&
+              !window.confirm(
+                t(
+                  "Désactiver le mode surprise pour cette liste et afficher ses réservations et achats ?",
+                ),
+              )
+            )
+              return;
             void action(async () => {
-              const r = await api<{ id: string }>("admin/lists", value);
+              const r = await api<{ id: string }>("admin/lists", {
+                ...value,
+                confirm_reveal: disablingSurprise,
+              });
+              if (!!previous?.surprise_mode !== value.surprise_mode) {
+                location.reload();
+                return;
+              }
               setValue((v) => ({ ...v, id: r.id }));
               setShare(
                 value.visibility === "public" && !value.archived
@@ -207,6 +232,21 @@ export function ListsEditor({
             />
             {t("Archiver cette liste")}
           </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={value.surprise_mode}
+              onChange={(e) =>
+                setValue({ ...value, surprise_mode: e.target.checked })
+              }
+            />
+            {t("Préserver la surprise sur cette liste")}
+          </label>
+          <p className="fine-print">
+            {t(
+              "Masque les réservations et achats au propriétaire connecté, y compris dans son aperçu public. Les proches gardent les disponibilités réelles. Les contributions financières restent visibles ; ce mode ne protège pas contre une visite anonyme ou l’accès au serveur.",
+            )}
+          </p>
           <p className="fine-print">
             {t(
               "Changer la confidentialité ou archiver révoque le lien existant.",

@@ -3,6 +3,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { atomic } from "./db.ts";
 import { getSettings } from "./settings.ts";
 import { dateNow, webUrl } from "./validation.ts";
+import { reservationNotificationHidden } from "./surprise.ts";
 
 // Only event types leave the instance: no gift names, amounts, people or private links.
 const messages: Record<string, string> = {
@@ -17,6 +18,7 @@ export function enqueueNotification(
   key: string,
 ) {
   if (!messages[kind] || !getSettings(db).notifications) return;
+  if (kind === "reservation" && reservationNotificationHidden(db, key)) return;
   if (
     Number(
       db
@@ -60,7 +62,7 @@ export async function deliverNotifications(
     const job = atomic(db, () => {
       const row = db
         .prepare(
-          "SELECT id,kind,attempts FROM notification_jobs WHERE state='pending' AND next_attempt<=? ORDER BY created_at LIMIT 1",
+          "SELECT id,event_key,kind,attempts FROM notification_jobs WHERE state='pending' AND next_attempt<=? ORDER BY created_at LIMIT 1",
         )
         .get(Date.now());
       if (row)
@@ -70,6 +72,16 @@ export async function deliverNotifications(
       return row;
     });
     if (!job) break;
+    if (
+      job.kind === "reservation" &&
+      reservationNotificationHidden(
+        db,
+        String(job.event_key).slice("reservation:".length),
+      )
+    ) {
+      db.prepare("DELETE FROM notification_jobs WHERE id=?").run(job.id);
+      continue;
+    }
     try {
       await send(String(job.kind));
       db.prepare(

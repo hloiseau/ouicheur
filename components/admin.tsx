@@ -1,5 +1,6 @@
 "use client";
 import { version } from "../package.json";
+import { SurpriseNotice } from "./surprise-notice";
 import { ListsEditor } from "./lists";
 import { Operations } from "./operations";
 import { History } from "./history";
@@ -32,6 +33,8 @@ type Profile = Appearance & {
   strict_contributions: number;
 };
 type AdminData = {
+  surprises_enabled: boolean;
+  surprises_revealed: boolean;
   pending_contributions: number;
   lists: Wishlist[];
   profile: Profile;
@@ -199,6 +202,9 @@ export function Admin() {
         </nav>
       </div>
       <main id="main" className="owner-main container">
+        {data.surprises_enabled && (
+          <SurpriseNotice revealed={data.surprises_revealed} />
+        )}
         {page !== "gifts" && (
           <header className="admin-header">
             <h1>
@@ -260,8 +266,13 @@ export function Admin() {
         {page === "lists" && (
           <ListsEditor lists={data.lists} refresh={refresh} />
         )}
-        {page === "operations" && <Operations />}
-        {page === "history" && <History />}
+        {page === "operations" &&
+          (!data.surprises_enabled || data.surprises_revealed) && (
+            <Operations />
+          )}
+        {page === "history" && (
+          <History key={String(data.surprises_revealed)} />
+        )}
         {page === "profile" && (
           <ProfileEditor profile={data.profile} refresh={refresh} />
         )}

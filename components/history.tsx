@@ -32,9 +32,11 @@ export function History({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const refresh = async () => {
+    setError("");
     try {
       setData(await api(`admin/history?kind=${kind}&page=${page}`));
     } catch (e) {
+      setData(null);
       setError((e as Error).message);
     }
   };
@@ -131,25 +133,27 @@ export function History({
           ))}
         </div>
       )}
-      <div className="form-actions">
-        <button
-          className="button secondary"
-          disabled={page === 0}
-          onClick={() => setPage((p) => p - 1)}
-        >
-          {t("Précédent")}
-        </button>
-        <span>
-          {t("Page {0}", page + 1)} · {data?.total || 0}
-        </span>
-        <button
-          className="button secondary"
-          disabled={!data || (page + 1) * 50 >= data.total}
-          onClick={() => setPage((p) => p + 1)}
-        >
-          {t("Suivant")}
-        </button>
-      </div>
+      {data && (
+        <div className="form-actions">
+          <button
+            className="button secondary"
+            disabled={page === 0}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            {t("Précédent")}
+          </button>
+          <span>
+            {t("Page {0}", page + 1)} · {data?.total || 0}
+          </span>
+          <button
+            className="button secondary"
+            disabled={!data || (page + 1) * 50 >= data.total}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            {t("Suivant")}
+          </button>
+        </div>
+      )}
     </section>
   );
 }

@@ -6,6 +6,7 @@ import { assertGiftAccess, publicAccess, type Access } from "./lists.ts";
 import { reservedQuantity } from "./reservations.ts";
 import { enqueueNotification } from "./notifications.ts";
 import { fundingTotalsSql } from "./gifts";
+import { requireSurpriseReveal } from "./surprise.ts";
 import {
   AppError,
   amountSchema,
@@ -32,6 +33,14 @@ export function createIntent(
   const value = intentSchema.parse(input);
   return atomic(db, () => {
     assertGiftAccess(db, value.gift_id, access);
+    requireSurpriseReveal(
+      db,
+      access,
+      String(
+        db.prepare("SELECT list_id FROM gifts WHERE id=?").get(value.gift_id)!
+          .list_id,
+      ),
+    );
     if (reservedQuantity(db, value.gift_id) > 0)
       throw new AppError("Cette envie est réservée pour un achat direct.", 409);
     const gift = db

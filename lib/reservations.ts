@@ -6,6 +6,7 @@ import { atomic, audit } from "./db.ts";
 import { assertGiftAccess, publicAccess, type Access } from "./lists.ts";
 import { AppError, dateNow, text } from "./validation.ts";
 import { enqueueNotification } from "./notifications.ts";
+import { requireSurpriseReveal } from "./surprise.ts";
 
 export const reservedSql = `SELECT COALESCE(SUM(quantity),0) quantity FROM reservations WHERE gift_id=? AND (state='purchased' OR (state='reserved' AND expires_at>?))`;
 export function reservedQuantity(db: DatabaseSync, id: string) {
@@ -25,6 +26,7 @@ export function createReservation(
   return atomic(db, () => {
     assertGiftAccess(db, v.gift_id, access);
     const gift = db.prepare("SELECT * FROM gifts WHERE id=?").get(v.gift_id)!;
+    requireSurpriseReveal(db, access, String(gift.list_id));
     const list = db
       .prepare("SELECT archived FROM lists WHERE id=?")
       .get(gift.list_id)!;

@@ -13,8 +13,14 @@ export type Wishlist = {
   archived: number;
   event_date: string;
   shared: number;
+  surprise_mode: number;
 };
-export type Access = { owner: boolean; lists: string[] };
+export type Access = {
+  owner: boolean;
+  lists: string[];
+  recipient?: boolean;
+  revealSurprises?: boolean;
+};
 export const publicAccess: Access = { owner: false, lists: [] };
 export const shareCookie = (id: string) => `ouicheur_share_${id}`;
 export function accessFromCookies(
@@ -36,13 +42,19 @@ export function accessFromCookies(
       );
     })
     .map((row) => String(row.id));
-  return { owner, lists };
+  const revealSurprises =
+    owner &&
+    !!db
+      .prepare("SELECT surprises_revealed FROM sessions WHERE hash=?")
+      .get(hashToken(cookies.get("wishlister_session")!.value))
+      ?.surprises_revealed;
+  return { owner, lists, recipient: owner, revealSurprises };
 }
 export function listLists(db: DatabaseSync, access: Access = publicAccess) {
   return (
     db
       .prepare(
-        "SELECT id,name,description,visibility,archived,event_date,CASE WHEN share_hash IS NULL THEN 0 ELSE 1 END shared FROM lists ORDER BY created_at,id",
+        "SELECT id,name,description,visibility,archived,event_date,surprise_mode,CASE WHEN share_hash IS NULL THEN 0 ELSE 1 END shared FROM lists ORDER BY created_at,id",
       )
       .all()
       .map((row) => ({ ...row })) as Wishlist[]
@@ -84,13 +96,20 @@ export function saveList(db: DatabaseSync, input: unknown) {
       description: text(1000).default(""),
       visibility: z.enum(["public", "unlisted", "private"]),
       archived: z.boolean().default(false),
+      surprise_mode: z.boolean().optional(),
+      confirm_reveal: z.boolean().default(false),
       event_date: z.union([z.literal(""), z.iso.date()]).default(""),
     })
     .parse(input);
   return atomic(db, () => {
     const id = value.id || randomUUID();
-    if (value.id && !db.prepare("SELECT 1 FROM lists WHERE id=?").get(id))
-      throw new AppError("Liste introuvable.", 404);
+    const existing = db
+      .prepare("SELECT surprise_mode FROM lists WHERE id=?")
+      .get(id);
+    if (value.id && !existing) throw new AppError("Liste introuvable.", 404);
+    const surprise = value.surprise_mode ?? !!existing?.surprise_mode;
+    if (existing?.surprise_mode && !surprise && !value.confirm_reveal)
+      throw new AppError("Confirmez la désactivation du mode surprise.", 409);
     db.prepare(
       `INSERT INTO lists(id,name,description,visibility,archived,event_date,created_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,description=excluded.description,visibility=excluded.visibility,archived=excluded.archived,event_date=excluded.event_date,share_hash=CASE WHEN lists.visibility<>excluded.visibility OR excluded.archived=1 THEN NULL ELSE lists.share_hash END`,
     ).run(
@@ -102,9 +121,16 @@ export function saveList(db: DatabaseSync, input: unknown) {
       value.event_date,
       dateNow(),
     );
+    db.prepare("UPDATE lists SET surprise_mode=? WHERE id=?").run(
+      Number(surprise),
+      id,
+    );
+    if (surprise && !existing?.surprise_mode)
+      db.exec("UPDATE sessions SET surprises_revealed=0");
     audit(db, "list.save", id, {
       visibility: value.visibility,
       archived: value.archived,
+      surprise_mode: surprise,
     });
     return id;
   });

@@ -8,6 +8,7 @@ import { database } from "../../../lib/db";
 import { listGifts, publicProfile } from "../../../lib/gifts";
 import { GiftArt, Progress } from "../../../components/public-wishlist";
 import { ContributionForm } from "../../../components/contribution";
+import { SurpriseNotice } from "../../../components/surprise-notice";
 import { JapanSearch } from "../../../components/japan-search";
 
 export const metadata = { robots: { index: false, follow: false } };
@@ -118,19 +119,27 @@ export default async function GiftPage({
               )}
             </p>
           )}
-          <ReservationForm
-            giftId={id}
-            available={Math.max(0, gift.quantity - gift.reserved)}
-            closed={reservationClosed || gift.funded > 0 || gift.declared > 0}
-          />
-          <ContributionForm
-            giftId={id}
-            currency={gift.currency}
-            remaining={Math.max(0, gift.target - gift.funded)}
-            closed={closed || gift.reserved > 0}
-            enabled={!!profile.payments_enabled}
-            strict={!!profile.strict_contributions}
-          />
+          {gift.surprise_hidden ? (
+            <SurpriseNotice />
+          ) : (
+            <>
+              <ReservationForm
+                giftId={id}
+                available={Math.max(0, gift.quantity - (gift.reserved ?? 0))}
+                closed={
+                  reservationClosed || gift.funded > 0 || gift.declared > 0
+                }
+              />
+              <ContributionForm
+                giftId={id}
+                currency={gift.currency}
+                remaining={Math.max(0, gift.target - gift.funded)}
+                closed={closed || (gift.reserved ?? 0) > 0}
+                enabled={!!profile.payments_enabled}
+                strict={!!profile.strict_contributions}
+              />
+            </>
+          )}
         </section>
         <section className="detail-explanation">
           <h2>{t("Votre geste, en toute clarté.")}</h2>

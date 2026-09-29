@@ -22,7 +22,7 @@ type FilterableGift = Pick<
   | "purchased"
   | "closed"
   | "priority"
-> & { visibility?: string };
+> & { visibility?: string; surprise_hidden?: boolean };
 
 // Empty and invalid inputs stay distinct; amounts use integer minor units.
 export function parseBudget(value: string): number | null | undefined {
@@ -43,6 +43,8 @@ export function giftBudgetAmount(gift: FilterableGift, basis: BudgetBasis) {
 
 export function availableToGive(gift: FilterableGift, basis: BudgetBasis) {
   return (
+    !gift.surprise_hidden &&
+    gift.reserved !== null &&
     gift.visibility !== "archived" &&
     !gift.closed &&
     !gift.purchased &&

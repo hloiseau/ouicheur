@@ -14,6 +14,8 @@ import { applyProductPrice, refreshProduct } from "./product-refresh";
 import { atomic, audit } from "./db";
 import { rateLimit } from "./auth";
 import { AppError, text } from "./validation";
+import type { Access } from "./lists";
+import { requireSurpriseReveal } from "./surprise";
 
 const json = (value: unknown) =>
   Response.json(value, { headers: { "Cache-Control": "private, no-store" } });
@@ -22,7 +24,13 @@ export async function productGet(
   db: DatabaseSync,
   path: string,
   url: URL,
+  access: Access = { owner: true, lists: [] },
 ): Promise<Response | undefined> {
+  if (
+    ["admin/operations", "admin/diagnostics"].includes(path) ||
+    path.startsWith("admin/backups/")
+  )
+    requireSurpriseReveal(db, access);
   if (path === "admin/operations") {
     const { files, before, ...storage } = cleanupPreview(db);
     return json({
@@ -47,6 +55,8 @@ export async function productGet(
     const kind = z
       .enum(["contributions", "audit", "imports", "reservations"])
       .parse(url.searchParams.get("kind"));
+    if (kind === "audit" || kind === "reservations")
+      requireSurpriseReveal(db, access);
     const page = z.coerce
       .number()
       .int()
