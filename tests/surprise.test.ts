@@ -249,7 +249,7 @@ test("reservation notifications are suppressed, including jobs queued before pro
     await deliverNotifications(db, async (kind) => {
       sent.push(kind);
     });
-    assert.deepEqual(sent, []);
+    assert.equal(sent.length, 0);
     assert.equal(
       db.prepare("SELECT COUNT(*) n FROM notification_jobs").get()!.n,
       0,

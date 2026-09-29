@@ -76,19 +76,20 @@ export function listGifts(
     ORDER BY g.priority DESC,g.created_at DESC`,
     )
     .all(dateNow())
-    .map((row) => ({ ...row })) as Gift[];
+    .map((row) => ({ ...row })) as Omit<Gift, "surprise_hidden">[];
   const hidden = hiddenSurpriseLists(db, access);
-  return (admin ? rows : rows.filter((g) => allowed.includes(g.list_id))).map(
-    (gift) =>
-      hidden.includes(gift.list_id)
-        ? {
-            ...gift,
-            reserved: null,
-            purchased: null,
-            closed: null,
-            surprise_hidden: true,
-          }
-        : gift,
+  return (
+    admin ? rows : rows.filter((g) => allowed.includes(g.list_id))
+  ).map<Gift>((gift) =>
+    hidden.includes(gift.list_id)
+      ? {
+          ...gift,
+          reserved: null,
+          purchased: null,
+          closed: null,
+          surprise_hidden: true,
+        }
+      : gift,
   );
 }
 export function saveGift(db: DatabaseSync, input: unknown, id?: string) {
