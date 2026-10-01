@@ -2,6 +2,37 @@ import { productEnglish } from "./product-messages.ts";
 // French source messages and their English translations. Keep placeholders in both.
 export const english: Record<string, string> = {
   ...productEnglish,
+  "Budget et disponibilité": "Budget and availability",
+  "Filtres actifs": "Filters active",
+  "Comparer le budget avec": "Compare budget with",
+  "Prix d’un exemplaire": "Price of one item",
+  "Objectif total": "Total goal",
+  "Reste à financer": "Remaining to fund",
+  "Devise du budget": "Budget currency",
+  "Toutes les devises": "All currencies",
+  "Budget minimum": "Minimum budget",
+  "Budget maximum": "Maximum budget",
+  "Sans limite": "No limit",
+  "Encore à offrir uniquement": "Only wishes still available to give",
+  "Budget invalide : utilisez un montant entre 0 et 1 000 000, avec deux décimales maximum.":
+    "Invalid budget: enter an amount between 0 and 1,000,000, with at most two decimal places.",
+  "Le budget minimum doit être inférieur ou égal au maximum.":
+    "The minimum budget must be less than or equal to the maximum.",
+  "Choisissez une devise pour filtrer par budget.":
+    "Choose a currency to filter by budget.",
+  "Le budget porte sur le montant choisi, dans la devise sélectionnée. Les devises ne sont pas converties.":
+    "The budget applies to the selected amount in the chosen currency. Currencies are not converted.",
+  "Les envies réservées sont exclues : elles ne peuvent pas recevoir de nouvelles contributions.":
+    "Reserved wishes are excluded: they cannot receive new contributions.",
+  "Les montants sont triés séparément dans chaque devise.":
+    "Amounts are sorted separately within each currency.",
+  "Objectif décroissant": "Highest total goal first",
+  "Prix unitaire croissant": "Lowest unit price first",
+  "Prix unitaire décroissant": "Highest unit price first",
+  "Reste à financer croissant": "Least remaining to fund first",
+  "Nom (A–Z)": "Name (A–Z)",
+  "Essayez un autre budget, une autre catégorie ou quelques mots différents.":
+    "Try another budget, category or a few different words.",
   Quantité: "Quantity",
   "Objectif total : {0}": "Total goal: {0}",
   "Quantité : {0} × {1}": "Quantity: {0} × {1}",
