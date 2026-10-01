@@ -4,6 +4,7 @@ import { useI18n } from "./language";
 import type { Wishlist } from "../lib/lists";
 import { ShareLink } from "./lists";
 import { SurpriseNotice } from "./surprise-notice";
+import { SuggestGift } from "./suggestions";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -321,6 +322,18 @@ export function PublicWishlist({
                   </details>
                 )}
             </section>
+          )}
+          {!owner && (
+            <SuggestGift
+              lists={lists.filter(
+                (l) =>
+                  !!l.suggestions_enabled &&
+                  !l.archived &&
+                  l.visibility !== "private" &&
+                  (!selectedList || l.id === selectedList),
+              )}
+              initialList={selectedList}
+            />
           )}
           <div
             className="wishlist-navigation"

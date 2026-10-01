@@ -14,6 +14,7 @@ export type Wishlist = {
   event_date: string;
   shared: number;
   surprise_mode: number;
+  suggestions_enabled: number;
 };
 export type Access = {
   owner: boolean;
@@ -54,7 +55,7 @@ export function listLists(db: DatabaseSync, access: Access = publicAccess) {
   return (
     db
       .prepare(
-        "SELECT id,name,description,visibility,archived,event_date,surprise_mode,CASE WHEN share_hash IS NULL THEN 0 ELSE 1 END shared FROM lists ORDER BY created_at,id",
+        "SELECT id,name,description,visibility,archived,event_date,surprise_mode,suggestions_enabled,CASE WHEN share_hash IS NULL THEN 0 ELSE 1 END shared FROM lists ORDER BY created_at,id",
       )
       .all()
       .map((row) => ({ ...row })) as Wishlist[]
@@ -97,6 +98,7 @@ export function saveList(db: DatabaseSync, input: unknown) {
       visibility: z.enum(["public", "unlisted", "private"]),
       archived: z.boolean().default(false),
       surprise_mode: z.boolean().optional(),
+      suggestions_enabled: z.boolean().optional(),
       confirm_reveal: z.boolean().default(false),
       event_date: z.union([z.literal(""), z.iso.date()]).default(""),
     })
@@ -104,7 +106,7 @@ export function saveList(db: DatabaseSync, input: unknown) {
   return atomic(db, () => {
     const id = value.id || randomUUID();
     const existing = db
-      .prepare("SELECT surprise_mode FROM lists WHERE id=?")
+      .prepare("SELECT surprise_mode,suggestions_enabled FROM lists WHERE id=?")
       .get(id);
     if (value.id && !existing) throw new AppError("Liste introuvable.", 404);
     const surprise = value.surprise_mode ?? !!existing?.surprise_mode;
@@ -123,6 +125,10 @@ export function saveList(db: DatabaseSync, input: unknown) {
     );
     db.prepare("UPDATE lists SET surprise_mode=? WHERE id=?").run(
       Number(surprise),
+      id,
+    );
+    db.prepare("UPDATE lists SET suggestions_enabled=? WHERE id=?").run(
+      Number(value.suggestions_enabled ?? !!existing?.suggestions_enabled),
       id,
     );
     if (surprise && !existing?.surprise_mode)

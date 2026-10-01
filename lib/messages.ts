@@ -1,7 +1,9 @@
 import { productEnglish } from "./product-messages.ts";
+import { suggestionEnglish } from "./suggestion-messages.ts";
 // French source messages and their English translations. Keep placeholders in both.
 export const english: Record<string, string> = {
   ...productEnglish,
+  ...suggestionEnglish,
   "Les réservations et achats sont visibles dans cette session. Les autres sessions restent protégées.":
     "Reservations and purchases are visible in this session. Other sessions remain protected.",
   "Mode surprise": "Surprise mode",

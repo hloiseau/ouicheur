@@ -1,5 +1,12 @@
 import { productGet, productPost } from "../../../lib/product-api";
 import {
+  createSuggestion,
+  manageSuggestion,
+  listSuggestions,
+  acceptSuggestion,
+  reviewSuggestion,
+} from "../../../lib/suggestions";
+import {
   accessFromCookies,
   listLists,
   saveList,
@@ -213,10 +220,51 @@ async function handle(
         return response({ ok: true });
       }
     }
+    if (path === "suggestions" && request.method === "POST") {
+      rateLimit(db, `suggestion:${ip}`, 10, 3600000);
+      rateLimit(db, "suggestion:global", 100, 3600000);
+      return response(
+        createSuggestion(
+          db,
+          await body(request, 16 * 1024),
+          accessFromCookies(db, request.cookies),
+        ),
+        201,
+      );
+    }
+    // Management capabilities travel in a JSON body, never in a request URL.
+    if (path === "suggestions/manage" && request.method === "POST") {
+      rateLimit(db, `suggestion-manage:${ip}`, 120, 3600000);
+      rateLimit(db, "suggestion-manage:global", 1000, 3600000);
+      return response(manageSuggestion(db, await body(request, 1024)));
+    }
     if (!authorized(db, token))
       throw new AppError("Connexion administrateur requise.", 401);
     const access = accessFromCookies(db, request.cookies);
     const hiddenSurprises = hiddenSurpriseLists(db, access);
+    if (path === "admin/suggestions" && request.method === "GET")
+      return response(
+        listSuggestions(db, {
+          state: request.nextUrl.searchParams.get("state"),
+          page: request.nextUrl.searchParams.get("page"),
+        }),
+      );
+    if (
+      segments[0] === "admin" &&
+      segments[1] === "suggestions" &&
+      segments.length === 4 &&
+      request.method === "POST"
+    ) {
+      const id = z.uuid().parse(segments[2]);
+      if (segments[3] === "accept")
+        return response({
+          id: acceptSuggestion(db, id, await body(request, 16 * 1024)),
+        });
+      if (segments[3] === "review") {
+        reviewSuggestion(db, id, await body(request, 1024));
+        return response({ ok: true });
+      }
+    }
     if (request.method === "GET") {
       const reply = await productGet(db, path, request.nextUrl, access);
       if (reply) return reply;
@@ -242,6 +290,11 @@ async function handle(
             .prepare(
               "SELECT COUNT(*) n FROM contributions c WHERE c.approved=0 AND c.state IN ('declared','detected') AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.contribution_id=c.id)",
             )
+            .get()!.n,
+        ),
+        pending_suggestions: Number(
+          db
+            .prepare("SELECT COUNT(*) n FROM suggestions WHERE state='pending'")
             .get()!.n,
         ),
         lists: listLists(db, { owner: true, lists: [] }),
@@ -273,6 +326,11 @@ async function handle(
         reservations: db
           .prepare(
             "SELECT id,gift_id,quantity,state,created_at,expires_at FROM reservations",
+          )
+          .all(),
+        suggestions: db
+          .prepare(
+            "SELECT id,list_id,title,nickname,message,url,state,gift_id,created_at,reviewed_at FROM suggestions",
           )
           .all(),
         exported_at: new Date().toISOString(),

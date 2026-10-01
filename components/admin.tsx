@@ -2,6 +2,7 @@
 import { version } from "../package.json";
 import { SurpriseNotice } from "./surprise-notice";
 import { ListsEditor } from "./lists";
+import { SuggestionsInbox } from "./suggestions";
 import { Operations } from "./operations";
 import { History } from "./history";
 import type { Wishlist } from "../lib/lists";
@@ -36,6 +37,7 @@ type AdminData = {
   surprises_enabled: boolean;
   surprises_revealed: boolean;
   pending_contributions: number;
+  pending_suggestions: number;
   lists: Wishlist[];
   profile: Profile;
   gifts: Gift[];
@@ -61,6 +63,7 @@ const navigation = [
   { key: "payments", label: "Contributions", icon: "heart" },
   { key: "imports", label: "Importer une liste", icon: "upload" },
   { key: "lists", label: "Listes et partage", icon: "book" },
+  { key: "suggestions", label: "Suggestions", icon: "spark" },
   { key: "history", label: "Historique", icon: "book" },
   { key: "operations", label: "Mon instance", icon: "lock" },
   { key: "profile", label: "Mon profil", icon: "user" },
@@ -184,6 +187,9 @@ export function Admin() {
               {item.key === "payments" && pending > 0 && (
                 <span className="nav-count">{pending}</span>
               )}
+              {item.key === "suggestions" && data.pending_suggestions > 0 && (
+                <span className="nav-count">{data.pending_suggestions}</span>
+              )}
             </button>
           ))}
           <button
@@ -265,6 +271,13 @@ export function Admin() {
         )}
         {page === "lists" && (
           <ListsEditor lists={data.lists} refresh={refresh} />
+        )}
+        {page === "suggestions" && (
+          <SuggestionsInbox
+            categories={data.categories}
+            currency={data.profile.currency}
+            refresh={refresh}
+          />
         )}
         {page === "operations" &&
           (!data.surprises_enabled || data.surprises_revealed) && (

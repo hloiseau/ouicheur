@@ -2,6 +2,12 @@
 
 ## Unreleased — 1.2 development
 
+- Suggestions des proches activables par liste, modération par le propriétaire,
+  acceptation atomique en une seule envie et suivi privé par lien révocable.
+  Le pseudo et le message ne sont pas publiés automatiquement. Migration 012,
+  limites de fréquence et de stockage, aucune extraction à l’envoi invité.
+  Voir [le parcours et ses limites](docs/suggestions.md).
+
 - Optional surprise mode per list, with server-side redaction for the signed-in
   recipient, including the public preview, API and RSC responses.
 - Explicit reveal for one session, protected administrative exports/history and
