@@ -43,6 +43,11 @@ export async function renderWishlist(listId?: string, preview = false) {
       categories={categories}
       lists={listId ? lists.filter((l) => l.id === listId) : lists}
       initialList={listId || ""}
+      surprise={
+        access.recipient && lists.some((l) => l.surprise_mode)
+          ? { revealed: !!access.revealSurprises }
+          : undefined
+      }
       owner={access.owner ? { gifts, currency: profile.currency } : undefined}
     />
   );

@@ -3,6 +3,7 @@ import { useI18n } from "./language";
 
 import type { Wishlist } from "../lib/lists";
 import { ShareLink } from "./lists";
+import { SurpriseNotice } from "./surprise-notice";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,6 +25,7 @@ export type PublicGift = Pick<
   Gift,
   | "list_id"
   | "reserved"
+  | "surprise_hidden"
   | "id"
   | "url"
   | "title"
@@ -103,7 +105,9 @@ export function PublicWishlist({
   onRefresh,
   lists = [],
   initialList = "",
+  surprise,
 }: {
+  surprise?: { revealed: boolean };
   lists?: Wishlist[];
   initialList?: string;
   profile: PublicProfile | null;
@@ -156,11 +160,14 @@ export function PublicWishlist({
     owner?.gifts.filter(
       (gift) => gift.visibility === "archived" && inList(gift),
     ) || [];
-  const scoped = (view === "archived" && owner ? archived : active).filter(
+  const hasHiddenSurprises = active.some((g) => g.surprise_hidden);
+  const safeView = hasHiddenSurprises && view === "completed" ? "all" : view;
+  const safeAvailableOnly = availableOnly && !hasHiddenSurprises;
+  const scoped = (safeView === "archived" && owner ? archived : active).filter(
     (gift) =>
-      view === "favorites"
+      safeView === "favorites"
         ? gift.priority === 2
-        : view === "completed"
+        : safeView === "completed"
           ? completed(gift)
           : true,
   );
@@ -190,7 +197,7 @@ export function PublicWishlist({
         scoped.filter(
           (gift) =>
             (!category || gift.category_id === category) &&
-            (!availableOnly ||
+            (!safeAvailableOnly ||
               !lists.find((list) => list.id === gift.list_id)?.archived),
         ),
         {
@@ -199,7 +206,7 @@ export function PublicWishlist({
           basis,
           minimum: minAmount ?? null,
           maximum: maxAmount ?? null,
-          availableOnly,
+          availableOnly: safeAvailableOnly,
           sort,
           locale,
         },
@@ -224,6 +231,7 @@ export function PublicWishlist({
           )}
         </header>
       )}
+      {!embedded && surprise && <SurpriseNotice revealed={surprise.revealed} />}
       {!embedded && profile?.background && (
         <div
           className="profile-backdrop"
@@ -347,22 +355,24 @@ export function PublicWishlist({
                     },
                   ]
                 : []),
-            ].map((item) => (
-              <button
-                type="button"
-                key={item.key}
-                aria-pressed={view === item.key}
-                onClick={() => {
-                  setView(item.key);
-                  setCategory("");
-                  setShown(24);
-                }}
-              >
-                <Icon name={item.icon} size={17} />
-                {item.label}
-                <span>{item.count}</span>
-              </button>
-            ))}
+            ]
+              .filter((item) => !hasHiddenSurprises || item.key !== "completed")
+              .map((item) => (
+                <button
+                  type="button"
+                  key={item.key}
+                  aria-pressed={safeView === item.key}
+                  onClick={() => {
+                    setView(item.key);
+                    setCategory("");
+                    setShown(24);
+                  }}
+                >
+                  <Icon name={item.icon} size={17} />
+                  {item.label}
+                  <span>{item.count}</span>
+                </button>
+              ))}
           </div>
           {(owner || categories.length > 0) && (
             <Categories
@@ -524,7 +534,8 @@ export function PublicWishlist({
                   <label className="check-label">
                     <input
                       type="checkbox"
-                      checked={availableOnly}
+                      checked={safeAvailableOnly}
+                      disabled={hasHiddenSurprises}
                       onChange={(e) => {
                         setAvailableOnly(e.target.checked);
                         setShown(24);
@@ -540,7 +551,14 @@ export function PublicWishlist({
                     {t("Réinitialiser les filtres")}
                   </button>
                 </div>
-                {availableOnly && basis === "remaining" && (
+                {hasHiddenSurprises && (
+                  <p className="fine-print">
+                    {t(
+                      "Le filtre de disponibilité et les envies réalisées sont masqués pour préserver la surprise.",
+                    )}
+                  </p>
+                )}
+                {safeAvailableOnly && basis === "remaining" && (
                   <p className="fine-print">
                     {t(
                       "Les envies réservées sont exclues : elles ne peuvent pas recevoir de nouvelles contributions.",
@@ -584,7 +602,11 @@ export function PublicWishlist({
                         {t("Coup de cœur")}{" "}
                       </span>
                     )}
-                    {gift.purchased ? (
+                    {gift.surprise_hidden ? (
+                      <span className="card-status">
+                        {t("Surprise préservée")}
+                      </span>
+                    ) : gift.purchased ? (
                       <span className="card-status">{t("Déjà acheté")}</span>
                     ) : gift.funded >= gift.target ? (
                       <span className="card-status">
@@ -615,7 +637,7 @@ export function PublicWishlist({
                         )}
                       </p>
                     )}
-                    {gift.reserved > 0 && (
+                    {gift.reserved !== null && gift.reserved > 0 && (
                       <p className="notice">
                         {t("{0} exemplaires réservés", gift.reserved)}
                       </p>
@@ -626,13 +648,17 @@ export function PublicWishlist({
                         <button
                           type="button"
                           className="card-action"
+                          disabled={gift.surprise_hidden}
                           onClick={() =>
                             setEditor(
                               owner.gifts.find((g) => g.id === gift.id)!,
                             )
                           }
                         >
-                          {t("Modifier")} <Icon name="arrow" size={17} />
+                          {gift.surprise_hidden
+                            ? t("Révéler avant de modifier")
+                            : t("Modifier")}{" "}
+                          <Icon name="arrow" size={17} />
                         </button>
                         {(() => {
                           const g = owner.gifts.find((g) => g.id === gift.id);
@@ -644,7 +670,8 @@ export function PublicWishlist({
                         className="card-action"
                         href={`/cadeaux/${gift.id}`}
                       >
-                        {gift.closed ||
+                        {gift.surprise_hidden ||
+                        gift.closed ||
                         gift.purchased ||
                         gift.funded >= gift.target
                           ? t("Voir cette envie")

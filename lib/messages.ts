@@ -2,6 +2,32 @@ import { productEnglish } from "./product-messages.ts";
 // French source messages and their English translations. Keep placeholders in both.
 export const english: Record<string, string> = {
   ...productEnglish,
+  "Les réservations et achats sont visibles dans cette session. Les autres sessions restent protégées.":
+    "Reservations and purchases are visible in this session. Other sessions remain protected.",
+  "Mode surprise": "Surprise mode",
+  "Surprises révélées pour cette session":
+    "Surprises revealed for this session",
+  "Surprise préservée": "Surprise preserved",
+  "Les réservations et les achats des listes protégées restent masqués dans votre espace et son aperçu public. Les contributions financières restent visibles et exactes.":
+    "Reservations and purchases on protected lists stay hidden in your space and its public preview. Financial contributions remain visible and accurate.",
+  "L’historique détaillé, les exports, les sauvegardes et la modification des envies protégées demandent une révélation volontaire. Une visite anonyme à une liste publique ou l’accès au serveur peut contourner ce mode de confort.":
+    "Detailed history, exports, backups and editing protected wishes require a deliberate reveal. An anonymous visit to a public list or server access can bypass this convenience feature.",
+  "Révéler les réservations et achats de toutes les listes protégées pour cette session ?":
+    "Reveal reservations and purchases on all protected lists for this session?",
+  "Masquer à nouveau": "Hide again",
+  "Révéler pour cette session": "Reveal for this session",
+  "Révélez les surprises pour cette session avant d’ouvrir ces informations ou de modifier cette envie.":
+    "Reveal surprises for this session before opening this information or editing this wish.",
+  "Confirmez la désactivation du mode surprise.":
+    "Confirm turning off surprise mode.",
+  "Désactiver le mode surprise pour cette liste et afficher ses réservations et achats ?":
+    "Turn off surprise mode for this list and show its reservations and purchases?",
+  "Préserver la surprise sur cette liste": "Keep this list a surprise",
+  "Masque les réservations et achats au propriétaire connecté, y compris dans son aperçu public. Les proches gardent les disponibilités réelles. Les contributions financières restent visibles ; ce mode ne protège pas contre une visite anonyme ou l’accès au serveur.":
+    "Hides reservations and purchases from the signed-in owner, including in their public preview. Friends and family still see actual availability. Financial contributions remain visible; this mode does not protect against an anonymous visit or server access.",
+  "Le filtre de disponibilité et les envies réalisées sont masqués pour préserver la surprise.":
+    "Availability filtering and completed wishes are hidden to preserve the surprise.",
+  "Révéler avant de modifier": "Reveal before editing",
   "Budget et disponibilité": "Budget and availability",
   "Filtres actifs": "Filters active",
   "Comparer le budget avec": "Compare budget with",

@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased — first 1.2 development batch
+## Unreleased — 1.2 development
+
+- Optional surprise mode per list, with server-side redaction for the signed-in
+  recipient, including the public preview, API and RSC responses.
+- Explicit reveal for one session, protected administrative exports/history and
+  suppression of reservation notifications; financial totals stay accurate.
+- Migration `011` preserves existing behavior by default. See
+  [surprise mode](docs/surprise-mode.md) for limits and backup/restore behavior.
 
 - Budget filters by unit price, total goal or remaining funding, with explicit
   currency selection and inclusive minimum/maximum amounts.
@@ -10,7 +17,6 @@
 - A sourced review of 16 wishlist alternatives and a prioritized GitHub backlog
   for the self-hosted edition.
 
-This batch does not change the database schema.
 It is not the complete 1.2.0 release.
 
 ## 1.1.0 — unreleased, product completion

@@ -25,6 +25,11 @@ import {
   verifyPassword,
 } from "../../../lib/auth";
 import { listGifts, saveGift } from "../../../lib/gifts";
+import {
+  hiddenSurpriseLists,
+  requireSurpriseReveal,
+  setSurpriseReveal,
+} from "../../../lib/surprise";
 import { completeWebSetup } from "../../../lib/setup";
 import {
   confirmManual,
@@ -210,8 +215,10 @@ async function handle(
     }
     if (!authorized(db, token))
       throw new AppError("Connexion administrateur requise.", 401);
+    const access = accessFromCookies(db, request.cookies);
+    const hiddenSurprises = hiddenSurpriseLists(db, access);
     if (request.method === "GET") {
-      const reply = await productGet(db, path, request.nextUrl);
+      const reply = await productGet(db, path, request.nextUrl, access);
       if (reply) return reply;
     }
     if (path === "logout" && request.method === "POST") {
@@ -221,6 +228,10 @@ async function handle(
     if (path === "admin" && request.method === "GET") {
       expireIntents(db);
       return response({
+        surprises_enabled: !!db
+          .prepare("SELECT 1 FROM lists WHERE surprise_mode=1")
+          .get(),
+        surprises_revealed: !!access.revealSurprises,
         profile: db
           .prepare(
             "SELECT strict_contributions,name,bio,avatar,banner,socials,paypal,currency,background,accent,banner_position,layout FROM owner WHERE id=1",
@@ -234,7 +245,7 @@ async function handle(
             .get()!.n,
         ),
         lists: listLists(db, { owner: true, lists: [] }),
-        gifts: listGifts(db, true),
+        gifts: listGifts(db, true, access),
         categories: db.prepare("SELECT * FROM categories ORDER BY name").all(),
         contributions: db
           .prepare(
@@ -247,14 +258,15 @@ async function handle(
             "SELECT id,source,state,attempts,error,created_at FROM imports ORDER BY created_at DESC LIMIT 50",
           )
           .all(),
-        audit: db
-          .prepare("SELECT * FROM audit ORDER BY id DESC LIMIT 100")
-          .all(),
+        audit: hiddenSurprises.length
+          ? []
+          : db.prepare("SELECT * FROM audit ORDER BY id DESC LIMIT 100").all(),
       });
     }
     if (path === "admin/lists" && request.method === "GET")
       return response(listLists(db, { owner: true, lists: [] }));
     if (path === "admin/export" && request.method === "GET") {
+      requireSurpriseReveal(db, access);
       const data = atomic(db, () => ({
         version: 2,
         lists: listLists(db, { owner: true, lists: [] }),
@@ -299,6 +311,29 @@ async function handle(
       request,
       path === "admin/images" ? 7 * 1024 * 1024 : 1024 * 1024,
     );
+    if (path === "admin/surprises") {
+      const v = z
+        .object({ reveal: z.boolean(), confirm: z.literal(true) })
+        .parse(data);
+      setSurpriseReveal(db, token!, v.reveal);
+      return response({ ok: true });
+    }
+    if (
+      path === "admin/reservations/cancel" ||
+      path === "admin/gifts/move" ||
+      (path.startsWith("admin/imports/") && path.endsWith("/commit"))
+    )
+      requireSurpriseReveal(db, access);
+    if (
+      segments[0] === "admin" &&
+      segments[1] === "gifts" &&
+      segments.length === 3
+    ) {
+      const gift = db
+        .prepare("SELECT list_id FROM gifts WHERE id=?")
+        .get(segments[2]);
+      if (gift) requireSurpriseReveal(db, access, String(gift.list_id));
+    }
     const productReply = await productPost(db, path, data);
     if (productReply) return productReply;
     if (path === "admin/lists") return response({ id: saveList(db, data) });

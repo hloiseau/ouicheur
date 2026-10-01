@@ -5,11 +5,13 @@ import { AppError, dateNow, giftSchema } from "./validation";
 import { listLists, publicAccess, type Access } from "./lists.ts";
 import { reservedQuantity } from "./reservations.ts";
 import type { Appearance } from "./appearance";
+import { hiddenSurpriseLists } from "./surprise.ts";
 
 export type Gift = {
   id: string;
   list_id: string;
-  reserved: number;
+  reserved: number | null;
+  surprise_hidden?: boolean;
   declared: number;
   url: string;
   title: string;
@@ -21,8 +23,8 @@ export type Gift = {
   category_id: string | null;
   priority: number;
   visibility: string;
-  purchased: number;
-  closed: number;
+  purchased: number | null;
+  closed: number | null;
   japan_search: number;
   confirmed: number;
   funded: number;
@@ -59,7 +61,7 @@ export const fundingTotalsSql = `SELECT c.gift_id,
 export function listGifts(
   db: DatabaseSync,
   admin = false,
-  access: Access = publicAccess,
+  access: Access = admin ? { owner: true, lists: [] } : publicAccess,
 ) {
   const allowed = listLists(db, access).map((l) => l.id);
   const rows = db
@@ -74,8 +76,21 @@ export function listGifts(
     ORDER BY g.priority DESC,g.created_at DESC`,
     )
     .all(dateNow())
-    .map((row) => ({ ...row })) as Gift[];
-  return admin ? rows : rows.filter((g) => allowed.includes(g.list_id));
+    .map((row) => ({ ...row })) as Omit<Gift, "surprise_hidden">[];
+  const hidden = hiddenSurpriseLists(db, access);
+  return (
+    admin ? rows : rows.filter((g) => allowed.includes(g.list_id))
+  ).map<Gift>((gift) =>
+    hidden.includes(gift.list_id)
+      ? {
+          ...gift,
+          reserved: null,
+          purchased: null,
+          closed: null,
+          surprise_hidden: true,
+        }
+      : gift,
+  );
 }
 export function saveGift(db: DatabaseSync, input: unknown, id?: string) {
   const gift = giftSchema.parse(input);
