@@ -9,6 +9,7 @@ import { reservationNotificationHidden } from "./surprise.ts";
 const messages: Record<string, string> = {
   declaration: "Ouicheur: a contribution needs your review.",
   reservation: "Ouicheur: a gift has been reserved.",
+  suggestion: "Ouicheur: a suggestion needs your review.",
   import_failed: "Ouicheur: an import needs your attention.",
   test: "Ouicheur: notifications are working.",
 };
@@ -73,11 +74,15 @@ export async function deliverNotifications(
     });
     if (!job) break;
     if (
-      job.kind === "reservation" &&
-      reservationNotificationHidden(
-        db,
-        String(job.event_key).slice("reservation:".length),
-      )
+      (job.kind === "reservation" &&
+        reservationNotificationHidden(
+          db,
+          String(job.event_key).slice("reservation:".length),
+        )) ||
+      (job.kind === "suggestion" &&
+        !db
+          .prepare("SELECT 1 FROM suggestions WHERE id=? AND state='pending'")
+          .get(String(job.event_key).slice("suggestion:".length)))
     ) {
       db.prepare("DELETE FROM notification_jobs WHERE id=?").run(job.id);
       continue;

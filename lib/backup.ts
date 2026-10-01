@@ -110,6 +110,14 @@ export function restoreInstance(source: string, destination: string) {
   if (
     restored
       .prepare(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='suggestions'",
+      )
+      .get()
+  )
+    restored.exec("UPDATE suggestions SET token_hash=NULL");
+  if (
+    restored
+      .prepare(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='lists'",
       )
       .get()

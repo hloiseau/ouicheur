@@ -353,6 +353,7 @@ export function GiftEditor({
   categoryId = null,
   listId = "default",
   initialUrl = "",
+  suggestion: proposed,
 }: {
   gift: Gift | null;
   categories: { id: string; name: string }[];
@@ -362,6 +363,7 @@ export function GiftEditor({
   categoryId?: string | null;
   listId?: string;
   initialUrl?: string;
+  suggestion?: { id: string; title: string };
 }) {
   const { t, date } = useI18n();
   const [value, setValue] = useState(
@@ -372,6 +374,7 @@ export function GiftEditor({
           category_id: categoryId,
           list_id: listId,
           url: initialUrl,
+          title: proposed?.title || "",
         },
   );
   const [lists, setLists] = useState<Wishlist[]>([]);
@@ -478,10 +481,17 @@ export function GiftEditor({
           setBusy(true);
           setError("");
           try {
-            await api(gift ? `admin/gifts/${gift.id}` : "admin/gifts", {
-              ...value,
-              ...suggestion,
-            });
+            await api(
+              proposed
+                ? `admin/suggestions/${proposed.id}/accept`
+                : gift
+                  ? `admin/gifts/${gift.id}`
+                  : "admin/gifts",
+              {
+                ...value,
+                ...suggestion,
+              },
+            );
             (onSaved || onDone)();
           } catch (e) {
             setError((e as Error).message);
@@ -522,6 +532,7 @@ export function GiftEditor({
         {error && <Notice error>{error}</Notice>}
         <Field label={t("Liste")}>
           <select
+            disabled={!!proposed}
             value={value.list_id || "default"}
             onChange={(e) =>
               setValue((v) => ({ ...v, list_id: e.target.value }))
@@ -544,7 +555,11 @@ export function GiftEditor({
         />
         <div className="form-actions">
           <button className="button primary" disabled={busy || uploading}>
-            {busy ? t("Enregistrement…") : t("Enregistrer cette envie")}
+            {busy
+              ? t("Enregistrement…")
+              : proposed
+                ? t("Accepter et créer l’envie")
+                : t("Enregistrer cette envie")}
           </button>
           <button
             className="button secondary"

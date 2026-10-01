@@ -70,6 +70,7 @@ const empty = {
   visibility: "private" as Wishlist["visibility"],
   archived: false,
   surprise_mode: false,
+  suggestions_enabled: false,
   event_date: "",
 };
 export function ListsEditor({
@@ -87,6 +88,7 @@ export function ListsEditor({
     visibility: Wishlist["visibility"];
     archived: boolean;
     surprise_mode: boolean;
+    suggestions_enabled: boolean;
     event_date: string;
   }>(empty);
   const [error, setError] = useState("");
@@ -117,6 +119,7 @@ export function ListsEditor({
                 ...l,
                 archived: !!l.archived,
                 surprise_mode: !!l.surprise_mode,
+                suggestions_enabled: !!l.suggestions_enabled,
               });
               setShare(
                 l.visibility === "public" && !l.archived
@@ -245,6 +248,21 @@ export function ListsEditor({
           <p className="fine-print">
             {t(
               "Masque les réservations et achats au propriétaire connecté, y compris dans son aperçu public. Les proches gardent les disponibilités réelles. Les contributions financières restent visibles ; ce mode ne protège pas contre une visite anonyme ou l’accès au serveur.",
+            )}
+          </p>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={value.suggestions_enabled}
+              onChange={(e) =>
+                setValue({ ...value, suggestions_enabled: e.target.checked })
+              }
+            />
+            {t("Autoriser les suggestions des proches")}
+          </label>
+          <p className="fine-print">
+            {t(
+              "Les visiteurs autorisés peuvent vous proposer une idée. Vous la lirez et déciderez de la publier, même en mode surprise. Une liste privée ou archivée ne reçoit pas de suggestions.",
             )}
           </p>
           <p className="fine-print">
