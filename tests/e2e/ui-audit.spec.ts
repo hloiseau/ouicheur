@@ -16,7 +16,8 @@ test("audit visuel de toutes les pages et des principaux états", async ({
     process.env.UI_AUDIT !== "1",
     "Set UI_AUDIT=1 for the visual inventory.",
   );
-  test.setTimeout(240000);
+  test.setTimeout(180000);
+  page.setDefaultTimeout(10000);
   const base = "http://localhost:3211";
   const headers = { origin: base };
   const folder = `test-results/ui-audit-${info.project.name}`;
@@ -56,9 +57,16 @@ test("audit visuel de toutes les pages et des principaux états", async ({
     }
     const dialog = p.getByRole("dialog").last();
     if (await dialog.isVisible()) {
-      await dialog.evaluate((d) => { d.scrollTop = d.scrollHeight; });
-      await p.screenshot({ path: `${folder}/${name}-dialog-bottom.png`, scale: "css" });
-      await dialog.evaluate((d) => { d.scrollTop = 0; });
+      await dialog.evaluate((d) => {
+        d.scrollTop = d.scrollHeight;
+      });
+      await p.screenshot({
+        path: `${folder}/${name}-dialog-bottom.png`,
+        scale: "css",
+      });
+      await dialog.evaluate((d) => {
+        d.scrollTop = 0;
+      });
     }
     observations.push({
       name,
@@ -123,6 +131,7 @@ test("audit visuel de toutes les pages et des principaux états", async ({
   });
   await guest.addCookies([{ name: "ouicheur_locale", value: "fr", url: base }]);
   const visitor = await guest.newPage();
+  visitor.setDefaultTimeout(10000);
   watch(visitor);
   try {
     await visitor.goto("/");
@@ -165,7 +174,12 @@ test("audit visuel de toutes les pages et des principaux états", async ({
       guest,
     );
     await visitor.goto(`/contribution/${contribution.id}`);
-    await expect(visitor.getByRole("button", { name: "J’ai envoyé l’argent", exact: true })).toBeVisible();
+    await expect(
+      visitor.getByRole("button", {
+        name: "J’ai envoyé l’argent",
+        exact: true,
+      }),
+    ).toBeVisible();
     await capture(visitor, "10-contribution-intent");
     await post(`contributions/${contribution.id}/declare`, {}, guest);
     await visitor.reload();
@@ -228,7 +242,10 @@ test("audit visuel de toutes les pages et des principaux états", async ({
       ["27-operations", "Mon instance"],
       ["28-profile", "Mon profil"],
     ]) {
-      await page.getByRole("button", { name: label, exact: true }).click();
+      await page
+        .locator(".owner-nav button")
+        .filter({ hasText: label })
+        .click();
       await expect(
         page.getByRole("heading", { name: label, exact: true }),
       ).toBeVisible();
@@ -277,7 +294,14 @@ test("audit visuel de toutes les pages et des principaux états", async ({
       page.getByText("Surprise préservée", { exact: true }).first(),
     ).toBeVisible();
     await capture(page, "32-surprise-hidden");
-    await post("admin/lists", { id: list, name: `Anniversaire ${info.project.name}`, visibility: "unlisted", surprise_mode: false, confirm_reveal: true, suggestions_enabled: true });
+    await post("admin/lists", {
+      id: list,
+      name: `Anniversaire ${info.project.name}`,
+      visibility: "unlisted",
+      surprise_mode: false,
+      confirm_reveal: true,
+      suggestions_enabled: true,
+    });
     const origin = "http://localhost:3213";
     const setupFolder = resolve(".local/e2e-setup", randomUUID());
     mkdirSync(setupFolder, { recursive: true });
