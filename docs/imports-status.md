@@ -75,6 +75,14 @@ Ces deux URL passent sous Windows et dans un conteneur Docker Linux isolé. Le f
 
 La couverture est générique pour les données publiées dans ces formats, sans garantie pour une page privée, un contrôle d’accès persistant ou des données absentes du HTML public. Le minimum d’une offre agrégée reste une suggestion ; les prix observés ci-dessus sont datés.
 
+## Produits AmiAmi et récupération manuelle
+
+Le 2 octobre 2026, le propriétaire signale HTTP 406 pour les fiches AmiAmi `FIGURE-055579-R207` et `FIGURE-055581-R235`. Le transport partagé tente désormais une seule lecture Chromium après HTTP 406, comme après HTTP 403/429. Les limites DNS/TLS, redirections, taille et délai restent identiques ; aucun script, compte ou contrôle d’accès n’est exécuté.
+
+Le [diagnostic ponctuel depuis GitHub](https://github.com/hloiseau/ouicheur/actions/runs/37044460622) reçoit HTTP 403 sur ces deux liens, avec Node comme avec Chromium. La compatibilité réelle depuis le NAS reste à confirmer : l’ajout du cas 406 ne garantit pas qu’AmiAmi acceptera la seconde lecture. Les régressions réseau utilisent une boutique synthétique locale et vérifient une seule seconde tentative, la conservation du paramètre `scode`, l’absence de boucle lors d’un refus persistant et l’absence de nouvelle tentative sur HTTP 404.
+
+Dans le formulaire, la récupération est facultative et ne complète que les champs vides restés inchangés depuis le début de la lecture. Une image choisie et les saisies effectuées pendant l’attente sont conservées. Le lien reste en lecture seule pendant la requête ; la lecture et l’enregistrement ont des libellés distincts. En cas d’échec, **Compléter manuellement** place le focus sur le nom de l’envie, conserve le lien et permet de saisir le montant puis d’enregistrer. Le détail technique reste accessible dans un bloc repliable. Les tests navigateur couvrent ce parcours en français sur mobile et en anglais sur ordinateur.
+
 ## Produits Chrono24
 
 L’annonce `https://www.chrono24.fr/seiko/astron-limited--seiko--id47455476.htm?utm_source=chatgpt.com` répondait 403 en HTTP/1.1. HTTP/2 avec un User-Agent compatible identifiant Ouicheur reçoit 200. Le client partagé négocie désormais HTTP/2, avec HTTP/1.1 si le serveur ne le propose pas. Les vérifications TLS, DNS, redirections, types et tailles restent actives.

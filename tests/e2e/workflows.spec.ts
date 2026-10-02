@@ -197,7 +197,7 @@ test("Ouichlist, contribution privée, administration et erreurs", async ({
     .getByRole("button", { name: "Récupérer les informations" })
     .click();
   await expect(
-    page.getByText(/Vous pouvez compléter le formulaire/),
+    page.getByRole("button", { name: "Compléter manuellement", exact: true }),
   ).toBeVisible();
   await page
     .getByLabel("Lien du produit", { exact: true })

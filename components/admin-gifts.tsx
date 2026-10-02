@@ -1,7 +1,7 @@
 "use client";
 import { useI18n } from "./language";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Gift } from "../lib/gifts";
 import { decimal } from "../lib/format";
 import { money as parseMoney } from "../lib/validation";
@@ -217,6 +217,7 @@ export function GiftFields({
       )}
       <Field label={t("Nom de cette envie")}>
         <input
+          name="title"
           required
           value={value.title}
           onChange={(e) => set("title", e.target.value)}
@@ -386,7 +387,12 @@ export function GiftEditor({
   const [uploading, setUploading] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [extractionError, setExtractionError] = useState("");
+  const [operation, setOperation] = useState<"extract" | "save" | null>(null);
+  const busy = operation !== null;
+  const formRef = useRef<HTMLFormElement>(null);
+  const urlRef = useRef<HTMLInputElement>(null);
+  const urlHintId = useId();
   const [suggestion, setSuggestion] = useState<{
     suggested_price: number | null;
     suggested_currency: string | null;
@@ -397,12 +403,13 @@ export function GiftEditor({
     extracted_at: gift?.extracted_at || null,
   });
   const extract = async () => {
-    const url = value.url;
-    const initialImage = value.image;
-    setBusy(true);
+    if (busy || uploading || !urlRef.current?.reportValidity()) return;
+    const initial = value;
+    const url = initial.url;
+    setOperation("extract");
     setError("");
+    setExtractionError("");
     setNotice("");
-    setValue((v) => ({ ...v, url }));
     try {
       const m = await api<{
         url: string;
@@ -416,10 +423,19 @@ export function GiftEditor({
       setValue((v) => ({
         ...v,
         url: m.url,
-        title: m.title || v.title,
-        description: m.description || v.description,
+        title:
+          !initial.title.trim() && v.title === initial.title
+            ? m.title || v.title
+            : v.title,
+        description:
+          !initial.description.trim() && v.description === initial.description
+            ? m.description || v.description
+            : v.description,
         target:
-          m.price && m.currency === (gift?.currency || currency)
+          !initial.target.trim() &&
+          v.target === initial.target &&
+          m.price &&
+          m.currency === (gift?.currency || currency)
             ? decimal(m.price)
             : v.target,
       }));
@@ -428,12 +444,12 @@ export function GiftEditor({
         suggested_currency: m.currency || null,
         extracted_at: m.extracted_at,
       });
-      if (m.image_url) {
+      if (m.image_url && !initial.image) {
         try {
           const { image } = await api<{ image: string }>("admin/images", {
             url: m.image_url,
           });
-          setValue((v) => (v.image === initialImage ? { ...v, image } : v));
+          setValue((v) => (v.image === initial.image ? { ...v, image } : v));
         } catch (e) {
           setError(
             t(
@@ -457,14 +473,9 @@ export function GiftEditor({
         ),
       );
     } catch (e) {
-      setError(
-        t(
-          "{0} Vous pouvez compléter le formulaire ci-dessous ; votre lien est conservé.",
-          (e as Error).message,
-        ),
-      );
+      setExtractionError((e as Error).message);
     } finally {
-      setBusy(false);
+      setOperation(null);
     }
   };
   return (
@@ -474,11 +485,12 @@ export function GiftEditor({
       busy={busy || uploading}
     >
       <form
+        ref={formRef}
         className="stack"
         onSubmit={async (e) => {
           e.preventDefault();
           if (busy || uploading) return;
-          setBusy(true);
+          setOperation("save");
           setError("");
           try {
             await api(
@@ -496,19 +508,31 @@ export function GiftEditor({
           } catch (e) {
             setError((e as Error).message);
           } finally {
-            setBusy(false);
+            setOperation(null);
           }
         }}
       >
         <div className="extract-box inline-input">
           <Field label={t("Lien du produit")}>
             <input
+              ref={urlRef}
+              aria-describedby={urlHintId}
               type="url"
               required
               autoFocus
               maxLength={2048}
+              readOnly={busy}
               value={value.url}
-              onChange={(e) => setValue((v) => ({ ...v, url: e.target.value }))}
+              onChange={(e) => {
+                setValue((v) => ({ ...v, url: e.target.value }));
+                setExtractionError("");
+                setNotice("");
+                setSuggestion({
+                  suggested_price: null,
+                  suggested_currency: null,
+                  extracted_at: null,
+                });
+              }}
               placeholder={t("Collez le lien de votre envie…")}
             />
           </Field>
@@ -518,9 +542,16 @@ export function GiftEditor({
             disabled={busy || uploading || !value.url}
             onClick={() => void extract()}
           >
-            {busy ? t("Lecture…") : t("Récupérer les informations")}
+            {operation === "extract"
+              ? t("Lecture…")
+              : t("Récupérer les informations")}
           </button>
         </div>
+        <p className="fine-print" id={urlHintId}>
+          {t(
+            "La récupération est facultative. Seuls les champs vides sont complétés.",
+          )}
+        </p>
         {gift && (
           <ProductRefresh
             id={gift.id}
@@ -530,6 +561,30 @@ export function GiftEditor({
         )}
         {notice && <Notice>{notice}</Notice>}
         {error && <Notice error>{error}</Notice>}
+        {extractionError && (
+          <Notice error>
+            <p>
+              {t(
+                "La récupération automatique n’a pas abouti. Votre lien est conservé : ajoutez le nom et le montant pour enregistrer cette envie.",
+              )}
+            </p>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() =>
+                formRef.current
+                  ?.querySelector<HTMLInputElement>('input[name="title"]')
+                  ?.focus()
+              }
+            >
+              {t("Compléter manuellement")}
+            </button>
+            <details>
+              <summary>{t("Détail de l’erreur")}</summary>
+              <p>{extractionError}</p>
+            </details>
+          </Notice>
+        )}
         <Field label={t("Liste")}>
           <select
             disabled={!!proposed}
@@ -555,7 +610,7 @@ export function GiftEditor({
         />
         <div className="form-actions">
           <button className="button primary" disabled={busy || uploading}>
-            {busy
+            {operation === "save"
               ? t("Enregistrement…")
               : proposed
                 ? t("Accepter et créer l’envie")

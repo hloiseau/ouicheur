@@ -14,7 +14,8 @@ export async function fetchHtml(input: string, deadline = Date.now() + 15000) {
     return await fetchSafe(input, "html", 0, deadline);
   } catch (error) {
     const refused =
-      error instanceof AppError && [403, 429].includes(Number(error.values[0]));
+      error instanceof AppError &&
+      [403, 406, 429].includes(Number(error.values[0]));
     if (!refused && !connectionReset(error)) throw error;
     return fetchBrowserHtml(input, deadline);
   }
