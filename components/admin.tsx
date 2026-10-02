@@ -292,22 +292,22 @@ export function Admin() {
           />
         )}
         {page === "reservations" && (
-          <>
+          <div className="stack">
             {giftId && (
-              <a
-                className="text-link"
-                href={`/cadeaux/${encodeURIComponent(giftId)}`}
-              >
-                {t("Voir cette envie")}
-              </a>
-            )}
-            {giftId && (
-              <button
-                className="text-link"
-                onClick={() => setPage("reservations")}
-              >
-                {t("Toutes les réservations")}
-              </button>
+              <div className="form-actions">
+                <a
+                  className="button secondary"
+                  href={`/cadeaux/${encodeURIComponent(giftId)}`}
+                >
+                  {t("Voir cette envie")}
+                </a>
+                <button
+                  className="button secondary"
+                  onClick={() => setPage("reservations")}
+                >
+                  {t("Toutes les réservations")}
+                </button>
+              </div>
             )}
             <History
               key={`${data.surprises_revealed}:${giftId || "all"}`}
@@ -316,7 +316,7 @@ export function Admin() {
               giftId={giftId}
               onChange={refresh}
             />
-          </>
+          </div>
         )}
         {page === "payments" && (
           <div className="stack">

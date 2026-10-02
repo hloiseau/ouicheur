@@ -24,7 +24,11 @@ export function ReservationForm({
           "Réservez pendant 14 jours, achetez chez le marchand puis confirmez l’achat avec votre lien personnel. Aucun paiement n’est enregistré par Ouicheur.",
         )}
       </p>
-      <p>{t("{0} exemplaires disponibles", available)}</p>
+      <p>
+        {available === 1
+          ? t("1 exemplaire disponible")
+          : t("{0} exemplaires disponibles", available)}
+      </p>
       {closed && (
         <p>
           {t(
