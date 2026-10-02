@@ -94,7 +94,7 @@ export function Imports({
       </div>
       <Notice>
         {t(
-          "Amazon et Throne : adaptateurs de HTML public, accès réel dépendant de la source. Un CAPTCHA, une connexion ou des produits absents du HTML bloquent l’import natif. Le secours CSV/JSON reste distinct.",
+          "Importez une liste publique Amazon ou Throne, puis vérifiez les envies avant de les ajouter. Si le site bloque la lecture, utilisez une page enregistrée ou un fichier CSV/JSON.",
         )}{" "}
       </Notice>
       <form

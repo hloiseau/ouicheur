@@ -186,6 +186,9 @@ test("audit visuel de toutes les pages et des principaux états", async ({
     await capture(visitor, "11-contribution-declared");
     await visitor.goto("/contribution/missing");
     await expect(visitor.getByRole("alert").first()).toBeVisible();
+    await expect(
+      visitor.getByText("Contribution introuvable.", { exact: true }),
+    ).toBeVisible();
     await capture(visitor, "12-contribution-missing");
     await visitor.goto(`/s/${share.token}`);
     await expect(visitor).toHaveURL(new RegExp(`/lists/${list}$`));
@@ -227,6 +230,8 @@ test("audit visuel de toutes les pages et des principaux états", async ({
       .getByRole("button", { name: "Ajouter une envie", exact: true })
       .click();
     await capture(page, "20-add-wish");
+    await page.locator("summary").filter({ hasText: "Plus d’options" }).click();
+    await capture(page, "20b-wish-options");
     await page.getByRole("button", { name: "Annuler", exact: true }).click();
     await page
       .getByRole("button", { name: "Nouvelle catégorie", exact: false })
@@ -234,6 +239,7 @@ test("audit visuel de toutes les pages et des principaux états", async ({
     await capture(page, "21-category-editor");
     await page.getByRole("button", { name: "Annuler", exact: true }).click();
     for (const [name, label] of [
+      ["21b-reservations", "Réservations"],
       ["22-payments", "Contributions"],
       ["23-imports", "Importer une liste"],
       ["24-lists", "Listes et partage"],
@@ -256,9 +262,46 @@ test("audit visuel de toutes les pages et des principaux états", async ({
         ).toBeVisible();
       if (label === "Suggestions")
         await expect(
-          page.getByRole("heading", { name: "Un atelier de poterie" }),
+          page.getByRole("heading", { name: "Un atelier de poterie" }).first(),
         ).toBeVisible();
       await capture(page, name);
+      if (label === "Importer une liste") {
+        await page
+          .getByRole("combobox", { name: "Source", exact: true })
+          .selectOption("json");
+        await page
+          .getByLabel("Contenu à importer")
+          .fill(
+            JSON.stringify([
+              {
+                title: "Une idée importée",
+                url: `https://example.com/import-audit-${info.project.name}`,
+                price: "18.00",
+                currency: "EUR",
+              },
+            ]),
+          );
+        await page
+          .getByRole("button", { name: "Préparer l’aperçu", exact: true })
+          .click();
+        await expect(
+          page.getByRole("heading", {
+            name: "Aperçu de l’import",
+            exact: true,
+          }),
+        ).toBeVisible();
+        await capture(page, "23b-import-preview");
+      }
+      if (label === "Listes et partage") {
+        await page.getByRole("button", { name: /Ma Ouichlist ·/ }).click();
+        await page
+          .getByRole("button", { name: "QR code", exact: true })
+          .click();
+        await expect(
+          page.getByRole("img", { name: "QR code du lien de partage" }),
+        ).toBeVisible();
+        await capture(page, "24b-list-sharing");
+      }
       if (label === "Historique") {
         await page
           .getByRole("combobox", { name: "Historique", exact: true })

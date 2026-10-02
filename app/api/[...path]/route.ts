@@ -186,6 +186,13 @@ async function handle(
     }
     if (
       segments[0] === "contributions" &&
+      segments.length === 2 &&
+      request.method === "GET" &&
+      !/^[a-f0-9]{64}$/.test(segments[1] || "")
+    )
+      throw new AppError("Contribution introuvable.", 404);
+    if (
+      segments[0] === "contributions" &&
       /^[a-f0-9]{64}$/.test(segments[1] || "")
     ) {
       if (segments.length === 2 && request.method === "GET")

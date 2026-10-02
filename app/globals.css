@@ -2805,3 +2805,18 @@ textarea::placeholder {
 .reservation-status h1 {
   font-size: clamp(26px, 4vw, 36px);
 }
+
+.status-page > h1,
+.status-page > .panel h1 {
+  font-size: clamp(26px, 4vw, 36px);
+}
+@media (max-width: 600px) {
+  .owner-nav nav {
+    column-gap: 16px;
+    row-gap: 0;
+  }
+  .owner-nav button {
+    padding: 10px 0;
+    min-height: 44px;
+  }
+}

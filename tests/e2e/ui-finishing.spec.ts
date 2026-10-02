@@ -32,6 +32,8 @@ test("language and category creation preserve the entire wish draft", async ({
     .getByLabel("Nom de la catégorie", { exact: true })
     .fill(`Mes nouvelles idées ${info.project.name}`);
   await page
+    .getByRole("dialog")
+    .last()
     .getByRole("combobox", { name: "Langue", exact: true })
     .selectOption("en");
   await expect(page.getByLabel("Category name", { exact: true })).toHaveValue(
@@ -55,8 +57,14 @@ test("language and category creation preserve the entire wish draft", async ({
   await page
     .getByLabel("Category name", { exact: true })
     .fill("A cancelled category");
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await page
+    .getByRole("dialog")
+    .last()
+    .getByRole("button", { name: "Cancel", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .last()
     .getByRole("combobox", { name: "Language", exact: true })
     .selectOption("fr");
   await expect(
@@ -231,4 +239,28 @@ test("an unavailable owner API offers retry without a misleading sign-in form", 
   await expect(
     page.getByRole("heading", { name: "Mes envies", exact: true }),
   ).toBeVisible();
+});
+
+test("invalid contribution links return a public not-found state", async ({
+  page,
+  context,
+}) => {
+  await context.addCookies([
+    { name: "ouicheur_locale", value: "fr", url: headers.origin },
+  ]);
+  for (const token of ["missing", "0".repeat(64)]) {
+    expect(
+      (await context.request.get(`/api/contributions/${token}`)).status(),
+    ).toBe(404);
+    await page.goto(`/contribution/${token}`);
+    await expect(
+      page.getByRole("heading", { name: "Le suivi est indisponible." }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Contribution introuvable.", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Connexion administrateur requise.", { exact: true }),
+    ).toHaveCount(0);
+  }
 });
