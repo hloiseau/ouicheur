@@ -129,7 +129,7 @@ test("surprise mode keeps owner payloads hidden while donors coordinate and the 
     await page.goto(`/lists/${list}`);
     await expect(page.locator(".gift-card")).toHaveCount(2);
     await expect(
-      page.getByText("1 exemplaires réservés", { exact: true }),
+      page.getByText("1 exemplaire réservé", { exact: true }),
     ).toHaveCount(0);
     await expect(page.getByText("Déjà acheté", { exact: true })).toHaveCount(0);
     await expect(
@@ -150,7 +150,7 @@ test("surprise mode keeps owner payloads hidden while donors coordinate and the 
       .locator(".gift-card")
       .filter({ has: page.getByRole("heading", { name, exact: true }) });
     await expect(card).toContainText("Surprise préservée");
-    await expect(card).not.toContainText("exemplaires réservés");
+    await expect(card).not.toContainText(/exemplaires? réservés?/);
     await page.goto(`/cadeaux/${gift}`);
     await expect(
       page.getByRole("button", { name: "Réserver ce cadeau", exact: true }),
@@ -165,7 +165,7 @@ test("surprise mode keeps owner payloads hidden while donors coordinate and the 
     const donor = await guest.newPage();
     await donor.goto(`/lists/${list}`);
     await expect(
-      donor.getByText("1 exemplaires réservés", { exact: true }),
+      donor.getByText("1 exemplaire réservé", { exact: true }),
     ).toBeVisible();
     await expect(donor.getByText("Déjà acheté", { exact: true })).toBeVisible();
     expect(

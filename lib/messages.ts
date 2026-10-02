@@ -15,6 +15,8 @@ export const english: Record<string, string> = {
     "The refresh failed. Your last loaded data is still displayed.",
   "Créer une catégorie": "Create a category",
   "Toutes les réservations": "All reservations",
+  "1 exemplaire disponible": "1 item available",
+  "1 exemplaire réservé": "1 item reserved",
   "Gérer les réservations": "Manage reservations",
   "Chargement…": "Loading…",
   "Aucune réservation pour le moment.": "No reservations yet.",

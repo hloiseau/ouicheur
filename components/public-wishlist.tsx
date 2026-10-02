@@ -655,7 +655,9 @@ export function PublicWishlist({
                     )}
                     {gift.reserved !== null && gift.reserved > 0 && (
                       <p className="notice">
-                        {t("{0} exemplaires réservés", gift.reserved)}
+                        {gift.reserved === 1
+                          ? t("1 exemplaire réservé")
+                          : t("{0} exemplaires réservés", gift.reserved)}
                         {owner && (
                           <Link
                             className="text-link reservation-manage"
