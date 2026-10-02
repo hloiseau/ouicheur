@@ -219,6 +219,12 @@ export const english: Record<string, string> = {
     "{0} You can fill in the form below; your link has been kept.",
   "Lecture…": "Reading…",
   "Récupérer les informations": "Get product details",
+  "La récupération est facultative. Seuls les champs vides sont complétés.":
+    "Fetching details is optional. Only empty fields will be filled in.",
+  "La récupération automatique n’a pas abouti. Votre lien est conservé : ajoutez le nom et le montant pour enregistrer cette envie.":
+    "We couldn’t fetch the product details. Your link has been kept: add a name and an amount to save this wish.",
+  "Compléter manuellement": "Fill in manually",
+  "Détail de l’erreur": "Error details",
   "Enregistrement…": "Saving…",
   "Enregistrer cette envie": "Save this wish",
   Annuler: "Cancel",

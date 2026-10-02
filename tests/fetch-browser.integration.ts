@@ -8,7 +8,7 @@ import { once } from "node:events";
 import { resolve } from "node:path";
 import type { AddressInfo } from "node:net";
 import type { LaunchOptions } from "playwright-core";
-import { fetchBrowserHtml } from "../lib/fetch-browser";
+import { fetchHtml, fetchBrowserHtml } from "../lib/fetch-browser";
 import { MAX_HTML_BYTES } from "../lib/fetch-safe";
 import { parseThrone } from "../lib/imports";
 import { extractMetadata } from "../lib/metadata";
@@ -23,6 +23,23 @@ test("le transport Chromium lit le HTML et bloque scripts, ressources et redirec
   const server = http.createServer((req, res) => {
     requests.push(req.url!);
     const path = new URL(req.url!, "http://shop.amazon.fr").pathname;
+    if (path === "/eng/detail/") {
+      if (req.headers["user-agent"]?.includes("Ouicheur"))
+        res
+          .writeHead(406, { "content-type": "text/html" })
+          .end("Not acceptable");
+      else
+        res
+          .writeHead(200, { "content-type": "text/html" })
+          .end(
+            '<meta property="og:title" content="Figurine de test"><meta property="product:price:amount" content="12,900"><meta property="product:price:currency" content="JPY">',
+          );
+      return;
+    }
+    if (path === "/still-refused" || path === "/missing") {
+      res.writeHead(path === "/missing" ? 404 : 406).end("Unavailable");
+      return;
+    }
     if (path === "/dp/B000TEST01") {
       res
         .writeHead(200, { "content-type": "text/html" })
@@ -138,9 +155,9 @@ test("le transport Chromium lit le HTML et bloque scripts, ressources et redirec
         options: http.RequestOptions,
         callback: (res: http.IncomingMessage) => void,
       ) => {
-        assert.equal(url.hostname, "shop.amazon.fr");
+        assert.ok(["shop.amazon.fr", "example.com"].includes(url.hostname));
         return get(
-          new URL(url.pathname, `http://127.0.0.1:${port}`),
+          new URL(url.pathname + url.search, `http://127.0.0.1:${port}`),
           { ...options, lookup: undefined },
           callback,
         );
@@ -158,6 +175,31 @@ test("le transport Chromium lit le HTML et bloque scripts, ressources et redirec
       "une seule nouvelle lecture Chromium du produit",
     );
     assert.ok(!requests.some((url) => url.includes("validateCaptcha")));
+    requests.length = 0;
+    const itemUrl = "http://example.com/eng/detail/?scode=FIGURE-055579-R207";
+    const figure = await extractMetadata(itemUrl);
+    assert.equal(figure.title, "Figurine de test");
+    assert.equal(figure.price, 1290000);
+    assert.equal(figure.currency, "JPY");
+    assert.equal(figure.url, itemUrl);
+    assert.deepEqual(requests, [
+      new URL(itemUrl).pathname + new URL(itemUrl).search,
+      itemUrl,
+    ]);
+    requests.length = 0;
+    await assert.rejects(fetchHtml("http://example.com/still-refused"), /406/);
+    assert.equal(
+      requests.length,
+      2,
+      "un refus persistant ne crée pas de boucle",
+    );
+    requests.length = 0;
+    await assert.rejects(fetchHtml("http://example.com/missing"), /404/);
+    assert.equal(
+      requests.length,
+      1,
+      "une page absente ne déclenche pas de seconde lecture",
+    );
   } finally {
     t.mock.restoreAll();
     syncBuiltinESMExports();
