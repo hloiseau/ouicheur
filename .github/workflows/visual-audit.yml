@@ -21,7 +21,7 @@ jobs:
       - run: npm ci --no-fund
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
       - run: npm run build
-      - run: UI_AUDIT=1 npm run test:e2e -- tests/e2e/ui-audit.spec.ts
+      - run: UI_AUDIT=1 npm run test:e2e -- tests/e2e/ui-audit.spec.ts tests/e2e/ui-finishing.spec.ts
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:

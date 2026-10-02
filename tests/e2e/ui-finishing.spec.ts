@@ -32,6 +32,8 @@ test("language and category creation preserve the entire wish draft", async ({
     .getByLabel("Nom de la catégorie", { exact: true })
     .fill(`Mes nouvelles idées ${info.project.name}`);
   await page
+    .getByRole("dialog")
+    .last()
     .getByRole("combobox", { name: "Langue", exact: true })
     .selectOption("en");
   await expect(page.getByLabel("Category name", { exact: true })).toHaveValue(
@@ -55,8 +57,14 @@ test("language and category creation preserve the entire wish draft", async ({
   await page
     .getByLabel("Category name", { exact: true })
     .fill("A cancelled category");
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await page
+    .getByRole("dialog")
+    .last()
+    .getByRole("button", { name: "Cancel", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .last()
     .getByRole("combobox", { name: "Language", exact: true })
     .selectOption("fr");
   await expect(
