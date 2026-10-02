@@ -49,7 +49,9 @@ test("language and category creation preserve the entire wish draft", async ({
     "12.50",
   );
   await expect(
-    page.getByLabel("Category", { exact: true }).locator("option:checked"),
+    page
+      .getByRole("combobox", { name: "Category", exact: true })
+      .locator("option:checked"),
   ).toHaveText(`Mes nouvelles idées ${info.project.name}`);
   await page
     .getByRole("button", { name: "Create a category", exact: true })
