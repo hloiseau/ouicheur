@@ -1,7 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useId, useRef, type ReactNode } from "react";
-import { useI18n } from "./language";
+import { LanguageSwitcher, useI18n } from "./language";
 
 export function Modal({
   title,
@@ -40,15 +40,18 @@ export function Modal({
     >
       <header className="modal-heading">
         <h2 id={titleId}>{title}</h2>
-        <button
-          type="button"
-          className="modal-close"
-          aria-label={t("Fermer")}
-          disabled={busy}
-          onClick={onClose}
-        >
-          ×
-        </button>
+        <div className="modal-tools">
+          <LanguageSwitcher />
+          <button
+            type="button"
+            className="modal-close"
+            aria-label={t("Fermer")}
+            disabled={busy}
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
       </header>
       {children}
     </dialog>

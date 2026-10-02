@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ImagePicker } from "./admin-gifts";
+import { ImagePicker } from "./image-picker";
 import { useI18n } from "./language";
 import { Modal } from "./modal";
 import { api, Field, Icon, Notice } from "./ui";
@@ -114,14 +114,14 @@ export function Categories({
   );
 }
 
-function CategoryEditor({
+export function CategoryEditor({
   category,
   onClose,
   onSaved,
 }: {
   category: Category | null;
   onClose: () => void;
-  onSaved: (id: string) => void;
+  onSaved: (id: string, category?: Category) => void;
 }) {
   const { t } = useI18n();
   const [name, setName] = useState(category?.name || "");
@@ -148,7 +148,7 @@ function CategoryEditor({
               name,
               image,
             });
-            onSaved(result.id);
+            onSaved(result.id, { id: result.id, name: name.trim(), image });
           } catch (error) {
             setError((error as Error).message);
           } finally {

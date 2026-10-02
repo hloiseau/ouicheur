@@ -80,9 +80,12 @@ export function ReservationStatus({ token }: { token: string }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const refresh = async () => {
     try {
       setData(await api(`reservations/${token}`));
+      setError("");
     } catch (e) {
       setError((e as Error).message);
     }
@@ -92,27 +95,69 @@ export function ReservationStatus({ token }: { token: string }) {
     setLink(window.location.href);
   }, [token]);
   return (
-    <section className="panel stack">
+    <section className="panel stack reservation-status">
       <h1>{t("Votre réservation")}</h1>
-      <p>
-        {t(
-          "Conservez ce lien privé : il permet de confirmer ou d’annuler votre réservation sans compte.",
-        )}
-      </p>
-      <input
-        aria-label={t("Lien personnel")}
-        readOnly
-        value={link}
-        onFocus={(e) => e.target.select()}
-      />
+      {!data && !error && <p role="status">{t("Chargement…")}</p>}
+      {data && (
+        <>
+          <p>
+            {data.state === "reserved"
+              ? t(
+                  "Conservez ce lien privé : il permet de confirmer ou d’annuler votre réservation sans compte.",
+                )
+              : t(
+                  "Conservez ce lien privé pour retrouver le suivi de votre réservation.",
+                )}
+          </p>
+          <input
+            aria-label={t("Lien personnel")}
+            readOnly
+            value={link}
+            onFocus={(e) => e.target.select()}
+          />
+          <button
+            className="button secondary"
+            type="button"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(link);
+                setCopied(true);
+                setCopyFailed(false);
+              } catch {
+                setCopyFailed(true);
+              }
+            }}
+          >
+            {t("Copier le lien")}
+          </button>
+          {copied && <p role="status">{t("Lien copié.")}</p>}
+          {copyFailed && (
+            <p role="status">
+              {t("Sélectionnez et copiez le lien ci-dessus.")}
+            </p>
+          )}
+        </>
+      )}
       {data && (
         <>
           <p>
             {t("Quantité")} : {data.quantity} · {t(data.state)}
           </p>
-          <p>
-            {t("Expiration")} : {date(data.expires_at)}
-          </p>
+          {data.state === "reserved" && (
+            <p>
+              {t("Expiration")} : {date(data.expires_at)}
+            </p>
+          )}
+          {data.state === "purchased" && (
+            <Notice>
+              {t(
+                "L’achat est confirmé. Si vous devez revenir sur ce choix, contactez le propriétaire de la liste.",
+              )}
+            </Notice>
+          )}
+          {["cancelled", "expired"].includes(data.state) && (
+            <Notice>{t("Cette réservation ne bloque plus le cadeau.")}</Notice>
+          )}
           {data.state === "reserved" && (
             <div className="form-actions">
               {["purchased", "cancelled"].map((state) => (

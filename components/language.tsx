@@ -14,9 +14,47 @@ import {
   type Locale,
 } from "../lib/i18n";
 
-const LanguageContext = createContext<Locale>("en");
-export const useI18n = () => createI18n(useContext(LanguageContext));
+const LanguageContext = createContext({
+  locale: "en" as Locale,
+  pending: false,
+  changeLocale: (_locale: Locale) => {},
+});
+export const useI18n = () => createI18n(useContext(LanguageContext).locale);
 
+export function LanguageSwitcher() {
+  const { locale, pending, changeLocale } = useContext(LanguageContext);
+  const { t } = useI18n();
+  return (
+    <label className="language-switcher">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <ellipse cx="12" cy="12" rx="4" ry="9" />
+        <path d="M3 12h18" />
+      </svg>
+      <select
+        aria-label={t("Langue")}
+        value={locale}
+        disabled={pending}
+        onChange={(e) => changeLocale(resolveLocale(e.target.value))}
+      >
+        <option value="en" lang="en">
+          English
+        </option>
+        <option value="fr" lang="fr">
+          Français
+        </option>
+      </select>
+    </label>
+  );
+}
 export function LanguageProvider({
   initialLocale,
   children,
@@ -27,33 +65,14 @@ export function LanguageProvider({
   const [locale, setLocale] = useState(initialLocale);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
-  const { t } = createI18n(locale);
+  const changeLocale = (next: Locale) => {
+    document.cookie = `${localeCookie}=${next}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
+    document.documentElement.lang = next;
+    setLocale(next);
+    startTransition(() => router.refresh());
+  };
   return (
-    <LanguageContext.Provider value={locale}>
-      <div className="language-bar">
-        <label>
-          <span>{t("Langue")}</span>
-          <select
-            aria-label={t("Langue")}
-            value={locale}
-            disabled={pending}
-            onChange={(event) => {
-              const next = resolveLocale(event.target.value);
-              document.cookie = `${localeCookie}=${next}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
-              document.documentElement.lang = next;
-              setLocale(next);
-              startTransition(() => router.refresh());
-            }}
-          >
-            <option value="en" lang="en">
-              English
-            </option>
-            <option value="fr" lang="fr">
-              Français
-            </option>
-          </select>
-        </label>
-      </div>
+    <LanguageContext.Provider value={{ locale, pending, changeLocale }}>
       {children}
     </LanguageContext.Provider>
   );

@@ -5,8 +5,11 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { Gift } from "../lib/gifts";
 import { decimal } from "../lib/format";
 import { money as parseMoney } from "../lib/validation";
-import { api, Field, Icon, Notice } from "./ui";
+import { api, Field, Notice } from "./ui";
 import { Modal } from "./modal";
+import { ImagePicker } from "./image-picker";
+export { ImagePicker } from "./image-picker";
+import { CategoryEditor, type Category } from "./categories";
 
 import { ProductRefresh } from "./product-refresh";
 import type { Wishlist } from "../lib/lists";
@@ -60,111 +63,6 @@ export function giftDraft(gift: Gift): GiftDraft {
     japan_search: !!gift.japan_search,
   };
 }
-export function ImagePicker({
-  value,
-  onChange,
-  allowUrl = true,
-  label = "",
-  onBusyChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  allowUrl?: boolean;
-  label?: string;
-  onBusyChange?: (busy: boolean) => void;
-}) {
-  const { t } = useI18n();
-  label ||= t("Image");
-  const [url, setUrl] = useState("");
-  const latestChange = useRef(onChange);
-  useEffect(() => {
-    latestChange.current = onChange;
-  }, [onChange]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const send = async (data: unknown) => {
-    setBusy(true);
-    onBusyChange?.(true);
-    setError("");
-    try {
-      const result = await api<{ image: string }>("admin/images", data);
-      latestChange.current(result.image);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-      onBusyChange?.(false);
-    }
-  };
-  return (
-    <div className="image-picker">
-      <span className="field-label">{label}</span>
-      {value && (
-        <div className="image-preview">
-          <img src={value} alt={t("Aperçu {0}", label.toLowerCase())} />
-          <button
-            type="button"
-            className="text-link"
-            disabled={busy}
-            onClick={() => onChange("")}
-          >
-            {t("Retirer l’image")}{" "}
-          </button>
-        </div>
-      )}
-      {allowUrl && (
-        <div className="inline-input">
-          <input
-            aria-label={t("URL de {0}", label.toLowerCase())}
-            type="url"
-            disabled={busy}
-            placeholder="https://…/image.jpg"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onBlur={() => {
-              if (url && !busy) void send({ url });
-            }}
-          />
-        </div>
-      )}
-      {busy && <p role="status">{t("Import…")}</p>}
-      <label className="file-picker">
-        <Icon name="upload" size={17} />
-        <span>
-          {allowUrl
-            ? t("Ou choisir un fichier JPEG, PNG, WebP (5 Mo max.)")
-            : t("Choisir une image")}
-        </span>
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          disabled={busy}
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            if (file.size > 5 * 1024 * 1024) {
-              setError(t("Image limitée à 5 Mo."));
-              return;
-            }
-            const reader = new FileReader();
-            setBusy(true);
-            onBusyChange?.(true);
-            reader.onerror = () => {
-              setError(t("Impossible de lire cette image."));
-              setBusy(false);
-              onBusyChange?.(false);
-            };
-            reader.onload = () => {
-              void send({ base64: String(reader.result).split(",")[1] });
-            };
-            reader.readAsDataURL(file);
-          }}
-        />
-      </label>
-      {error && <Notice error>{error}</Notice>}
-    </div>
-  );
-}
 export function GiftFields({
   value,
   onChange,
@@ -173,6 +71,7 @@ export function GiftFields({
   simple = false,
   onImageBusy,
   showDuplicate = true,
+  onCreateCategory,
 }: {
   value: GiftDraft;
   onChange: (value: GiftDraft) => void;
@@ -181,6 +80,7 @@ export function GiftFields({
   simple?: boolean;
   onImageBusy?: (busy: boolean) => void;
   showDuplicate?: boolean;
+  onCreateCategory?: () => void;
 }) {
   const { t, money } = useI18n();
   let total: number | undefined;
@@ -249,19 +149,30 @@ export function GiftFields({
             onChange={(e) => set("quantity", Number(e.target.value))}
           />
         </Field>
-        <Field label={t("Catégorie")}>
-          <select
-            value={value.category_id || ""}
-            onChange={(e) => set("category_id", e.target.value || null)}
-          >
-            <option value="">{t("Sans catégorie")}</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <div className="category-field">
+          <Field label={t("Catégorie")}>
+            <select
+              value={value.category_id || ""}
+              onChange={(e) => set("category_id", e.target.value || null)}
+            >
+              <option value="">{t("Sans catégorie")}</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          {onCreateCategory && (
+            <button
+              type="button"
+              className="text-link"
+              onClick={onCreateCategory}
+            >
+              {t("Créer une catégorie")}
+            </button>
+          )}
+        </div>
       </div>
       <p className="fine-print" aria-live="polite">
         {t(
@@ -355,6 +266,7 @@ export function GiftEditor({
   listId = "default",
   initialUrl = "",
   suggestion: proposed,
+  onCategoriesChanged,
 }: {
   gift: Gift | null;
   categories: { id: string; name: string }[];
@@ -365,6 +277,7 @@ export function GiftEditor({
   listId?: string;
   initialUrl?: string;
   suggestion?: { id: string; title: string };
+  onCategoriesChanged?: () => void;
 }) {
   const { t, date } = useI18n();
   const [value, setValue] = useState(
@@ -378,6 +291,14 @@ export function GiftEditor({
           title: proposed?.title || "",
         },
   );
+  const [categoryEditor, setCategoryEditor] = useState(false);
+  const [createdCategories, setCreatedCategories] = useState<Category[]>([]);
+  const categoryOptions = [
+    ...categories,
+    ...createdCategories.filter(
+      (c) => !categories.some((existing) => existing.id === c.id),
+    ),
+  ];
   const [lists, setLists] = useState<Wishlist[]>([]);
   useEffect(() => {
     void api<Wishlist[]>("admin/lists")
@@ -479,153 +400,168 @@ export function GiftEditor({
     }
   };
   return (
-    <Modal
-      title={gift ? t("Modifier cette envie") : t("Une nouvelle envie")}
-      onClose={onDone}
-      busy={busy || uploading}
-    >
-      <form
-        ref={formRef}
-        className="stack"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (busy || uploading) return;
-          setOperation("save");
-          setError("");
-          try {
-            await api(
-              proposed
-                ? `admin/suggestions/${proposed.id}/accept`
-                : gift
-                  ? `admin/gifts/${gift.id}`
-                  : "admin/gifts",
-              {
-                ...value,
-                ...suggestion,
-              },
-            );
-            (onSaved || onDone)();
-          } catch (e) {
-            setError((e as Error).message);
-          } finally {
-            setOperation(null);
-          }
-        }}
+    <>
+      <Modal
+        title={gift ? t("Modifier cette envie") : t("Une nouvelle envie")}
+        onClose={onDone}
+        busy={busy || uploading}
       >
-        <div className="extract-box inline-input">
-          <Field label={t("Lien du produit")}>
-            <input
-              ref={urlRef}
-              aria-describedby={urlHintId}
-              type="url"
-              required
-              autoFocus
-              maxLength={2048}
-              readOnly={busy}
-              value={value.url}
-              onChange={(e) => {
-                setValue((v) => ({ ...v, url: e.target.value }));
-                setExtractionError("");
-                setNotice("");
-                setSuggestion({
-                  suggested_price: null,
-                  suggested_currency: null,
-                  extracted_at: null,
-                });
-              }}
-              placeholder={t("Collez le lien de votre envie…")}
-            />
-          </Field>
-          <button
-            type="button"
-            className="button secondary"
-            disabled={busy || uploading || !value.url}
-            onClick={() => void extract()}
-          >
-            {operation === "extract"
-              ? t("Lecture…")
-              : t("Récupérer les informations")}
-          </button>
-        </div>
-        <p className="fine-print" id={urlHintId}>
-          {t(
-            "La récupération est facultative. Seuls les champs vides sont complétés.",
-          )}
-        </p>
-        {gift && (
-          <ProductRefresh
-            id={gift.id}
-            currency={gift.currency}
-            onSaved={onSaved || onDone}
-          />
-        )}
-        {notice && <Notice>{notice}</Notice>}
-        {error && <Notice error>{error}</Notice>}
-        {extractionError && (
-          <Notice error>
-            <p>
-              {t(
-                "La récupération automatique n’a pas abouti. Votre lien est conservé : ajoutez le nom et le montant pour enregistrer cette envie.",
-              )}
-            </p>
+        <form
+          ref={formRef}
+          className="stack"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (busy || uploading) return;
+            setOperation("save");
+            setError("");
+            try {
+              await api(
+                proposed
+                  ? `admin/suggestions/${proposed.id}/accept`
+                  : gift
+                    ? `admin/gifts/${gift.id}`
+                    : "admin/gifts",
+                {
+                  ...value,
+                  ...suggestion,
+                },
+              );
+              (onSaved || onDone)();
+            } catch (e) {
+              setError((e as Error).message);
+            } finally {
+              setOperation(null);
+            }
+          }}
+        >
+          <div className="extract-box inline-input">
+            <Field label={t("Lien du produit")}>
+              <input
+                ref={urlRef}
+                aria-describedby={urlHintId}
+                type="url"
+                required
+                autoFocus
+                maxLength={2048}
+                readOnly={busy}
+                value={value.url}
+                onChange={(e) => {
+                  setValue((v) => ({ ...v, url: e.target.value }));
+                  setExtractionError("");
+                  setNotice("");
+                  setSuggestion({
+                    suggested_price: null,
+                    suggested_currency: null,
+                    extracted_at: null,
+                  });
+                }}
+                placeholder={t("Collez le lien de votre envie…")}
+              />
+            </Field>
             <button
               type="button"
               className="button secondary"
-              onClick={() =>
-                formRef.current
-                  ?.querySelector<HTMLInputElement>('input[name="title"]')
-                  ?.focus()
+              disabled={busy || uploading || !value.url}
+              onClick={() => void extract()}
+            >
+              {operation === "extract"
+                ? t("Lecture…")
+                : t("Récupérer les informations")}
+            </button>
+          </div>
+          <p className="fine-print" id={urlHintId}>
+            {t(
+              "La récupération est facultative. Seuls les champs vides sont complétés.",
+            )}
+          </p>
+          {gift && (
+            <ProductRefresh
+              id={gift.id}
+              currency={gift.currency}
+              onSaved={onSaved || onDone}
+            />
+          )}
+          {notice && <Notice>{notice}</Notice>}
+          {error && <Notice error>{error}</Notice>}
+          {extractionError && (
+            <Notice error>
+              <p>
+                {t(
+                  "La récupération automatique n’a pas abouti. Votre lien est conservé : ajoutez le nom et le montant pour enregistrer cette envie.",
+                )}
+              </p>
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() =>
+                  formRef.current
+                    ?.querySelector<HTMLInputElement>('input[name="title"]')
+                    ?.focus()
+                }
+              >
+                {t("Compléter manuellement")}
+              </button>
+              <details>
+                <summary>{t("Détail de l’erreur")}</summary>
+                <p>{extractionError}</p>
+              </details>
+            </Notice>
+          )}
+          <Field label={t("Liste")}>
+            <select
+              disabled={!!proposed}
+              value={value.list_id || "default"}
+              onChange={(e) =>
+                setValue((v) => ({ ...v, list_id: e.target.value }))
               }
             >
-              {t("Compléter manuellement")}
+              {lists.map((l) => (
+                <option value={l.id} key={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <GiftFields
+            simple
+            onImageBusy={setUploading}
+            value={value}
+            onChange={setValue}
+            categories={categoryOptions}
+            onCreateCategory={() => setCategoryEditor(true)}
+            currency={gift?.currency || currency}
+          />
+          <div className="form-actions">
+            <button className="button primary" disabled={busy || uploading}>
+              {operation === "save"
+                ? t("Enregistrement…")
+                : proposed
+                  ? t("Accepter et créer l’envie")
+                  : t("Enregistrer cette envie")}
             </button>
-            <details>
-              <summary>{t("Détail de l’erreur")}</summary>
-              <p>{extractionError}</p>
-            </details>
-          </Notice>
-        )}
-        <Field label={t("Liste")}>
-          <select
-            disabled={!!proposed}
-            value={value.list_id || "default"}
-            onChange={(e) =>
-              setValue((v) => ({ ...v, list_id: e.target.value }))
-            }
-          >
-            {lists.map((l) => (
-              <option value={l.id} key={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <GiftFields
-          simple
-          onImageBusy={setUploading}
-          value={value}
-          onChange={setValue}
-          categories={categories}
-          currency={gift?.currency || currency}
+            <button
+              className="button secondary"
+              type="button"
+              disabled={busy || uploading}
+              onClick={onDone}
+            >
+              {t("Annuler")}{" "}
+            </button>
+          </div>
+        </form>
+      </Modal>
+      {categoryEditor && (
+        <CategoryEditor
+          category={null}
+          onClose={() => setCategoryEditor(false)}
+          onSaved={(id, category) => {
+            if (category) setCreatedCategories((items) => [...items, category]);
+            setValue((v) => ({ ...v, category_id: id }));
+            setCategoryEditor(false);
+            onCategoriesChanged?.();
+          }}
         />
-        <div className="form-actions">
-          <button className="button primary" disabled={busy || uploading}>
-            {operation === "save"
-              ? t("Enregistrement…")
-              : proposed
-                ? t("Accepter et créer l’envie")
-                : t("Enregistrer cette envie")}
-          </button>
-          <button
-            className="button secondary"
-            type="button"
-            disabled={busy || uploading}
-            onClick={onDone}
-          >
-            {t("Annuler")}{" "}
-          </button>
-        </div>
-      </form>
-    </Modal>
+      )}
+    </>
   );
 }

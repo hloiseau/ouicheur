@@ -1,3 +1,4 @@
+import { PageHeader } from "../../../components/page-header";
 import { getI18n } from "../../../lib/i18n-server";
 import { ContributionStatus } from "../../../components/contribution";
 export async function generateMetadata() {
@@ -16,13 +17,7 @@ export default async function Page({
   const { id } = await params;
   return (
     <>
-      <header className="site-header">
-        <div className="container public-subheader">
-          <a className="text-link" href="/">
-            {t("← Retour à la Ouichlist")}{" "}
-          </a>
-        </div>
-      </header>
+      <PageHeader back />
       <main id="main" className="status-page container">
         <ContributionStatus id={id} />
       </main>

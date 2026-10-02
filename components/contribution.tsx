@@ -239,11 +239,13 @@ export function ContributionStatus({ id }: { id: string }) {
       </span>
       <span className="eyebrow">{t("Votre petite attention")}</span>
       <h1>
-        {status?.payment || status?.approved
-          ? t("Votre versement est confirmé.")
-          : counted
-            ? t("Merci pour votre participation !")
-            : t("Une envie se rapproche.")}
+        {error && !status
+          ? t("Le suivi est indisponible.")
+          : status?.payment || status?.approved
+            ? t("Votre versement est confirmé.")
+            : counted
+              ? t("Merci pour votre participation !")
+              : t("Une envie se rapproche.")}
       </h1>
       {error && <Notice error>{error}</Notice>}
       {!status && !error && (

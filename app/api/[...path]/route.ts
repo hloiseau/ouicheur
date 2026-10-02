@@ -186,6 +186,13 @@ async function handle(
     }
     if (
       segments[0] === "contributions" &&
+      segments.length === 2 &&
+      request.method === "GET" &&
+      !/^[a-f0-9]{64}$/.test(segments[1] || "")
+    )
+      throw new AppError("Contribution introuvable.", 404);
+    if (
+      segments[0] === "contributions" &&
       /^[a-f0-9]{64}$/.test(segments[1] || "")
     ) {
       if (segments.length === 2 && request.method === "GET")
@@ -377,7 +384,6 @@ async function handle(
       return response({ ok: true });
     }
     if (
-      path === "admin/reservations/cancel" ||
       path === "admin/gifts/move" ||
       (path.startsWith("admin/imports/") && path.endsWith("/commit"))
     )
@@ -392,7 +398,7 @@ async function handle(
         .get(segments[2]);
       if (gift) requireSurpriseReveal(db, access, String(gift.list_id));
     }
-    const productReply = await productPost(db, path, data);
+    const productReply = await productPost(db, path, data, access);
     if (productReply) return productReply;
     if (path === "admin/lists") return response({ id: saveList(db, data) });
     if (path === "admin/lists/share") {
