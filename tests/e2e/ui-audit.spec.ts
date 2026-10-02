@@ -27,8 +27,13 @@ test("audit visuel de toutes les pages et des principaux états", async ({
   const watch = (p: Page) => p.on("pageerror", (e) => failures.push(e.message));
   watch(page);
   const capture = async (p: Page, name: string) => {
-    await p.locator("h1,h2,[role=status]").first().waitFor();
+    await p.locator("h1,h2").first().waitFor();
     await p.evaluate(() => document.fonts.ready);
+    const activeDialog = p.getByRole("dialog").last();
+    if (await activeDialog.isVisible())
+      await activeDialog.evaluate((d) => {
+        d.scrollTop = 0;
+      });
     await p.screenshot({
       path: `${folder}/${name}-full.png`,
       fullPage: true,
@@ -49,6 +54,12 @@ test("audit visuel de toutes les pages et des principaux états", async ({
       await p.evaluate(
         (y) => window.scrollTo({ top: y, behavior: "instant" }),
         y,
+      );
+      await p.evaluate(
+        () =>
+          new Promise<void>((done) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => done())),
+          ),
       );
       await p.screenshot({
         path: `${folder}/${name}-${i + 1}.png`,
@@ -269,18 +280,16 @@ test("audit visuel de toutes les pages et des principaux états", async ({
         await page
           .getByRole("combobox", { name: "Source", exact: true })
           .selectOption("json");
-        await page
-          .getByLabel("Contenu à importer")
-          .fill(
-            JSON.stringify([
-              {
-                title: "Une idée importée",
-                url: `https://example.com/import-audit-${info.project.name}`,
-                price: "18.00",
-                currency: "EUR",
-              },
-            ]),
-          );
+        await page.getByLabel("Contenu à importer").fill(
+          JSON.stringify([
+            {
+              title: "Une idée importée",
+              url: `https://example.com/import-audit-${info.project.name}`,
+              price: "18.00",
+              currency: "EUR",
+            },
+          ]),
+        );
         await page
           .getByRole("button", { name: "Préparer l’aperçu", exact: true })
           .click();
@@ -372,6 +381,10 @@ test("audit visuel de toutes les pages et des principaux états", async ({
         visitor.getByRole("heading", { name: "Votre Ouichlist commence ici." }),
       ).toBeVisible();
       await capture(visitor, "33-setup");
+      expect(failures).toEqual([]);
+      expect(
+        observations.filter((item) => (item as { overflow: boolean }).overflow),
+      ).toEqual([]);
     } finally {
       const exited = once(setup, "exit");
       setup.kill();
