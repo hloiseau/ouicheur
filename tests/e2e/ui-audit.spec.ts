@@ -153,7 +153,7 @@ test("audit visuel de toutes les pages et des principaux états", async ({
     await visitor.goto(`/cadeaux/${gift}`);
     await capture(visitor, "08-gift-reserved");
     await visitor.goto("/reservation/missing");
-    await expect(visitor.getByRole("alert")).toBeVisible();
+    await expect(visitor.getByRole("alert").first()).toBeVisible();
     await capture(visitor, "09-reservation-missing");
     const admin = await (await context.request.get("/api/admin")).json();
     const funded = admin.gifts.find(
@@ -171,7 +171,7 @@ test("audit visuel de toutes les pages et des principaux états", async ({
     await visitor.reload();
     await capture(visitor, "11-contribution-declared");
     await visitor.goto("/contribution/missing");
-    await expect(visitor.getByRole("alert")).toBeVisible();
+    await expect(visitor.getByRole("alert").first()).toBeVisible();
     await capture(visitor, "12-contribution-missing");
     await visitor.goto(`/s/${share.token}`);
     await expect(visitor).toHaveURL(new RegExp(`/lists/${list}$`));
