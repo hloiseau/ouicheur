@@ -1,3 +1,4 @@
+import { PageHeader } from "../../../components/page-header";
 import { cookies } from "next/headers";
 import { accessFromCookies } from "../../../lib/lists";
 import { ReservationForm } from "../../../components/reservation";
@@ -43,13 +44,11 @@ export default async function GiftPage({
     !!gift.closed || !!gift.purchased || gift.visibility !== "visible";
   return (
     <>
-      <header className="site-header">
-        <div className="container public-subheader">
-          <Link className="text-link" href={`/lists/${gift.list_id}`}>
-            {t("← La Ouichlist de {0}", profile.name)}
-          </Link>
-        </div>
-      </header>
+      <PageHeader
+        back
+        backName={profile.name}
+        backHref={`/lists/${gift.list_id}`}
+      />
       <main id="main" className="container detail-page">
         <div className="detail-art">
           <GiftArt gift={gift} />
@@ -123,6 +122,14 @@ export default async function GiftPage({
             <SurpriseNotice />
           ) : (
             <>
+              {access.owner && (gift.reserved ?? 0) > 0 && (
+                <Link
+                  className="button secondary"
+                  href={`/admin?tab=reservations&gift=${id}`}
+                >
+                  {t("Gérer les réservations")}
+                </Link>
+              )}
               <ReservationForm
                 giftId={id}
                 available={Math.max(0, gift.quantity - (gift.reserved ?? 0))}

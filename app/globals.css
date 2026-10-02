@@ -353,9 +353,10 @@ body:has(.personal-page) {
   display: flex;
   align-items: center;
   gap: 20px;
-  position: absolute;
-  top: 10px;
-  left: max(40px, calc((100vw - 1160px) / 2));
+  justify-content: space-between;
+  flex-wrap: wrap;
+  min-height: 48px;
+  margin-bottom: 14px;
 }
 .public-masthead .brand {
   font-size: 22px;
@@ -364,14 +365,6 @@ body:has(.personal-page) {
   width: 29px;
   height: 29px;
   border-radius: 7px;
-}
-body:has(.personal-page) .language-bar {
-  max-width: 1240px;
-  margin: auto;
-  padding-right: 40px;
-}
-body:has(.personal-page) .language-bar label > span {
-  display: none;
 }
 .profile-backdrop {
   position: fixed;
@@ -1378,12 +1371,6 @@ body:has(.personal-page) .language-bar label > span {
   }
 }
 @media (max-width: 520px) {
-  .public-masthead {
-    left: 21px;
-  }
-  body:has(.personal-page) .language-bar {
-    padding-right: 21px;
-  }
   .public-masthead .brand {
     font-size: 21px;
   }
@@ -1916,23 +1903,76 @@ textarea::placeholder {
   padding-top: 32px;
   padding-bottom: 32px;
 }
-.language-bar {
-  min-height: 52px;
-  padding: 8px 24px;
-  display: flex;
-  justify-content: flex-end;
-}
-.language-bar label {
+/* Language follows the page header and remains available inside dialogs. */
+.header-actions,
+.modal-tools,
+.language-switcher {
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-size: 12px;
-  color: var(--muted);
+  gap: 12px;
 }
-.language-bar select {
+.header-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.language-switcher {
+  gap: 4px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.language-switcher select {
   width: auto;
-  padding: 5px 9px;
-  font-size: 12px;
+  min-height: 44px;
+  padding: 8px;
+  font-size: 13px;
+  border-color: transparent;
+  background: transparent;
+}
+.modal-tools {
+  flex-shrink: 0;
+  gap: 4px;
+}
+.modal-heading {
+  flex-wrap: wrap;
+}
+.modal-heading h2 {
+  flex: 1 1 180px;
+}
+.modal-close {
+  min-width: 44px;
+  min-height: 44px;
+}
+.category-field {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+.category-field > button {
+  justify-self: start;
+  text-align: left;
+  min-height: 32px;
+}
+.header-inner {
+  height: auto;
+  min-height: 76px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  flex-wrap: wrap;
+}
+.owner-topbar {
+  flex-wrap: wrap;
+}
+@media (max-width: 600px) {
+  .header-actions {
+    gap: 8px;
+    font-size: 12px;
+  }
+  .header-actions > a {
+    max-width: 145px;
+  }
+  .language-switcher select {
+    padding: 8px 4px;
+  }
 }
 .login-card > p {
   font-size: 13px;
@@ -2752,4 +2792,16 @@ textarea::placeholder {
   display: flex;
   align-items: baseline;
   gap: 0.6rem;
+}
+
+.reservation-manage {
+  display: block;
+  margin-top: 8px;
+}
+.reservation-status {
+  max-width: 720px;
+  margin-inline: auto;
+}
+.reservation-status h1 {
+  font-size: clamp(26px, 4vw, 36px);
 }

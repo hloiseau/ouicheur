@@ -1,3 +1,4 @@
+import { PageHeader } from "../../../components/page-header";
 import { ReservationStatus } from "../../../components/reservation";
 export const metadata = {
   title: "Ouicheur",
@@ -9,8 +10,11 @@ export default async function Page({
   params: Promise<{ token: string }>;
 }) {
   return (
-    <main id="main" className="container status-page">
-      <ReservationStatus token={(await params).token} />
-    </main>
+    <>
+      <PageHeader back />
+      <main id="main" className="container status-page">
+        <ReservationStatus token={(await params).token} />
+      </main>
+    </>
   );
 }

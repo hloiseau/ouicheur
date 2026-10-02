@@ -18,8 +18,10 @@ export function History({
   initialKind = "audit",
   fixed = false,
   onChange,
+  giftId,
 }: {
   initialKind?: string;
+  giftId?: string;
   fixed?: boolean;
   onChange?: () => Promise<void>;
 }) {
@@ -34,7 +36,11 @@ export function History({
   const refresh = async () => {
     setError("");
     try {
-      setData(await api(`admin/history?kind=${kind}&page=${page}`));
+      setData(
+        await api(
+          `admin/history?kind=${kind}&page=${page}${giftId ? `&gift_id=${encodeURIComponent(giftId)}` : ""}`,
+        ),
+      );
     } catch (e) {
       setData(null);
       setError((e as Error).message);
@@ -43,7 +49,7 @@ export function History({
   useEffect(() => {
     setData(null);
     void refresh();
-  }, [kind, page]);
+  }, [kind, page, giftId]);
   return (
     <section className="stack">
       {!fixed && (
@@ -70,6 +76,14 @@ export function History({
         </label>
       )}
       {error && <Notice error>{error}</Notice>}
+      {!data && !error && <p role="status">{t("Chargement…")}</p>}
+      {data?.total === 0 && (
+        <p className="panel" role="status">
+          {kind === "reservations"
+            ? t("Aucune réservation pour le moment.")
+            : t("Aucune activité pour le moment.")}
+        </p>
+      )}
       {kind === "contributions" && data ? (
         <Payments
           contributions={data.items as unknown as Contribution[]}
@@ -78,7 +92,7 @@ export function History({
             await onChange?.();
           }}
         />
-      ) : (
+      ) : data && data.items.length > 0 ? (
         <div className="panel stack">
           {data?.items.map((r) => (
             <div key={r.id} className="history-row">
@@ -119,6 +133,7 @@ export function History({
                           confirm: true,
                         });
                         await refresh();
+                        await onChange?.();
                       } catch (e) {
                         setError((e as Error).message);
                       } finally {
@@ -132,8 +147,8 @@ export function History({
             </div>
           ))}
         </div>
-      )}
-      {data && (
+      ) : null}
+      {data && data.total > 50 && (
         <div className="form-actions">
           <button
             className="button secondary"

@@ -1,3 +1,4 @@
+import { PageHeader } from "../../components/page-header";
 import { SuggestionTracker } from "../../components/suggestions";
 export const metadata = {
   title: "Ouicheur",
@@ -5,8 +6,11 @@ export const metadata = {
 };
 export default function Page() {
   return (
-    <main id="main" className="container status-page">
-      <SuggestionTracker />
-    </main>
+    <>
+      <PageHeader back />
+      <main id="main" className="container status-page">
+        <SuggestionTracker />
+      </main>
+    </>
   );
 }
