@@ -1,13 +1,15 @@
 "use client";
-import { version } from "../package.json";
+import packageInfo from "../package.json";
+import { PageHeader } from "./page-header";
 import { SurpriseNotice } from "./surprise-notice";
 import { ListsEditor } from "./lists";
 import { SuggestionsInbox } from "./suggestions";
 import { Operations } from "./operations";
 import { History } from "./history";
 import type { Wishlist } from "../lib/lists";
-import { useI18n } from "./language";
+import { LanguageSwitcher, useI18n } from "./language";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Gift } from "../lib/gifts";
 import {
@@ -16,7 +18,7 @@ import {
   type Appearance,
 } from "../lib/appearance";
 import { ProfileHeader } from "./profile-header";
-import { api, Brand, Field, Icon, Notice } from "./ui";
+import { api, ApiError, Brand, Field, Icon, Notice } from "./ui";
 import { ImagePicker } from "./admin-gifts";
 import { Payments, type Contribution } from "./admin-payments";
 import { Imports } from "./admin-imports";
@@ -60,6 +62,7 @@ type AdminData = {
 };
 const navigation = [
   { key: "gifts", label: "Mes envies", icon: "gift" },
+  { key: "reservations", label: "Réservations", icon: "gift" },
   { key: "payments", label: "Contributions", icon: "heart" },
   { key: "imports", label: "Importer une liste", icon: "upload" },
   { key: "lists", label: "Listes et partage", icon: "book" },
@@ -72,10 +75,26 @@ export function Admin() {
   const { t, date } = useI18n();
   const [data, setData] = useState<AdminData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState("gifts");
+  const [loadError, setLoadError] = useState("");
+  const params = useSearchParams();
+  const tab = params.get("tab") || "gifts";
+  const page =
+    navigation.some((n) => n.key === tab) || tab === "audit" ? tab : "gifts";
+  const giftId =
+    page === "reservations" ? params.get("gift") || undefined : undefined;
+  const setPage = (next: string) => {
+    const query = new URLSearchParams();
+    if (next !== "gifts") query.set("tab", next);
+    window.history.pushState(
+      null,
+      "",
+      `/admin${query.size ? `?${query}` : ""}`,
+    );
+  };
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const refresh = async () => {
+    setLoadError("");
     try {
       const updated = await api<AdminData>("admin");
       const add = new URLSearchParams(location.search).get("add");
@@ -84,8 +103,9 @@ export function Admin() {
         return;
       }
       setData(updated);
-    } catch {
-      setData(null);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) setData(null);
+      else setLoadError((e as Error).message);
     } finally {
       setLoading(false);
     }
@@ -95,19 +115,42 @@ export function Admin() {
   }, []);
   if (loading)
     return (
-      <main id="main" className="status-page container" role="status">
-        {t("Ouverture de votre espace…")}{" "}
-      </main>
+      <>
+        <PageHeader />
+        <main id="main" className="status-page container" role="status">
+          {t("Ouverture de votre espace…")}
+        </main>
+      </>
+    );
+  if (!data && loadError)
+    return (
+      <>
+        <PageHeader />
+        <main id="main" className="status-page container">
+          <h1>{t("Un petit contretemps.")}</h1>
+          <Notice error>
+            {t(
+              "Votre espace n’a pas pu être chargé. Réessayez dans un instant.",
+            )}
+          </Notice>
+          <button
+            className="button primary"
+            onClick={() => {
+              setLoading(true);
+              void refresh();
+            }}
+          >
+            {t("Réessayer")}
+          </button>
+        </main>
+      </>
     );
   if (!data)
     return (
       <>
-        <header className="site-header">
-          <div className="container header-inner">
-            <Brand />
-            <a href="/">{t("Voir la Ouichlist ↗")}</a>
-          </div>
-        </header>
+        <PageHeader>
+          <a href="/">{t("Voir la Ouichlist ↗")}</a>
+        </PageHeader>
         <main id="main" className="login-page">
           <section className="login-card">
             <span className="empty-icon">
@@ -166,9 +209,12 @@ export function Admin() {
     <div className="owner-space">
       <header className="owner-topbar container">
         <Brand />
-        <a className="text-link" href="/?preview=1">
-          {t("Ma Ouichlist publique ↗")}
-        </a>
+        <div className="header-actions">
+          <a className="text-link" href="/?preview=1">
+            {t("Ma Ouichlist publique ↗")}
+          </a>
+          <LanguageSwitcher />
+        </div>
       </header>
       <div className="owner-nav container">
         <nav aria-label={t("Mon espace")}>
@@ -221,6 +267,16 @@ export function Admin() {
           </header>
         )}
         {error && <Notice error>{error}</Notice>}
+        {loadError && (
+          <Notice error>
+            {t(
+              "La mise à jour a échoué. Les dernières données affichées sont conservées.",
+            )}{" "}
+            <button className="button secondary" onClick={() => void refresh()}>
+              {t("Réessayer")}
+            </button>
+          </Notice>
+        )}
         {page === "gifts" && (
           <PublicWishlist
             embedded
@@ -234,6 +290,33 @@ export function Admin() {
             owner={{ gifts: data.gifts, currency: data.profile.currency }}
             onRefresh={() => void refresh()}
           />
+        )}
+        {page === "reservations" && (
+          <div className="stack">
+            {giftId && (
+              <div className="form-actions">
+                <a
+                  className="button secondary"
+                  href={`/cadeaux/${encodeURIComponent(giftId)}`}
+                >
+                  {t("Voir cette envie")}
+                </a>
+                <button
+                  className="button secondary"
+                  onClick={() => setPage("reservations")}
+                >
+                  {t("Toutes les réservations")}
+                </button>
+              </div>
+            )}
+            <History
+              key={`${data.surprises_revealed}:${giftId || "all"}`}
+              initialKind="reservations"
+              fixed
+              giftId={giftId}
+              onChange={refresh}
+            />
+          </div>
         )}
         {page === "payments" && (
           <div className="stack">
@@ -284,7 +367,7 @@ export function Admin() {
             <Operations />
           )}
         {page === "history" && (
-          <History key={String(data.surprises_revealed)} />
+          <History key={String(data.surprises_revealed)} onChange={refresh} />
         )}
         {page === "profile" && (
           <ProfileEditor profile={data.profile} refresh={refresh} />
@@ -319,7 +402,8 @@ export function Admin() {
           <button className="text-link" onClick={() => setPage("audit")}>
             {t("Journal")}
           </button>
-          {t("Vos données, chez vous.")} <span>Ouicheur · {version}</span>
+          {t("Vos données, chez vous.")}{" "}
+          <span>Ouicheur · {packageInfo.version}</span>
         </footer>
       </main>
     </div>

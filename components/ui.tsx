@@ -4,6 +4,15 @@ import { useI18n } from "./language";
 import type { ReactNode } from "react";
 import { createI18n, resolveLocale } from "../lib/i18n";
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+  }
+}
+
 export async function api<T = Record<string, unknown>>(
   path: string,
   data?: unknown,
@@ -19,8 +28,12 @@ export async function api<T = Record<string, unknown>>(
           body: JSON.stringify(data),
         },
   );
-  const value = await result.json();
-  if (!result.ok) throw new Error(value.error || t("L’opération a échoué."));
+  const value = await result.json().catch(() => ({}));
+  if (!result.ok)
+    throw new ApiError(
+      value.error || t("L’opération a échoué."),
+      result.status,
+    );
   return value;
 }
 export function Icon({ name, size = 22 }: { name: string; size?: number }) {

@@ -1,5 +1,5 @@
 "use client";
-import { useI18n } from "./language";
+import { LanguageSwitcher, useI18n } from "./language";
 
 import type { Wishlist } from "../lib/lists";
 import { ShareLink } from "./lists";
@@ -225,11 +225,14 @@ export function PublicWishlist({
       {!embedded && (
         <header className="public-masthead">
           <Brand />
-          {owner && (
-            <a className="text-link" href="/admin">
-              {t("Mon espace")} <Icon name="arrow" size={16} />
-            </a>
-          )}
+          <div className="header-actions">
+            {owner && (
+              <a className="text-link" href="/admin">
+                {t("Mon espace")} <Icon name="arrow" size={16} />
+              </a>
+            )}
+            <LanguageSwitcher />
+          </div>
         </header>
       )}
       {!embedded && surprise && <SurpriseNotice revealed={surprise.revealed} />}
@@ -652,7 +655,17 @@ export function PublicWishlist({
                     )}
                     {gift.reserved !== null && gift.reserved > 0 && (
                       <p className="notice">
-                        {t("{0} exemplaires réservés", gift.reserved)}
+                        {gift.reserved === 1
+                          ? t("1 exemplaire réservé")
+                          : t("{0} exemplaires réservés", gift.reserved)}
+                        {owner && (
+                          <Link
+                            className="text-link reservation-manage"
+                            href={`/admin?tab=reservations&gift=${gift.id}`}
+                          >
+                            {t("Gérer les réservations")}
+                          </Link>
+                        )}
                       </p>
                     )}
                     <Progress gift={gift} compact />
@@ -742,6 +755,7 @@ export function PublicWishlist({
           gift={editor === "new" ? null : editor}
           categories={categories}
           currency={owner.currency}
+          onCategoriesChanged={refresh}
           categoryId={category || null}
           listId={selectedList || "default"}
           onDone={() => setEditor(null)}

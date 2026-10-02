@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import QRCode from "qrcode";
 import type { Wishlist } from "../lib/lists";
 import { api, Field, Notice } from "./ui";
@@ -94,9 +94,12 @@ export function ListsEditor({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [share, setShare] = useState("");
+  const [saved, setSaved] = useState(false);
+  const formHeading = useRef<HTMLHeadingElement>(null);
   const action = async (fn: () => Promise<void>) => {
     setBusy(true);
     setError("");
+    setSaved(false);
     try {
       await fn();
       await refresh();
@@ -114,7 +117,11 @@ export function ListsEditor({
           <button
             key={l.id}
             className="button secondary"
+            disabled={busy}
+            aria-pressed={value.id === l.id}
             onClick={() => {
+              setSaved(false);
+              formHeading.current?.focus();
               setValue({
                 ...l,
                 archived: !!l.archived,
@@ -134,7 +141,10 @@ export function ListsEditor({
         ))}
         <button
           className="button primary"
+          disabled={busy}
           onClick={() => {
+            setSaved(false);
+            formHeading.current?.focus();
             setValue(empty);
             setShare("");
           }}
@@ -143,8 +153,12 @@ export function ListsEditor({
         </button>
       </section>
       <section className="panel stack">
+        <h2 ref={formHeading} tabIndex={-1}>
+          {value.id ? t("Modifier la liste") : t("Nouvelle liste")}
+        </h2>
         <form
           className="stack"
+          onChange={() => setSaved(false)}
           onSubmit={(e) => {
             e.preventDefault();
             const previous = lists.find((l) => l.id === value.id);
@@ -169,6 +183,7 @@ export function ListsEditor({
                 return;
               }
               setValue((v) => ({ ...v, id: r.id }));
+              setSaved(true);
               setShare(
                 value.visibility === "public" && !value.archived
                   ? `${location.origin}/lists/${r.id}`
@@ -270,8 +285,9 @@ export function ListsEditor({
               "Changer la confidentialité ou archiver révoque le lien existant.",
             )}
           </p>
+          {saved && <Notice>{t("Liste enregistrée.")}</Notice>}
           <button className="button primary" disabled={busy}>
-            {t("Enregistrer")}
+            {busy ? t("Enregistrement…") : t("Enregistrer")}
           </button>
         </form>
         {value.id && (

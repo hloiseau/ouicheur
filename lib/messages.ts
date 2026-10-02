@@ -4,6 +4,31 @@ import { suggestionEnglish } from "./suggestion-messages.ts";
 export const english: Record<string, string> = {
   ...productEnglish,
   ...suggestionEnglish,
+  "Modifier la liste": "Edit list",
+  "Liste enregistrée.": "List saved.",
+  "Importez une liste publique Amazon ou Throne, puis vérifiez les envies avant de les ajouter. Si le site bloque la lecture, utilisez une page enregistrée ou un fichier CSV/JSON.":
+    "Import a public Amazon or Throne list, then review the wishes before adding them. If the site blocks access, use a saved page or a CSV/JSON file.",
+  "Le suivi est indisponible.": "Tracking is unavailable.",
+  "Votre espace n’a pas pu être chargé. Réessayez dans un instant.":
+    "Your space could not be loaded. Please try again in a moment.",
+  "La mise à jour a échoué. Les dernières données affichées sont conservées.":
+    "The refresh failed. Your last loaded data is still displayed.",
+  "Créer une catégorie": "Create a category",
+  "Toutes les réservations": "All reservations",
+  "1 exemplaire disponible": "1 item available",
+  "1 exemplaire réservé": "1 item reserved",
+  "Gérer les réservations": "Manage reservations",
+  "Chargement…": "Loading…",
+  "Aucune réservation pour le moment.": "No reservations yet.",
+  "Aucune activité pour le moment.": "No activity yet.",
+  "Envie introuvable.": "Wish not found.",
+  "Conservez ce lien privé pour retrouver le suivi de votre réservation.":
+    "Keep this private link to check your reservation.",
+  "L’achat est confirmé. Si vous devez revenir sur ce choix, contactez le propriétaire de la liste.":
+    "The purchase is confirmed. Contact the list owner if you need to undo it.",
+  "Cette réservation ne bloque plus le cadeau.":
+    "This reservation no longer holds the gift.",
+
   "Les réservations et achats sont visibles dans cette session. Les autres sessions restent protégées.":
     "Reservations and purchases are visible in this session. Other sessions remain protected.",
   "Mode surprise": "Surprise mode",

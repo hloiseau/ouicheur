@@ -1,3 +1,4 @@
+import { PageHeader } from "../../components/page-header";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { authorized } from "../../lib/auth";
@@ -29,8 +30,11 @@ export default async function Page({
   )
     redirect(`/admin?add=${encodeURIComponent(url)}`);
   return (
-    <main id="main" className="container status-page">
-      <QuickAdd url={url} />
-    </main>
+    <>
+      <PageHeader />
+      <main id="main" className="container status-page">
+        <QuickAdd url={url} />
+      </main>
+    </>
   );
 }

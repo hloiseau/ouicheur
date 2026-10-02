@@ -55,7 +55,17 @@ export async function productGet(
     const kind = z
       .enum(["contributions", "audit", "imports", "reservations"])
       .parse(url.searchParams.get("kind"));
-    if (kind === "audit" || kind === "reservations")
+    const giftId =
+      kind === "reservations" && url.searchParams.has("gift_id")
+        ? z.uuid().parse(url.searchParams.get("gift_id"))
+        : undefined;
+    if (giftId) {
+      const gift = db
+        .prepare("SELECT list_id FROM gifts WHERE id=?")
+        .get(giftId);
+      if (!gift) throw new AppError("Envie introuvable.", 404);
+      requireSurpriseReveal(db, access, String(gift.list_id));
+    } else if (kind === "audit" || kind === "reservations")
       requireSurpriseReveal(db, access);
     const page = z.coerce
       .number()
@@ -76,8 +86,20 @@ export async function productGet(
       "UPDATE reservations SET state='expired' WHERE state='reserved' AND expires_at<=?",
     ).run(new Date().toISOString());
     return json({
-      items: db.prepare(queries[kind] + " LIMIT 50 OFFSET ?").all(page * 50),
-      total: Number(db.prepare(`SELECT COUNT(*) n FROM ${kind}`).get()!.n),
+      items: giftId
+        ? db
+            .prepare(
+              "SELECT r.id,r.quantity,r.state,r.expires_at,r.created_at,g.title FROM reservations r JOIN gifts g ON g.id=r.gift_id WHERE r.gift_id=? ORDER BY r.created_at DESC,r.id DESC LIMIT 50 OFFSET ?",
+            )
+            .all(giftId, page * 50)
+        : db.prepare(queries[kind] + " LIMIT 50 OFFSET ?").all(page * 50),
+      total: Number(
+        giftId
+          ? db
+              .prepare("SELECT COUNT(*) n FROM reservations WHERE gift_id=?")
+              .get(giftId)!.n
+          : db.prepare(`SELECT COUNT(*) n FROM ${kind}`).get()!.n,
+      ),
       page,
     });
   }
@@ -86,6 +108,7 @@ export async function productPost(
   db: DatabaseSync,
   path: string,
   data: unknown,
+  access: Access = { owner: true, lists: [] },
 ): Promise<Response | undefined> {
   if (path === "admin/settings") return json(saveSettings(db, data));
   if (path === "admin/backups") {
@@ -124,14 +147,22 @@ export async function productPost(
   if (path === "admin/reservations/cancel") {
     const v = z.object({ id: z.uuid(), confirm: z.literal(true) }).parse(data);
     atomic(db, () => {
+      const reservation = db
+        .prepare(
+          "SELECT r.state,r.expires_at,g.list_id FROM reservations r JOIN gifts g ON g.id=r.gift_id WHERE r.id=?",
+        )
+        .get(v.id);
+      if (!reservation) throw new AppError("Réservation introuvable.", 404);
+      requireSurpriseReveal(db, access, String(reservation.list_id));
       if (
-        !db
-          .prepare(
-            "UPDATE reservations SET state='cancelled' WHERE id=? AND state IN ('reserved','purchased')",
-          )
-          .run(v.id).changes
+        !["reserved", "purchased"].includes(String(reservation.state)) ||
+        (reservation.state === "reserved" &&
+          String(reservation.expires_at) <= new Date().toISOString())
       )
-        throw new AppError("Réservation introuvable.", 404);
+        throw new AppError("Cette réservation n’est plus active.", 409);
+      db.prepare("UPDATE reservations SET state='cancelled' WHERE id=?").run(
+        v.id,
+      );
       audit(db, "reservation.cancel_owner", v.id);
     });
     return json({ ok: true });
