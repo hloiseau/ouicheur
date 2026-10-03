@@ -1,4 +1,5 @@
 "use client";
+import { nextOccurrence } from "../lib/event-dates";
 import { ListTools } from "./list-tools";
 import { BulkOrganizer } from "./bulk-organizer";
 import {
@@ -365,7 +366,12 @@ export function PublicWishlist({
                 owner={!!owner}
               />
               {currentList.event_date && (
-                <p>{date(currentList.event_date, true)}</p>
+                <p>
+                  {date(
+                    nextOccurrence(currentList) || currentList.event_date,
+                    true,
+                  )}
+                </p>
               )}
               {currentList.visibility === "public" &&
                 !currentList.archived &&

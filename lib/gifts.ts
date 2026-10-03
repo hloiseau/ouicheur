@@ -3,11 +3,11 @@ import type { WishDetails, GiftOffer } from "./wish-details.ts";
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
-import { atomic, audit } from "./db";
-import { AppError, dateNow, giftSchema, webUrl } from "./validation";
+import { atomic, audit } from "./db.ts";
+import { AppError, dateNow, giftSchema, webUrl } from "./validation.ts";
 import { listLists, publicAccess, type Access } from "./lists.ts";
 import { reservedQuantity } from "./reservations.ts";
-import type { Appearance } from "./appearance";
+import type { Appearance } from "./appearance.ts";
 import { hiddenSurpriseLists, requireSurpriseReveal } from "./surprise.ts";
 
 export type Gift = WishDetails & {

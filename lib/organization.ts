@@ -138,6 +138,9 @@ export function duplicateList(
       old.surprise_mode,
       old.profile_id,
     );
+    db.prepare(
+      "UPDATE lists SET event_annual=?,event_timezone=?,leap_day=? WHERE id=?",
+    ).run(old.event_annual, old.event_timezone, old.leap_day, id);
     for (const g of gifts) {
       const copy = saveGiftInTransaction(
         db,

@@ -1,4 +1,5 @@
 "use client";
+import { CalendarTools } from "./calendar-tools";
 import { useEffect, useState } from "react";
 import type { Wishlist } from "../lib/lists";
 import type { Preference } from "../lib/preferences";
@@ -204,6 +205,7 @@ export function ListTools({
           {t("Imprimer cette liste")}
         </a>
       </div>
+      <CalendarTools list={list} owner={owner} />
       <SharedPreferences listId={list.id} />
       {owner && (
         <>

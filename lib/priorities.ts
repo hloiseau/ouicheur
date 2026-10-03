@@ -1,8 +1,8 @@
 import type { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
-import { atomic, audit } from "./db";
-import { AppError, text } from "./validation";
-import type { GiftPriority } from "./priority-labels";
+import { atomic, audit } from "./db.ts";
+import { AppError, text } from "./validation.ts";
+import type { GiftPriority } from "./priority-labels.ts";
 
 export function listPriorities(db: DatabaseSync): GiftPriority[] {
   return db

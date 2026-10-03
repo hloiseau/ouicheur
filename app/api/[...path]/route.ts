@@ -1,3 +1,11 @@
+import {
+  readNotificationPreferences,
+  saveNotificationPreferences,
+  requestAccountEmail,
+  confirmAccountEmail,
+  removeAccountEmail,
+} from "../../../lib/notification-preferences";
+import { exportCalendar, readCalendarFeed } from "../../../lib/calendar";
 import { exportResponse } from "../../../lib/list-export";
 import {
   readPreferences,
@@ -253,11 +261,50 @@ async function handle(
         request.nextUrl.searchParams.get("format"),
         accessFromCookies(db, request.cookies),
       );
+    if (
+      request.method === "GET" &&
+      segments[0] === "calendar" &&
+      segments[1] === "feed" &&
+      segments.length === 3
+    ) {
+      rateLimit(db, `calendar:${ip}`, 120, 60000);
+      return readCalendarFeed(
+        db,
+        segments[2],
+        process.env.APP_ORIGIN || request.nextUrl.origin,
+      );
+    }
+    if (
+      request.method === "GET" &&
+      segments[0] === "lists" &&
+      segments.length === 3 &&
+      segments[2] === "calendar"
+    ) {
+      const p = request.nextUrl.searchParams;
+      return exportCalendar(
+        db,
+        text(64).parse(segments[1]),
+        {
+          include_name: p.get("name") === "1",
+          include_description: p.get("description") === "1",
+          include_link: p.get("link") === "1",
+        },
+        accessFromCookies(db, request.cookies),
+        process.env.APP_ORIGIN || request.nextUrl.origin,
+      );
+    }
     if (segments[0] === "account" || segments[0] === "team") {
       if (!sessionAccount(db, token))
         throw new AppError("Votre session a expiré. Reconnectez-vous.", 401);
       touchSession(db, token!);
       if (request.method === "GET") {
+        if (path === "account/notifications")
+          return response(
+            readNotificationPreferences(
+              db,
+              accessFromCookies(db, request.cookies),
+            ),
+          );
         if (path === "account/preferences")
           return response(
             readPreferences(
@@ -277,6 +324,35 @@ async function handle(
           request,
           path === "team/images" ? 7 * 1024 * 1024 : 32 * 1024,
         );
+        if (path === "account/notifications")
+          return response(
+            saveNotificationPreferences(
+              db,
+              input,
+              accessFromCookies(db, request.cookies),
+            ),
+          );
+        if (path === "account/email/request") {
+          await requestAccountEmail(
+            db,
+            input,
+            accessFromCookies(db, request.cookies),
+          );
+          return response({ ok: true });
+        }
+        if (path === "account/email/confirm") {
+          confirmAccountEmail(
+            db,
+            input,
+            accessFromCookies(db, request.cookies),
+          );
+          return response({ ok: true });
+        }
+        if (path === "account/email/remove") {
+          z.object({ confirm: z.literal(true) }).parse(input);
+          removeAccountEmail(db, accessFromCookies(db, request.cookies));
+          return response({ ok: true });
+        }
         if (path === "account/preferences") {
           savePreferences(db, input, accessFromCookies(db, request.cookies));
           return response({ ok: true });
