@@ -14,7 +14,11 @@ const config: NextConfig = {
     "ipaddr.js",
   ],
   outputFileTracingIncludes: {
-    "/*": ["./migrations/**/*", "./node_modules/playwright-core/**/*"],
+    "/*": [
+      "./migrations/**/*",
+      "./node_modules/playwright-core/**/*",
+      "./node_modules/@img/*/versions.json",
+    ],
   },
   async headers() {
     return [

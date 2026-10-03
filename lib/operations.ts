@@ -1,4 +1,5 @@
 import { pollPriceWatches } from "./price-history.ts";
+import { buildInfo } from "./build-info.ts";
 import {
   readdirSync,
   createReadStream,
@@ -111,17 +112,13 @@ export function downloadBackup(
   );
 }
 export function diagnostics(db: DatabaseSync, folder = dataDir()) {
-  let version = "unknown";
-  try {
-    version = JSON.parse(readFileSync(resolve("package.json"), "utf8")).version;
-  } catch {}
   const counts: Record<string, number> = {};
   for (const table of ["gifts", "lists", "reservations", "imports"])
     counts[table] = Number(
       db.prepare(`SELECT COUNT(*) n FROM ${table}`).get()!.n,
     );
   return {
-    version,
+    ...buildInfo,
     node: process.version,
     platform: process.platform,
     architecture: process.arch,

@@ -14,6 +14,7 @@ type OperationsData = {
   settings: Settings;
   diagnostics: {
     version: string;
+    revision: string;
     node: string;
     architecture: string;
     chromium: boolean;
@@ -75,7 +76,19 @@ export function Operations() {
                 {data.diagnostics.architecture} · Node {data.diagnostics.node}
               </p>
               <p>
-                Chromium :{" "}
+                {t("Révision")} :{" "}
+                {data.diagnostics.revision === "local" ? (
+                  t("Construction locale sans commit intégré")
+                ) : (
+                  <a
+                    href={`https://github.com/hloiseau/ouicheur/commit/${data.diagnostics.revision}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {data.diagnostics.revision.slice(0, 12)}
+                  </a>
+                )}{" "}
+                · Chromium :{" "}
                 {t(data.diagnostics.chromium ? "Disponible" : "À vérifier")}
               </p>
               <p>

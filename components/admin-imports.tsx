@@ -1,5 +1,6 @@
 "use client";
 import type { GiftPriority } from "../lib/priority-labels";
+import { ImportFailureHelp } from "./support-panel";
 import { useI18n } from "./language";
 
 import { useEffect, useState } from "react";
@@ -231,14 +232,24 @@ export function Imports({
           {busy ? t("Préparation de l’aperçu…") : t("Préparer l’aperçu")}
         </button>
       </form>
-      {error && <Notice error>{error}</Notice>}
+      {error && (
+        <>
+          <Notice error>{error}</Notice>
+          <ImportFailureHelp error={error} />
+        </>
+      )}
       {job && (
         <section className="panel stack">
           <div className="panel-heading">
             <h3>{t("Aperçu de l’import")}</h3>
             <span className="badge">{t(stateLabel[job.state])}</span>
           </div>
-          {job.error && <Notice error>{storedError(job.error)}</Notice>}
+          {job.error && (
+            <>
+              <Notice error>{storedError(job.error)}</Notice>
+              <ImportFailureHelp error={storedError(job.error)} />
+            </>
+          )}
           {job.state === "failed" && job.source === "throne" && (
             <button
               className="button"

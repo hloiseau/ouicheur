@@ -1,6 +1,6 @@
 # Ouicheur
 
-[English quick start](README.en.md) · [Nouvelles fonctionnalités et mise à jour](docs/product-features.md) · [Changelog](CHANGELOG.md)
+[English quick start](README.en.md) · [Nouvelles fonctionnalités et mise à jour](docs/product-features.md) · [Changelog](CHANGELOG.md) · [Version 1.2.0](docs/releases/1.2.0.md)
 
 Une Ouichlist personnelle et familiale libre et auto-hébergeable, en anglais par défaut avec une interface française au choix. Un propriétaire peut confier certaines listes à des coorganisateurs avec leur propre compte. Des cadeaux ajoutés par liens, des contributions sans compte visiteur et des versements directs sur son **compte PayPal particulier**.
 
@@ -40,8 +40,8 @@ privés, des liens révocables avec QR code, des réservations sans PayPal, l’
 mobile/PWA, une actualisation manuelle des prix et stocks, des sauvegardes complètes
 planifiées, des notifications ntfy, un diagnostic et un nettoyage contrôlé.
 Le [guide produit](docs/product-features.md) décrit les parcours, leurs limites et
-la migration d’une installation existante. Ces changements ne sont disponibles
-dans les images publiques qu’après fusion et publication de cette version.
+la migration d’une installation existante. Le numéro de version et le commit affichés dans **Mon instance** identifient
+précisément la construction utilisée ; `main` suit les développements validés.
 
 ![Ouicheur avec des données fictives](docs/screenshots/wishlist-desktop.png)
 
@@ -62,6 +62,14 @@ Les [idées secrètes](docs/secret-suggestions.md) peuvent être confiées à un
 coorganisateur sans être publiées sur la liste. Les [types d’envies](docs/wish-types.md)
 couvrent les variantes, les offres de seconde main, les expériences et services
 sans lien marchand, avec budget facultatif.
+
+Les [outils de listes](docs/list-tools.md) ajoutent l’ordre manuel, les actions
+groupées, la duplication privée, les préférences choisies, les exports et
+l’impression. Les [calendriers et rappels](docs/calendar-notifications.md) ainsi
+que les [alertes de prix](docs/price-history.md) sont facultatifs. Chaque proche
+peut garder son [suivi de cadeaux et journal personnel](docs/personal-gift-tracking.md)
+et participer à un [échange familial](docs/family-exchanges.md) avec exclusions.
+Les [grandes listes](docs/performance.md) sont chargées par pages.
 
 Dans **Mes envies → Gérer les priorités**, renommer les niveaux (y compris « Coup de cœur »), en ajouter et les réordonner. Le niveau marqué d’un cœur est repris dans l’onglet et sur les cartes ; le filtre permet de choisir n’importe quelle priorité. Ces réglages sont communs aux listes de l’instance, conservés dans les sauvegardes et inclus dans l’export JSON. Les envies existantes gardent leur priorité.
 

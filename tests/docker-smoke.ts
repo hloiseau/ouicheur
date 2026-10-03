@@ -103,6 +103,17 @@ async function check(cookie: string) {
   const data = await r.json();
   assert.equal(data.gifts[0].confirmed, 1900);
   assert.equal(data.gifts[0].title, "Cadeau Docker");
+  const support = await fetch("http://localhost:3212/api/admin/support", {
+    headers: { cookie },
+  });
+  assert.equal(support.status, 200);
+  const report = await support.json();
+  assert.equal(report.version, "1.2.0");
+  assert.equal(report.revision, process.env.GITHUB_SHA || "local");
+  assert.doesNotMatch(
+    JSON.stringify(report),
+    /Cadeau Docker|DOCKER-TEST|password|token|paypal/i,
+  );
 }
 try {
   // Import the unbundled worker with runtime dependencies before starting the server.
@@ -114,7 +125,7 @@ try {
     "ouicheur:local",
     "--input-type=module",
     "-e",
-    'await import("./lib/operations.ts")',
+    'await import("./lib/operations.ts"); const { readFileSync } = await import("node:fs"); const inventory = JSON.parse(readFileSync("third-party-licenses/runtime-inventory.json", "utf8")); if (!inventory.debian.length || !inventory.browsers.length || !inventory.browser_notices.length || !Object.keys(inventory.native).length) throw Error("Incomplete final-image inventory");',
   );
   const fresh = join(folder, "first-start");
   mkdirSync(fresh, { recursive: true });

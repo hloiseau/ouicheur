@@ -1,6 +1,7 @@
 FROM node:24.21.0-bookworm-slim AS build
+ARG BUILD_REVISION=local
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_TELEMETRY_DISABLED=1 NEXT_PUBLIC_BUILD_REVISION=$BUILD_REVISION
 COPY package.json package-lock.json ./
 RUN npm ci --no-fund
 COPY . .
@@ -11,7 +12,9 @@ RUN npm run build \
     && node scripts/licenses.mjs
 
 FROM node:24.21.0-bookworm-slim AS runtime
+ARG BUILD_REVISION=local
 WORKDIR /app
+ENV NEXT_PUBLIC_BUILD_REVISION=$BUILD_REVISION
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000 DATA_DIR=/app/data
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 COPY --from=build --chown=node:node /app/.next/standalone ./
@@ -22,10 +25,13 @@ COPY --from=build --chown=node:node /app/lib ./lib
 COPY --from=build --chown=node:node /app/scripts/manage.ts ./scripts/manage.ts
 COPY --from=build --chown=node:node /app/scripts/start.mjs /app/scripts/prepare-setup.ts /app/scripts/maintenance.ts ./scripts/
 COPY --from=build --chown=node:node /app/scripts/install-browser.mjs ./scripts/
+COPY --from=build --chown=node:node /app/scripts/image-inventory.mjs ./scripts/
 COPY --from=build --chown=node:node /app/package.json ./package.json
 COPY --from=build --chown=node:node /app/third-party-licenses ./third-party-licenses
 COPY --from=build --chown=node:node /app/LICENSE /app/THIRD_PARTY_NOTICES.md ./
-RUN node node_modules/playwright-core/cli.js install --with-deps --only-shell chromium && rm -rf /var/lib/apt/lists/*
+RUN node node_modules/playwright-core/cli.js install --with-deps --only-shell chromium \
+    && node scripts/image-inventory.mjs \
+    && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /app/data /app/backups && chown node:node /app/data /app/backups
 USER node
 EXPOSE 3000

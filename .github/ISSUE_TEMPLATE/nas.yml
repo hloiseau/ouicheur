@@ -1,0 +1,38 @@
+name: Retour NAS / NAS feedback
+description: Installation, mise à jour et restauration TrueNAS ou Unraid.
+title: "[NAS] "
+body:
+  - type: markdown
+    attributes:
+      value: "Utilisez des données fictives. Ne joignez pas de sauvegarde, code de setup ou lien privé."
+  - type: input
+    id: version
+    attributes:
+      label: Version Ouicheur, commit ou digest de l’image
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: NAS et version, architecture, RAM, UID/GID et stockage
+    validations:
+      required: true
+  - type: textarea
+    id: results
+    attributes:
+      label: Résultats — OK / KO / non testé
+      value: |
+        Installation et connexion :
+        Ajout, image et import :
+        Listes, partage et réservations :
+        Comptes proches et sessions :
+        Redémarrage et conservation des données :
+        Mise à jour depuis (référence) :
+        Sauvegarde et restauration sur copie :
+        Mobile, français et anglais :
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Si KO, étapes, résultat attendu et résultat observé

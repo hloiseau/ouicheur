@@ -1,50 +1,47 @@
-# Première release pour les catalogues NAS
+# Livraison reproductible et catalogues NAS
 
-Les soumissions aux catalogues sont suspendues à la demande du propriétaire,
-le temps de finaliser le produit. Le propriétaire confirme un essai positif sur
-son TrueNAS de la version précédant la finalisation ; il ne s’agit pas encore
-d’une validation des nouveaux parcours ni d’Unraid.
+Cette checklist distingue préparation du code, publication d’une image et recette NAS. Cocher uniquement ce qui a été observé pour la référence concernée.
 
-Cette liste est un suivi de travail, pas une déclaration de validation.
+## Code et vérification
 
-- [ ] Fusionner la finalisation produit après CI verte et revue.
-- [x] Embarquer MIT, les notices des dépendances de production et un inventaire
-      npm CycloneDX de construction/exécution ; conserver les notices Debian
-      et Chromium de l’image.
-- [ ] Archiver l’inventaire de l’image publiée avec la release ; l’inventaire npm
-      ne couvre pas les paquets Debian ni Chromium.
-- [x] Rédiger un changelog, noter les migrations et documenter une restauration
-      depuis une sauvegarde de la version précédente.
-- [x] Préparer la version `1.1.0` ; `package.json` et `package-lock.json` sont cohérents.
-- [ ] Créer le tag `vX.Y.Z` correspondant après tests. La CI reconstruit, teste et
-      publie `ghcr.io/hloiseau/ouicheur:X.Y.Z` ainsi que son tag de commit. Elle ne
-      crée pas automatiquement la GitHub Release et ne publie pas `latest`.
-- [ ] Vérifier le téléchargement anonyme de l'image, son architecture, le digest,
-      `/app/LICENSE` et les notices. Créer la GitHub Release avec changelog et digest.
-- [ ] Mettre à jour les références dans le XML Unraid et le candidat TrueNAS.
-- [x] Ajouter le démarrage rapide anglais et le guide des nouvelles fonctionnalités.
-- [x] Ajouter les captures avec données fictives après vérification visuelle.
-- [ ] Activer un canal privé de signalement GitHub si souhaité.
+1. Mettre à jour `package.json`, les versions racines du lockfile et `CHANGELOG.md`. Rédiger `docs/releases/X.Y.Z.md` avec migrations, options nouvelles et effets d’une restauration.
+2. Vérifier la PR : format, TypeScript, tests métier (dont tous les préfixes des migrations), réseau Chromium, build, navigateur FR/EN/mobile/accessibilité et Docker AMD64/ARM64. Le contrôle requis s’appelle exactement `verify`.
+3. Inspecter les captures synthétiques des écrans modifiés. Documenter les essais Safari/iOS et NAS effectivement réalisés, en séparant les validations historiques.
+4. Fusionner après ces contrôles. Vérifier aussi la publication de l’image du commit de `main` avant de l’annoncer disponible.
 
-## Essais à réaliser sur chaque NAS
+## Version stable
 
-| Essai                                                               | TrueNAS | Unraid  |
-| ------------------------------------------------------------------- | ------- | ------- |
-| Installation sur stockage vide ; code privé ; création propriétaire | À faire | À faire |
-| UID/GID par défaut et personnalisé ; volumes inscriptibles          | À faire | À faire |
-| Affichage, images locales, langues et ajout/import par Chromium     | À faire | À faire |
-| Contributions fictives, refus/validation et authentification        | À faire | À faire |
-| Redémarrage/recréation sans perte de données ou retour au setup     | À faire | À faire |
-| Mise à jour depuis l'image de départ en gardant les volumes         | À faire | À faire |
-| Sauvegarde puis restauration sur stockage vide, sessions révoquées  | À faire | À faire |
-| Accès LAN et HTTPS avec `APP_ORIGIN`, proxy de confiance si utilisé | À faire | À faire |
+1. Créer `vX.Y.Z` sur le commit validé, jamais sur une branche supposée inchangée. Ne jamais déplacer un tag publié ; une correction reçoit un nouveau numéro. Le tag historique 1.1 ne doit pas désigner le code 1.2.
+2. Attendre la CI du tag : elle refuse une divergence avec `package.json`, teste les deux architectures et publie le manifeste numéroté. La publication refuse de remplacer une version numérotée déjà présente. Aucun tag `latest` n’est publié.
+3. Vérifier anonymement le téléchargement GHCR, les deux architectures, la révision OCI, la version/révision de l’interface et le digest. Épingler le digest pour une référence immuable ; `main` est volontairement mobile et les références par commit ne remplacent pas le digest.
+4. Télécharger `release-inventory-amd64` et `release-inventory-arm64` du même run. Joindre les archives à la GitHub Release avec notes, commit, digest, résultats et limites. Les artefacts Actions expirent après 30 jours : leur copie dans la release permet de les conserver.
+5. Préserver MIT et les notices embarquées. Le SBOM npm n’inventorie pas Debian/Chromium ; l’inventaire final complète ce périmètre. Examiner les obligations des composants natifs lors de leur mise à jour.
 
-Pour TrueNAS, exécuter aussi les commandes officielles du
-[candidat catalogue](../deploy/truenas/README.md), régénérer les métadonnées et
-soumettre une PR dans `truenas/apps` après la demande d'application. Pour Unraid,
-le dépôt public sur sa branche par défaut doit contenir les fichiers du
-[guide Unraid](unraid.md) ; se connecter à https://ca.unraid.net/submit/new,
-effectuer **Validate** et **Scan**, corriger les retours puis soumettre.
+## Canaux, sauvegarde et entretien
 
-L'acceptation et le délai dépendent de chaque équipe de catalogue. Ne pas annoncer
-une disponibilité dans les stores sur la seule base d'une PR ou d'un XML valide.
+`main` reçoit les changements vérifiés et convient aux volontaires suivant le développement. Un tag numéroté/digest validé convient aux installations qui doivent rester stables. Ouicheur ne change pas le canal choisi par le propriétaire.
+
+Sauvegarder avant mise à jour, puis tester la restauration sur une copie. Pour revenir en arrière, associer l’ancienne image à sa sauvegarde de schéma correspondant dans un stockage vide. Une rétrogradation de l’image seule ne défait pas une migration. Voir les [notes 1.2.0](releases/1.2.0.md).
+
+Dependabot propose les mises à jour npm/Actions/Docker chaque semaine, sans auto-merge. La CI utilise les caches npm et Docker par architecture. Relever les durées par étape dans le run avant d’ajouter des caches ou de retirer des contrôles. Les marchands réels sont testés ponctuellement et volontairement ; les PR reposent sur des fixtures synthétiques.
+
+## Validation sur NAS
+
+Consigner version du NAS, architecture, image/digest, UID/GID et stockage. Une installation depuis YAML/XML ne prouve pas une présence dans un catalogue.
+
+| Essai                                                       | TrueNAS                            | Unraid                             |
+| ----------------------------------------------------------- | ---------------------------------- | ---------------------------------- |
+| Installation vide, code et propriétaire                     | À consigner pour la version finale | À consigner pour la version finale |
+| Permissions, images, import, langues et mobile              | À consigner                        | À consigner                        |
+| Partage, réservations, comptes proches et sessions          | À consigner                        | À consigner                        |
+| Redémarrage/recréation et mise à jour de données existantes | À consigner                        | À consigner                        |
+| Sauvegarde exportée et restauration dans un stockage vide   | À consigner                        | À consigner                        |
+
+Utiliser le [formulaire NAS](https://github.com/hloiseau/ouicheur/issues/new?template=nas.yml).
+
+## Catalogues — après validation et instruction de publication
+
+- Épingler l’image stable réellement publiée dans le XML Unraid et le candidat TrueNAS, puis vérifier l’installation de cette référence.
+- TrueNAS : suivre le [candidat](../deploy/truenas/README.md), régénérer et vérifier les métadonnées avec les outils officiels avant soumission.
+- Unraid : le propriétaire effectue **Validate**, **Scan** et la soumission dans [le portail](https://ca.unraid.net/submit/new), selon sa préférence pour les actions de navigateur.
+- Consigner les réponses des équipes avant d’annoncer une disponibilité. Les catalogues et annonces restent différés jusque-là.

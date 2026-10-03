@@ -11,6 +11,26 @@ export const english: Record<string, string> = {
     "The list changed. Results have been refreshed; continue from the first page.",
   "Le serveur est occupé. Réessayez dans un instant.":
     "The server is busy. Please try again shortly.",
+  "Signaler un problème": "Report a problem",
+  "Ces informations identifient le logiciel. Elles ne contiennent ni envies, ni liens privés, ni données de compte. Rien n’est envoyé automatiquement.":
+    "These details identify the software. They contain no wishes, private links or account data. Nothing is sent automatically.",
+  "Aperçu des informations techniques": "Technical information preview",
+  "Sélectionnez et copiez le texte dans l’aperçu.":
+    "Select and copy the text in the preview.",
+  "Copier les informations techniques": "Copy technical information",
+  "Préparer un signalement sur GitHub": "Prepare a GitHub report",
+  "Informations copiées.": "Information copied.",
+  "Le formulaire GitHub reste à compléter et à envoyer par vous. Ajoutez un lien marchand uniquement si vous souhaitez le rendre public.":
+    "You still need to complete and submit the GitHub form. Add a shop link only if you want to make it public.",
+  "Le marchand limite la lecture automatique. Vous pouvez ajouter l’envie manuellement ou fournir une page enregistrée.":
+    "The shop restricts automated access. You can add the wish manually or provide a saved page.",
+  "La cause n’est pas confirmée. Vous pouvez ajouter l’envie manuellement et nous transmettre les étapes qui reproduisent le problème.":
+    "The cause is not confirmed. You can add the wish manually and share the steps that reproduce the problem.",
+  Révision: "Revision",
+  "Construction locale sans commit intégré":
+    "Local build without an embedded commit",
+  "Construction locale": "Local build",
+  "Ajouter manuellement": "Add manually",
   ...finalEnglish,
   ...exchangeEnglish,
   ...trackingEnglish,

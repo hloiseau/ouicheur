@@ -1,12 +1,13 @@
 "use client";
 import type { GiftPriority } from "../lib/priority-labels";
 import type { WishlistPage } from "../lib/wishlist-query";
-import packageInfo from "../package.json";
+import { buildInfo } from "../lib/build-info";
 import { PageHeader } from "./page-header";
 import { SurpriseNotice } from "./surprise-notice";
 import { ListsEditor } from "./lists";
 import { SuggestionsInbox } from "./suggestions";
 import { Operations } from "./operations";
+import { SupportPanel } from "./support-panel";
 import { AccountSecurity } from "./account-security";
 import { Family } from "./family";
 import { History } from "./history";
@@ -417,10 +418,14 @@ export function Admin() {
             refresh={refresh}
           />
         )}
-        {page === "operations" &&
-          (!data.surprises_enabled || data.surprises_revealed) && (
-            <Operations />
-          )}
+        {page === "operations" && (
+          <div className="stack">
+            <SupportPanel />
+            {(!data.surprises_enabled || data.surprises_revealed) && (
+              <Operations />
+            )}
+          </div>
+        )}
         {page === "history" && (
           <History key={String(data.surprises_revealed)} onChange={refresh} />
         )}
@@ -460,7 +465,12 @@ export function Admin() {
             {t("Journal")}
           </button>
           {t("Vos données, chez vous.")}{" "}
-          <span>Ouicheur · {packageInfo.version}</span>
+          <span>
+            Ouicheur · {buildInfo.version} ·{" "}
+            {buildInfo.revision === "local"
+              ? t("Construction locale")
+              : buildInfo.revision.slice(0, 12)}
+          </span>
         </footer>
       </main>
     </div>

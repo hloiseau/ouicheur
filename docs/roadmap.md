@@ -6,16 +6,25 @@ Revue du 28 septembre 2026. [Suivi central : issue #2](https://github.com/hloise
 
 Des listes d’envies auto-hébergées pour les proches et les occasions, avec respect des budgets, seconde main, expériences et fait main.
 
-## Ordre de livraison
+## Finalisation 1.2.0 — 3 octobre 2026
 
-1. Terminer la publication et la recette de la 1.1.0 sur une copie des données TrueNAS (#3).
-2. **Lot A 1.2 : budget et disponibilité (#4)**. Premier lot de code, sans migration de base ni intégration de paiement.
-3. **Lot B : surprise puis suggestions (#5–#6)**. Écrire le modèle de visibilité avant de masquer les informations ; tester aussi API, exports et notifications.
-4. **Lot C : variantes, alternatives et cadeaux sans produit (#7–#9)**. Une seule quantité à satisfaire même si plusieurs boutiques sont proposées.
-5. **Lot D : calendrier, rappels et exports (#10–#11, #13)**. Canaux facultatifs et consentement explicite. L’historique/les alertes prix (#12) restent optionnels si les dépendances retardent la sortie.
-6. Développer les améliorations 1.x à partir des retours réels.
+Le socle libre inclut désormais les lots #4 à #23 : envies détaillées, outils de
+listes, coordination, comptes proches, sessions, notifications facultatives,
+suivi personnel, échanges familiaux et pagination. #24 apporte le diagnostic par
+commit, les formulaires de retours, les migrations/restaurations systématiques et
+les outils de livraison. Les critères détaillés et preuves restent dans les issues.
 
-Les titres 1.2 désignent une cible de backlog, pas une annonce que ces fonctionnalités sont déjà livrées. Les catalogues TrueNAS/Unraid et annonces restent différés jusqu’à la finalisation du produit.
+Les [notes 1.2.0](releases/1.2.0.md) définissent la version finale à publier ; les
+[contrôles de livraison](release-checklist.md) distinguent le code fusionné du tag
+stable, de l’image effectivement disponible et de la validation terrain. Le code
+historique 1.1 reste dans l’historique : ne pas le retagger sur le nouveau `main`.
+
+La suite porte sur la recette finale TrueNAS/Unraid et #45, puis sur les retours
+réels, les corrections et l’entretien des dépendances. Les catalogues et annonces
+attendent la validation du produit et l’instruction de publication.
+
+Les tables ci-dessous conservent le découpage initial pour retrouver les tickets ;
+elles ne constituent plus une liste de fonctionnalités restant à développer.
 
 ## Lire les priorités
 
