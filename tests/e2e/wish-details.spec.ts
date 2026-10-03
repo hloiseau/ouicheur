@@ -20,14 +20,16 @@ test("free experiences and second-hand variants have clear, accessible screens",
     .click();
   const dialog = page.getByRole("dialog");
   await dialog
-    .getByLabel("Type d’envie", { exact: true })
+    .getByRole("combobox", { name: "Type d’envie", exact: true })
     .selectOption("experience");
   await dialog
     .getByLabel("Nom de cette envie", { exact: true })
     .fill(`Promenade ${info.project.name}`);
-  await dialog.getByLabel("Budget", { exact: true }).selectOption("free");
   await dialog
-    .getByLabel("Quand ou comment offrir (facultatif)", { exact: true })
+    .getByRole("combobox", { name: "Budget", exact: true })
+    .selectOption("free");
+  await dialog
+    .getByLabel("Quand ou comment offrir (facultatif)", { exact: false })
     .fill("Un dimanche au parc");
   await page.screenshot({
     path: `test-results/wish-experience-editor-${info.project.name}.png`,
@@ -91,7 +93,7 @@ test("free experiences and second-hand variants have clear, accessible screens",
       view.getByText("A5 · Bleu · 2026", { exact: true }),
     ).toBeVisible();
     await view
-      .getByLabel("Offre choisie", { exact: true })
+      .getByRole("combobox", { name: "Offre choisie", exact: true })
       .selectOption({ index: 1 });
     await view.screenshot({
       path: `test-results/wish-offers-${info.project.name}.png`,

@@ -210,7 +210,13 @@ export function SuggestGift({
                   onChange={(e) => setValue({ ...value, url: e.target.value })}
                 />
               </Field>
-              <Field label={t("Message (facultatif)")}>
+              <Field
+                label={t(
+                  secret
+                    ? "Message (facultatif)"
+                    : "Message au propriétaire (facultatif)",
+                )}
+              >
                 <textarea
                   maxLength={2000}
                   value={value.message}

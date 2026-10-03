@@ -481,7 +481,7 @@ async function handle(
           owner: true,
           lists: [],
           revealSurprises: true,
-        }),
+        }).map((gift) => ({ ...gift, priority_id: gift.priority })),
         contributions: db.prepare("SELECT * FROM contributions").all(),
         payments: db.prepare("SELECT * FROM payments").all(),
         payment_events: db.prepare("SELECT * FROM payment_events").all(),
