@@ -1,3 +1,4 @@
+import { trackingEnglish } from "./tracking-messages.ts";
 import { finalEnglish } from "./final-messages.ts";
 import { productEnglish } from "./product-messages.ts";
 import { suggestionEnglish } from "./suggestion-messages.ts";
@@ -6,6 +7,7 @@ import { familyEnglish } from "./family-messages.ts";
 // French source messages and their English translations. Keep placeholders in both.
 export const english: Record<string, string> = {
   ...finalEnglish,
+  ...trackingEnglish,
   ...productEnglish,
   ...suggestionEnglish,
   ...accountEnglish,

@@ -113,13 +113,27 @@ export function updateReservation(
     .parse(input);
   return atomic(db, () => {
     const row = reservationStatus(db, token);
-    if (row.state === v.state) return;
-    if (row.state !== "reserved")
-      throw new AppError("Cette réservation n’est plus active.", 409);
-    db.prepare("UPDATE reservations SET state=? WHERE id=?").run(
-      v.state,
-      row.id,
-    );
-    audit(db, "reservation." + v.state, String(row.id));
+    updateReservationById(db, row.id, v.state);
   });
+}
+// Caller has proved possession of the token or an explicitly saved account mapping.
+// Runs inside the caller's transaction; never grants access to the current list.
+export function updateReservationById(
+  db: DatabaseSync,
+  id: string,
+  state: "purchased" | "cancelled",
+) {
+  const row = db
+    .prepare("SELECT state,expires_at FROM reservations WHERE id=?")
+    .get(id);
+  if (!row) throw new AppError("Réservation introuvable.", 404);
+  if (row.state === state) return;
+  if (
+    (row.state !== "reserved" &&
+      !(row.state === "purchased" && state === "cancelled")) ||
+    (row.state === "reserved" && String(row.expires_at) <= dateNow())
+  )
+    throw new AppError("Cette réservation n’est plus active.", 409);
+  db.prepare("UPDATE reservations SET state=? WHERE id=?").run(state, id);
+  audit(db, "reservation." + state, id);
 }
