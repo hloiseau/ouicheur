@@ -2,6 +2,11 @@
 
 ## Unreleased — 1.2 development
 
+- Écran Accès et sécurité : appareils connectés, révocation individuelle ou des
+  autres sessions, changement de mot de passe conservant l’appareil courant avec
+  rotation du jeton. Migration 014, récupération locale conservée et protection
+  contre les connexions concurrentes à une réinitialisation.
+
 - Priorités personnalisables : noms, nouveaux niveaux, ordre de tri et choix du
   niveau affiché avec un cœur. Filtres et formulaires reprennent ces réglages.
   Migration 013 préservant les affectations existantes, export et sauvegardes inclus.
