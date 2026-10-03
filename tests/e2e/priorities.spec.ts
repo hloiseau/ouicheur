@@ -85,6 +85,7 @@ test("priorities can be renamed, added and reordered without losing the wish dra
     await expect(
       page.getByLabel("Priority 1 name", { exact: true }),
     ).toHaveValue(customName);
+    await expect(page).toHaveTitle("Owner space · Ouicheur");
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     await page
       .getByRole("dialog", { name: "Manage priorities", exact: true })

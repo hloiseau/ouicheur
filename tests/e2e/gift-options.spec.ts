@@ -142,6 +142,8 @@ test("simple gift options and reversible owner purchase switch", async ({
         exact: true,
       }),
     ).not.toBeChecked();
+    // Client labels change before Next finishes streaming localized metadata.
+    await expect(page).toHaveTitle("Ouicheur · Little wishes");
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     const visitor = await guest.newPage();
     await visitor.goto(`/cadeaux/${gift.id}`);
