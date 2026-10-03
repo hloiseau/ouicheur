@@ -1,3 +1,4 @@
+import { offerIdentity, recordOfferPrice } from "./price-history.ts";
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { atomic, audit } from "./db.ts";
@@ -13,11 +14,13 @@ export async function refreshProduct(
     .prepare("SELECT url,target,quantity FROM gifts WHERE id=?")
     .get(id);
   if (!gift) throw new AppError("Cadeau introuvable.", 404);
+  const identity = offerIdentity(db, id);
   const check = randomUUID();
   try {
     const m = await extract(String(gift.url));
+    recordOfferPrice(db, identity, m, "manual");
     db.prepare(
-      "INSERT INTO product_checks(id,gift_id,url,price,currency,availability,previous_target,quantity,checked_at,state) VALUES (?,?,?,?,?,?,?,?,?,'ok')",
+      "INSERT INTO product_checks(id,gift_id,url,price,currency,availability,previous_target,quantity,checked_at,fingerprint,state) VALUES (?,?,?,?,?,?,?,?,?,?,'ok')",
     ).run(
       check,
       id,
@@ -28,8 +31,10 @@ export async function refreshProduct(
       gift.target,
       gift.quantity,
       dateNow(),
+      identity.fingerprint,
     );
   } catch {
+    recordOfferPrice(db, identity, null, "manual");
     db.prepare(
       "INSERT INTO product_checks(id,gift_id,url,previous_target,quantity,checked_at,state) VALUES (?,?,?,?,?,?,'failed')",
     ).run(check, id, gift.url, gift.target, gift.quantity, dateNow());
@@ -45,6 +50,8 @@ export function applyProductPrice(db: DatabaseSync, id: string) {
       .prepare("SELECT * FROM gifts WHERE id=?")
       .get(check.gift_id)!;
     if (
+      gift.budget_mode !== "fixed" ||
+      offerIdentity(db, String(gift.id)).fingerprint !== check.fingerprint ||
       gift.url !== check.url ||
       gift.target !== check.previous_target ||
       gift.quantity !== check.quantity ||

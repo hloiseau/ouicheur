@@ -8,13 +8,7 @@ import { DatabaseSync } from "node:sqlite";
 export const test = base.extend<{ resetRateLimits: void }>({
   resetRateLimits: [
     async ({}, use) => {
-      const marker = process.env.E2E_RUN_ID
-        ? `.local/e2e-${process.env.E2E_RUN_ID}.txt`
-        : ".local/e2e-current.txt";
-      const folder = resolve(readFileSync(marker, "utf8"));
-      if (!folder.startsWith(resolve(".local/e2e") + sep))
-        throw new Error("Refusing to reset quotas outside the test instance.");
-      const db = new DatabaseSync(join(folder, "wishlist.sqlite"));
+      const db = fixtureDatabase();
       try {
         db.exec("DELETE FROM rate_limits");
       } finally {
@@ -26,3 +20,13 @@ export const test = base.extend<{ resetRateLimits: void }>({
   ],
 });
 export { expect };
+
+export function fixtureDatabase() {
+  const marker = process.env.E2E_RUN_ID
+    ? `.local/e2e-${process.env.E2E_RUN_ID}.txt`
+    : ".local/e2e-current.txt";
+  const folder = resolve(readFileSync(marker, "utf8"));
+  if (!folder.startsWith(resolve(".local/e2e") + sep))
+    throw new Error("Refusing to reset quotas outside the test instance.");
+  return new DatabaseSync(join(folder, "wishlist.sqlite"));
+}

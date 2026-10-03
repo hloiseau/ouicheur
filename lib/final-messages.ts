@@ -286,4 +286,45 @@ export const finalEnglish: Record<string, string> = {
   "Réservation bientôt expirée": "Reservation expiring soon",
   "Baisse de prix ou disponibilité": "Price drop or availability",
   "Échec de sauvegarde": "Backup failed",
+  "Prix, disponibilité et alertes": "Price, availability and alerts",
+  "Les relevés ne changent jamais l’objectif ni les prix saisis. Les frais de livraison restent une indication manuelle distincte.":
+    "Observations never change the goal or entered prices. Shipping remains a separate manual estimate.",
+  "Offre à suivre": "Offer to watch",
+  "Lien principal": "Main link",
+  "Relever cette offre": "Check this offer",
+  "Le suivi automatique est en pause : source indisponible ou caractéristiques modifiées. Vérifiez le lien avant de le réactiver.":
+    "Automatic checks are paused: the source is unavailable or specifications have changed. Check the link before re-enabling.",
+  "Suivi enregistré. Activez le type « Baisse de prix ou disponibilité » dans vos notifications pour recevoir les alertes.":
+    "Watch saved. Enable “Price drop or availability” in your notifications to receive alerts.",
+  "Me prévenir à ce prix ou moins ({0})":
+    "Alert me at this price or lower ({0})",
+  "Prix unitaire hors livraison. Laisser vide pour ne pas surveiller un seuil.":
+    "Unit price excluding shipping. Leave blank to disable the price threshold.",
+  "Me prévenir d’un retour en stock": "Alert me when it is back in stock",
+  "Actualiser automatiquement cette offre": "Automatically check this offer",
+  "Au maximum un relevé par jour pour cette offre, 20 par jour pour l’instance et deux par heure pour un marchand. Un refus ou une erreur arrête ce suivi, sans contournement.":
+    "At most one check per day for this offer, 20 per day for the instance and two per hour for a merchant. A refusal or error stops these checks without bypassing restrictions.",
+  "J’ai vérifié que ce lien correspond bien à la variante choisie":
+    "I have checked that this link matches the chosen variant",
+  "Enregistrer ce suivi": "Save this watch",
+  "Historique des relevés": "Observation history",
+  Date: "Date",
+  "Prix unitaire": "Unit price",
+  Disponibilité: "Availability",
+  "Source du relevé": "Observation source",
+  "Non comparable": "Not comparable",
+  "Livraison indiquée : {0}": "Estimated shipping: {0}",
+  "Aucun relevé pour cette offre.": "No observations for this offer.",
+  "100 relevés au maximum par offre, conservés pendant 180 jours. Les devises et variantes différentes ne sont jamais comparées.":
+    "At most 100 observations per offer, kept for 180 days. Different currencies and variants are never compared.",
+  "Offre introuvable.": "Offer not found.",
+  "Cette envie n’a pas de lien marchand.": "This wish has no merchant link.",
+  "Confirmez que ce lien correspond à la variante choisie.":
+    "Confirm that this link matches the chosen variant.",
+  "Relevé enregistré sans modifier l’envie.":
+    "Observation saved without changing the wish.",
+  "Relevé indisponible ou non comparable. Aucun montant n’a été modifié.":
+    "Observation unavailable or not comparable. No amount was changed.",
+  "Relevé manuel": "Manual check",
+  "Relevé automatique": "Automatic check",
 };

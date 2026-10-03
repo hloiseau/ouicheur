@@ -28,9 +28,11 @@ function listForEvent(db: DatabaseSync, kind: string, key: string) {
       ? "SELECT g.list_id FROM contributions c JOIN gifts g ON g.id=c.gift_id WHERE c.id=?"
       : ["reservation", "reservation_expiring"].includes(kind)
         ? "SELECT g.list_id FROM reservations r JOIN gifts g ON g.id=r.gift_id WHERE r.id=?"
-        : kind === "suggestion"
-          ? "SELECT list_id FROM suggestions WHERE id=?"
-          : null;
+        : kind === "offer_changed"
+          ? "SELECT list_id FROM gifts WHERE id=? AND visibility<>'archived'"
+          : kind === "suggestion"
+            ? "SELECT list_id FROM suggestions WHERE id=?"
+            : null;
   return query ? String(db.prepare(query).get(key)?.list_id || "") : "";
 }
 export function notificationAccountAllowed(
@@ -257,6 +259,7 @@ export async function deliverNotifications(
       "reservation_expiring",
       "declaration",
       "suggestion",
+      "offer_changed",
     ].includes(kind)
       ? listForEvent(db, kind, source)
       : listId;

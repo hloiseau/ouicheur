@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import type { Element } from "domhandler";
-import { fetchHtml, fetchBrowserHtml } from "./fetch-browser";
-import { AppError, canonicalUrl, money, webUrl } from "./validation";
+import { fetchHtml, fetchBrowserHtml } from "./fetch-browser.ts";
+import { AppError, canonicalUrl, money, webUrl } from "./validation.ts";
 
 type JsonObject = Record<string, unknown>;
 const list = (value: unknown): unknown[] =>

@@ -105,6 +105,17 @@ async function check(cookie: string) {
   assert.equal(data.gifts[0].title, "Cadeau Docker");
 }
 try {
+  // Import the unbundled worker with runtime dependencies before starting the server.
+  docker(
+    "run",
+    "--rm",
+    "--entrypoint",
+    "node",
+    "ouicheur:local",
+    "--input-type=module",
+    "-e",
+    'await import("./lib/operations.ts")',
+  );
   const fresh = join(folder, "first-start");
   mkdirSync(fresh, { recursive: true });
   start(fresh);

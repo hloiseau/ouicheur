@@ -10,6 +10,8 @@ const config: NextConfig = {
     "tar",
     "zod",
     "nodemailer",
+    "cheerio",
+    "ipaddr.js",
   ],
   outputFileTracingIncludes: {
     "/*": ["./migrations/**/*", "./node_modules/playwright-core/**/*"],

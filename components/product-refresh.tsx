@@ -16,10 +16,14 @@ export function ProductRefresh({
   id,
   currency,
   onSaved,
+  onChecked,
+  allowApply = true,
 }: {
   id: string;
   currency: string;
   onSaved: () => void;
+  onChecked?: () => void;
+  allowApply?: boolean;
 }) {
   const { t, money, date } = useI18n();
   const [check, setCheck] = useState<Check | null>(null);
@@ -36,6 +40,7 @@ export function ProductRefresh({
           setError("");
           try {
             setCheck(await api("admin/products/refresh", { id }));
+            onChecked?.();
           } catch (e) {
             setError((e as Error).message);
           } finally {
@@ -72,7 +77,7 @@ export function ProductRefresh({
                     : "—",
                 )}
               </p>
-              {check.price && check.currency === currency ? (
+              {check.price && check.currency === currency && allowApply ? (
                 <button
                   type="button"
                   className="button secondary"
