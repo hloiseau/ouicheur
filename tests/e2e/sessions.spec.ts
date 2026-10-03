@@ -145,7 +145,7 @@ test("manage sessions and rotate passwords without losing the current device", a
     await page
       .getByRole("combobox", { name: "Langue", exact: true })
       .selectOption("en");
-    await expect(page).toHaveTitle("Ouicheur · Little wishes");
+    await expect(page).toHaveTitle("Owner space · Ouicheur");
     await expect(
       page.getByRole("heading", { name: "Connected devices", exact: true }),
     ).toBeVisible();
