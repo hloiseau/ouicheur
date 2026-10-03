@@ -156,7 +156,7 @@ test("the browser bookmark opens an authenticated preview without saving a wish"
   });
   await page.goto("/help");
   const code = await page
-    .getByLabel("Adresse du favori", { exact: true })
+    .getByRole("textbox", { name: "Adresse du favori", exact: true })
     .inputValue();
   expect(code).toMatch(/^javascript:/);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);

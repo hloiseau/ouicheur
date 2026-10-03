@@ -251,8 +251,6 @@ export function PublicWishlist({
       );
   return (
     <div
-      id={embedded ? undefined : "main"}
-      role={embedded ? undefined : "main"}
       className={
         embedded ? "personal-page owner-wishlist" : "personal-page container"
       }
@@ -280,7 +278,10 @@ export function PublicWishlist({
           style={{ backgroundImage: `url("${profile.background}")` }}
         />
       )}
-      <div>
+      <div
+        id={embedded ? undefined : "main"}
+        role={embedded ? undefined : "main"}
+      >
         {!embedded && (
           <ProfileHeader
             profile={
