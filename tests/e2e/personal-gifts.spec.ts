@@ -174,10 +174,25 @@ test("occasion templates require an explicit private creation and remain unavail
   expect(examples).toHaveLength(3);
   const guest = await browser.newContext({ baseURL: origin });
   try {
-    expect((await guest.request.get(`/lists/${list.id}`)).status()).toBe(404);
     expect(
-      (await guest.request.get(`/cadeaux/${examples[0].id}`)).status(),
+      (
+        await guest.request.get(`/api/lists/${list.id}/export?format=json`)
+      ).status(),
     ).toBe(404);
+    // Next streams a not-found boundary with HTTP 200 after headers were sent.
+    const visitor = await guest.newPage();
+    await visitor.goto(`/lists/${list.id}`);
+    await expect(visitor.getByText(name, { exact: true })).toHaveCount(0);
+    await expect(visitor.locator("main h1")).toContainText(
+      /introuvable|found|perdue/i,
+    );
+    await visitor.goto(`/cadeaux/${examples[0].id}`);
+    await expect(
+      visitor.getByText(examples[0].title, { exact: true }),
+    ).toHaveCount(0);
+    await expect(visitor.locator("main h1")).toContainText(
+      /introuvable|found|perdue/i,
+    );
   } finally {
     await guest.close();
   }
