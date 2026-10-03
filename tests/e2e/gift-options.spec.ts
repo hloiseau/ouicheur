@@ -22,7 +22,7 @@ test("simple gift options and reversible owner purchase switch", async ({
   await expect(
     page.getByText(/ChatGPT|Sendico|Fermer les nouvelles intentions/),
   ).toHaveCount(0);
-  await expect(page.getByRole("switch")).toHaveCount(0);
+  await expect(page.getByRole("dialog").getByRole("switch")).toHaveCount(0);
   await expect(page.getByRole("checkbox", { name: /acheté/ })).toHaveCount(0);
   const title = `Un cadeau tout simple ${info.project.name}`;
   await page
@@ -33,9 +33,12 @@ test("simple gift options and reversible owner purchase switch", async ({
   await page
     .getByRole("checkbox", { name: "Mettre cette envie en pause", exact: true })
     .check();
+  await page
+    .getByRole("checkbox", { name: "Mettre cette envie en pause", exact: true })
+    .scrollIntoViewIfNeeded();
   await page.screenshot({
     path: `test-results/gift-options-${info.project.name}.png`,
-    fullPage: true,
+    fullPage: false,
     scale: "css",
   });
   await page

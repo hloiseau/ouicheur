@@ -668,7 +668,7 @@ export function PublicWishlist({
                     {giftPriority(gift) &&
                       (gift.priority !== 0 ||
                         giftPriority(gift)?.name ||
-                        giftPriority(gift)?.featured) && (
+                        !!giftPriority(gift)?.featured) && (
                         <span className="card-badge">
                           {gift.priority === featured?.id && (
                             <Icon name="heart" size={12} />

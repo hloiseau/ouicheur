@@ -517,6 +517,7 @@ export function SuggestionsInbox({
         <GiftEditor
           gift={null}
           priorities={priorities}
+          onCategoriesChanged={() => void refresh()}
           categories={categories}
           currency={currency}
           listId={selected.list_id}

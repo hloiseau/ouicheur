@@ -1,5 +1,5 @@
 "use client";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { priorityLabel, type GiftPriority } from "../lib/priority-labels";
 import { useI18n } from "./language";
 import { Modal } from "./modal";
@@ -17,6 +17,7 @@ export function PrioritiesEditor({
 }) {
   const { t } = useI18n();
   const radioGroup = useId();
+  const nextKey = useRef(0);
   const [previous] = useState(priorities);
   const [rows, setRows] = useState<Draft[]>(
     priorities.map((p) => ({ id: p.id, name: p.name, key: String(p.id) })),
@@ -91,6 +92,7 @@ export function PrioritiesEditor({
                   <input
                     type="radio"
                     name={radioGroup}
+                    aria-label={t("Afficher {0} avec un cœur", label(row))}
                     checked={featured === row.key}
                     onChange={() => setFeatured(row.key)}
                   />
@@ -141,12 +143,10 @@ export function PrioritiesEditor({
           type="button"
           className="button secondary"
           disabled={busy || rows.length >= 30}
-          onClick={() =>
-            setRows((items) => [
-              ...items,
-              { name: "", key: crypto.randomUUID() },
-            ])
-          }
+          onClick={() => {
+            const key = `new-${nextKey.current++}`;
+            setRows((items) => [...items, { name: "", key }]);
+          }}
         >
           {t("Ajouter une priorité")}
         </button>

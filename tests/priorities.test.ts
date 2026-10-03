@@ -63,6 +63,11 @@ test("renamed and added priorities sort by configuration, reject stale edits and
   try {
     await initializeOwner(db, "Test", "test-only-password-2026");
     const previous = listPriorities(db);
+    assert.equal(
+      Object.getPrototypeOf(previous[0]),
+      Object.prototype,
+      "React Server Components require plain objects",
+    );
     const original = saveGift(db, { ...input, priority: 2 });
     const value = {
       previous,

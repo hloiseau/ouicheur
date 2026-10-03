@@ -30,6 +30,13 @@ test("priorities can be renamed, added and reordered without losing the wish dra
       ).status(),
     ).toBe(401);
     await page.goto("/admin");
+    // A NAS on plain HTTP does not provide crypto.randomUUID in the browser.
+    await page.evaluate(() =>
+      Object.defineProperty(crypto, "randomUUID", {
+        value: undefined,
+        configurable: true,
+      }),
+    );
     await page
       .getByRole("button", { name: "Ajouter une envie", exact: true })
       .click();
@@ -88,11 +95,20 @@ test("priorities can be renamed, added and reordered without losing the wish dra
         () => document.documentElement.scrollWidth > innerWidth,
       ),
     ).toBe(false);
+    await manager.evaluate((el) => el.scrollTo(0, 0));
     await page.screenshot({
       path: `test-results/priorities-manager-${info.project.name}.png`,
-      fullPage: true,
+      fullPage: false,
       scale: "css",
     });
+    if (info.project.name === "mobile") {
+      await manager.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+      await page.screenshot({
+        path: "test-results/priorities-manager-mobile-bottom.png",
+        fullPage: false,
+        scale: "css",
+      });
+    }
     await manager
       .getByRole("button", { name: "Enregistrer", exact: true })
       .click();

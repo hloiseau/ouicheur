@@ -12,6 +12,7 @@ export const english: Record<string, string> = {
     "Priorities, from highest to lowest",
   "Nom de la priorité {0}": "Priority {0} name",
   "Afficher avec un cœur": "Show with a heart",
+  "Afficher {0} avec un cœur": "Show {0} with a heart",
   "Monter {0}": "Move {0} up",
   "Descendre {0}": "Move {0} down",
   "Ajouter une priorité": "Add a priority",

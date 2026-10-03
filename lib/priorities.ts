@@ -9,7 +9,8 @@ export function listPriorities(db: DatabaseSync): GiftPriority[] {
     .prepare(
       "SELECT id,name,position,featured FROM gift_priorities ORDER BY position,id",
     )
-    .all() as GiftPriority[];
+    .all()
+    .map((row) => ({ ...row })) as GiftPriority[];
 }
 const rowSchema = z.object({
   id: z.number().int().nonnegative().optional(),
