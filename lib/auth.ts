@@ -59,13 +59,48 @@ export async function setPassword(db: DatabaseSync, password: string) {
     audit(db, "owner.password_changed", "1");
   });
 }
-export function createSession(db: DatabaseSync) {
+export const sessionLifetime = 12 * 60 * 60 * 1000;
+// Keep only broad, allowlisted browser/OS families, never the raw User-Agent or IP.
+export function sessionDevice(userAgent = "") {
+  const ua = userAgent.slice(0, 512);
+  const browser = /Edg(?:e|A|iOS)?\//.test(ua)
+    ? "Edge"
+    : /(?:Firefox|FxiOS)\//.test(ua)
+      ? "Firefox"
+      : /(?:Chrome|CriOS)\//.test(ua)
+        ? "Chrome"
+        : /Safari\//.test(ua)
+          ? "Safari"
+          : "";
+  const platform = /iPhone|iPad/.test(ua)
+    ? "iOS"
+    : /Android/.test(ua)
+      ? "Android"
+      : /Windows/.test(ua)
+        ? "Windows"
+        : /Macintosh|Mac OS X/.test(ua)
+          ? "macOS"
+          : /Linux/.test(ua)
+            ? "Linux"
+            : "";
+  return [browser, platform].filter(Boolean).join(" · ");
+}
+export function createSession(db: DatabaseSync, userAgent = "") {
   const token = randomBytes(32).toString("hex");
-  const expires = Date.now() + 12 * 60 * 60 * 1000;
-  db.prepare("DELETE FROM sessions WHERE expires < ?").run(Date.now());
-  db.prepare("INSERT INTO sessions(hash,expires) VALUES (?,?)").run(
+  const now = Date.now();
+  db.prepare("DELETE FROM sessions WHERE expires <= ?").run(now);
+  db.prepare(
+    "INSERT INTO sessions(hash,expires,id,created_at,last_seen,device) VALUES (?,?,?,?,?,?)",
+  ).run(
     hashToken(token),
-    expires,
+    now + sessionLifetime,
+    randomBytes(16).toString("hex"),
+    now,
+    now,
+    sessionDevice(userAgent),
+  );
+  db.exec(
+    "DELETE FROM sessions WHERE hash IN (SELECT hash FROM sessions ORDER BY created_at DESC,rowid DESC LIMIT -1 OFFSET 100)",
   );
   return token;
 }

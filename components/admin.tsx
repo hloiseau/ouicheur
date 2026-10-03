@@ -6,6 +6,7 @@ import { SurpriseNotice } from "./surprise-notice";
 import { ListsEditor } from "./lists";
 import { SuggestionsInbox } from "./suggestions";
 import { Operations } from "./operations";
+import { AccountSecurity } from "./account-security";
 import { History } from "./history";
 import type { Wishlist } from "../lib/lists";
 import { LanguageSwitcher, useI18n } from "./language";
@@ -72,6 +73,7 @@ const navigation = [
   { key: "history", label: "Historique", icon: "book" },
   { key: "operations", label: "Mon instance", icon: "lock" },
   { key: "profile", label: "Mon profil", icon: "user" },
+  { key: "security", label: "Accès et sécurité", icon: "lock" },
 ];
 export function Admin() {
   const { t, date } = useI18n();
@@ -377,6 +379,7 @@ export function Admin() {
         {page === "profile" && (
           <ProfileEditor profile={data.profile} refresh={refresh} />
         )}
+        {page === "security" && <AccountSecurity onChange={refresh} />}
         {page === "audit" && (
           <section className="panel">
             <div className="panel-heading">
@@ -679,49 +682,17 @@ function ProfileEditor({
           </p>
         </aside>
       </form>
-      <form
-        className="panel stack"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          setBusy(true);
-          setError("");
-          const f = new FormData(e.currentTarget);
-          try {
-            await api("admin/password", {
-              current: f.get("current"),
-              password: f.get("password"),
-            });
-            location.reload();
-          } catch (e) {
-            setError((e as Error).message);
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
+      <section className="panel stack">
         <h2>{t("Protéger mon espace")}</h2>
-        <Field label={t("Mot de passe actuel")}>
-          <input
-            name="current"
-            type="password"
-            required
-            autoComplete="current-password"
-          />
-        </Field>
-        <Field label={t("Nouveau mot de passe (12 caractères minimum)")}>
-          <input
-            name="password"
-            type="password"
-            required
-            minLength={12}
-            maxLength={256}
-            autoComplete="new-password"
-          />
-        </Field>
-        <button className="button secondary" disabled={busy}>
-          {t("Changer le mot de passe et fermer les sessions")}{" "}
-        </button>
-      </form>
+        <p>
+          {t(
+            "Gérez votre mot de passe et vos appareils connectés dans Accès et sécurité.",
+          )}
+        </p>
+        <a className="button secondary" href="/admin?tab=security">
+          {t("Accès et sécurité")}
+        </a>
+      </section>
       <section className="panel">
         <h2>{t("Emporter mes données")}</h2>
         <p>

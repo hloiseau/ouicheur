@@ -1,4 +1,11 @@
 import { listPriorities, savePriorities } from "../../../lib/priorities";
+import {
+  changeSessionPassword,
+  listSessions,
+  loginOwner,
+  revokeSessions,
+  touchSession,
+} from "../../../lib/sessions";
 import { productGet, productPost } from "../../../lib/product-api";
 import {
   createSuggestion,
@@ -29,8 +36,6 @@ import {
   hashToken,
   rateLimit,
   requireOrigin,
-  setPassword,
-  verifyPassword,
 } from "../../../lib/auth";
 import { listGifts, saveGift, setGiftPurchased } from "../../../lib/gifts";
 import {
@@ -151,7 +156,7 @@ async function handle(
       return authCookie(
         request,
         response({ ok: true }, 201),
-        createSession(db),
+        createSession(db, request.headers.get("user-agent") || ""),
       );
     }
     if (path === "login" && request.method === "POST") {
@@ -159,19 +164,15 @@ async function handle(
       const value = z
         .object({ password: z.string().min(1).max(256) })
         .parse(await body(request));
-      const owner = db
-        .prepare("SELECT password_hash FROM owner WHERE id=1")
-        .get();
-      if (
-        !owner ||
-        !(await verifyPassword(value.password, String(owner.password_hash)))
-      )
-        throw new AppError(
-          "Connexion impossible. Vérifiez le mot de passe.",
-          401,
-        );
-      audit(db, "owner.login", "1");
-      return authCookie(request, response({ ok: true }), createSession(db));
+      return authCookie(
+        request,
+        response({ ok: true }),
+        await loginOwner(
+          db,
+          value.password,
+          request.headers.get("user-agent") || "",
+        ),
+      );
     }
     if (path === "contributions" && request.method === "POST") {
       rateLimit(db, `intent:${ip}`, 30, 60 * 60000);
@@ -248,6 +249,24 @@ async function handle(
     }
     if (!authorized(db, token))
       throw new AppError("Connexion administrateur requise.", 401);
+    touchSession(db, token!);
+    if (path === "admin/sessions" && request.method === "GET")
+      return response(listSessions(db, token!));
+    if (path === "admin/sessions/revoke" && request.method === "POST") {
+      const v = z
+        .object({
+          id: z.union([
+            z.literal("others"),
+            z.string().regex(/^[a-f0-9]{32}$/),
+          ]),
+          confirm: z.literal(true),
+        })
+        .parse(await body(request, 1024));
+      const result = revokeSessions(db, token!, v.id);
+      return result.signed_out
+        ? authCookie(request, response(result), "", 0)
+        : response(result);
+    }
     const access = accessFromCookies(db, request.cookies);
     const hiddenSurprises = hiddenSurpriseLists(db, access);
     if (path === "admin/suggestions" && request.method === "GET")
@@ -425,13 +444,14 @@ async function handle(
       const v = z
         .object({ current: z.string().max(256), password: z.string().max(256) })
         .parse(data);
-      const owner = db
-        .prepare("SELECT password_hash FROM owner WHERE id=1")
-        .get()!;
-      if (!(await verifyPassword(v.current, String(owner.password_hash))))
-        throw new AppError("Mot de passe actuel incorrect.", 403);
-      await setPassword(db, v.password);
-      return authCookie(request, response({ ok: true }), "", 0);
+      const replacement = await changeSessionPassword(
+        db,
+        token!,
+        v.current,
+        v.password,
+        request.headers.get("user-agent") || "",
+      );
+      return authCookie(request, response({ ok: true }), replacement);
     }
     if (path === "admin/profile") {
       const v = z
