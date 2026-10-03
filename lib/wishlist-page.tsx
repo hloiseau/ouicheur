@@ -47,8 +47,14 @@ export async function renderWishlist(listId?: string, preview = false) {
       categories={categories}
       lists={listId ? lists.filter((l) => l.id === listId) : lists}
       initialList={listId || ""}
+      member={!!access.memberId}
       surprise={
-        access.recipient && lists.some((l) => l.surprise_mode)
+        lists.some(
+          (l) =>
+            l.surprise_mode &&
+            access.recipientLists?.includes(l.id) &&
+            (!listId || l.id === listId),
+        )
           ? { revealed: !!access.revealSurprises }
           : undefined
       }

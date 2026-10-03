@@ -1,4 +1,6 @@
 export const familyEnglish: Record<string, string> = {
+  "La modification des envies protégées demande une révélation volontaire. Une visite anonyme à une liste publique ou l’accès au serveur peut contourner ce mode de confort.":
+    "Editing protected wishes requires deliberately revealing surprises. An anonymous visit to a public list or access to the server can bypass this convenience feature.",
   "Famille et coorganisateurs": "Family and coorganizers",
   "Si vous perdez votre accès, demandez au propriétaire une nouvelle invitation. Vos envies seront conservées.":
     "If you lose access, ask the owner for a new invitation. Your wishes will be preserved.",

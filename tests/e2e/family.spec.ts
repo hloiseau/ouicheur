@@ -38,7 +38,7 @@ test("owner invites a coorganizer, assigns a family profile and prepares a priva
     await context.request.post("/api/admin/gifts", {
       headers,
       data: {
-        url: `https://example.com/secret-${info.project.name}`,
+        url: `https://example.com/family-isolation-${info.project.name}`,
         title: "Envie secrète autre foyer",
         target: "50",
         list_id: forbidden.id,
@@ -55,7 +55,7 @@ test("owner invites a coorganizer, assigns a family profile and prepares a priva
     .fill(`Alex ${info.project.name}`);
   const login = `alex-${info.project.name}`;
   await dialog
-    .getByLabel("Identifiant de connexion", { exact: true })
+    .getByLabel("Identifiant de connexion", { exact: false })
     .fill(login);
   await dialog.getByRole("checkbox", { name: listName, exact: true }).check();
   await dialog
@@ -193,9 +193,17 @@ test("owner invites a coorganizer, assigns a family profile and prepares a priva
         )
       ).status(),
     ).toBe(404);
-    expect((await joined.request.get(`/lists/${forbidden.id}`)).status()).toBe(
-      404,
-    );
+    const denied = await joined.newPage();
+    await denied.goto(`/lists/${forbidden.id}`);
+    await expect(
+      denied.getByRole("heading", {
+        name: "Cette envie est introuvable.",
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(await denied.content()).not.toContain("Secret autre foyer");
+    expect(await denied.content()).not.toContain("Envie secrète autre foyer");
+    await denied.close();
     expect(
       (
         await joined.request.post("/api/team/gifts", {
@@ -320,6 +328,7 @@ test("a recipient account preserves its surprises and can manage only its own se
   context,
   browser,
 }, info) => {
+  test.setTimeout(90000);
   await context.request.post("/api/login", {
     headers,
     data: { password: "test-only-password-2026" },
@@ -409,6 +418,48 @@ test("a recipient account preserves its surprises and can manage only its own se
       .getByRole("button", { name: "Masquer mes surprises", exact: true })
       .click();
     await expect(viewer.getByRole("switch")).toHaveCount(0);
+    await viewer.goto(`/lists/${list.id}`);
+    await expect(
+      viewer
+        .locator(".public-masthead")
+        .getByRole("link", { name: "Mon espace", exact: false }),
+    ).toHaveAttribute("href", "/organiser");
+    await expect(
+      viewer.getByRole("button", {
+        name: "Révéler pour cette session",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await viewer.goto(`/cadeaux/${summary.gifts[0].id}`);
+    await expect(
+      viewer.getByText("Ce cadeau a été acheté par le propriétaire.", {
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    viewer.once("dialog", (d) => void d.accept());
+    await viewer
+      .getByRole("button", { name: "Révéler pour cette session", exact: true })
+      .click();
+    await expect(
+      viewer.getByText("Ce cadeau a été acheté par le propriétaire.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await viewer.goto(`/lists/${list.id}`);
+    await viewer
+      .getByRole("button", { name: "Masquer à nouveau", exact: true })
+      .click();
+    await expect(
+      viewer.getByRole("button", {
+        name: "Révéler pour cette session",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await viewer
+      .locator(".public-masthead")
+      .getByRole("link", { name: "Mon espace", exact: false })
+      .click();
+    await expect(viewer).toHaveURL(`${origin}/organiser`);
     await viewer
       .getByRole("button", { name: "Accès et sécurité", exact: true })
       .click();

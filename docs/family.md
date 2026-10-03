@@ -16,6 +16,12 @@ prépare**. Pour revenir, elle ouvre la page de connexion, coche **Je suis
 coorganisateur**, puis saisit son identifiant et son mot de passe. Le propriétaire
 garde sa connexion habituelle avec son seul mot de passe.
 
+Un invité sans compte garde les parcours existants : consulter les listes
+publiques ou accessibles par un lien personnel, réserver, contribuer et proposer
+une envie lorsque la liste l’autorise. Il ne peut pas ouvrir une liste privée ni
+modifier les envies. Le statut de destinataire est indépendant des permissions :
+un adulte peut préparer une liste tout en préservant ses propres surprises.
+
 | Action                                                                              | Propriétaire      | Coorganisateur                                    |
 | ----------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------- |
 | Voir les listes privées, brouillons et archives                                     | Toutes ses listes | Listes explicitement confiées                     |

@@ -64,10 +64,14 @@ export function TeamWorkspace() {
       </PageHeader>
       <main id="main" className="container owner-main team-workspace">
         <header className="admin-header">
-          <h1>
-            {security ? t("Accès et sécurité") : t("Les listes que je prépare")}
-          </h1>
-          {data && <p>{t("Connecté en tant que {0}", data.account.name)}</p>}
+          <div className="team-heading">
+            <h1>
+              {security
+                ? t("Accès et sécurité")
+                : t("Les listes que je prépare")}
+            </h1>
+            {data && <p>{t("Connecté en tant que {0}", data.account.name)}</p>}
+          </div>
           <div className="form-actions">
             <button
               className="button secondary"
