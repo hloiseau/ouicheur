@@ -1,4 +1,6 @@
 "use client";
+import { hasBudget } from "../lib/wish-details";
+import { SecretSuggestions } from "./secret-suggestions";
 import { useEffect, useState } from "react";
 import type { Gift } from "../lib/gifts";
 import type { Wishlist } from "../lib/lists";
@@ -154,6 +156,10 @@ export function TeamWorkspace() {
                   </button>
                 </section>
               )}
+              <details className="panel stack">
+                <summary>{t("Idées secrètes à préparer")}</summary>
+                <SecretSuggestions />
+              </details>
               {!data.lists.length ? (
                 <Notice>
                   {t("Aucune liste ne vous est confiée pour le moment.")}
@@ -200,7 +206,15 @@ export function TeamWorkspace() {
                             />
                           )}
                           <h2>{g.title}</h2>
-                          <p>{money(g.target, g.currency)}</p>
+                          <p>
+                            {hasBudget(g)
+                              ? money(g.target, g.currency)
+                              : t(
+                                  g.budget_mode === "free"
+                                    ? "Sans dépense nécessaire"
+                                    : "Budget non précisé",
+                                )}
+                          </p>
                           <p>
                             {g.visibility === "archived"
                               ? t("Archivé (privé)")

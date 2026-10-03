@@ -1,3 +1,4 @@
+import { setSuggestionCoordinator } from "../../../lib/secret-suggestions";
 import { listPriorities, savePriorities } from "../../../lib/priorities";
 import {
   acceptInvitation,
@@ -455,7 +456,7 @@ async function handle(
     if (path === "admin/export" && request.method === "GET") {
       requireSurpriseReveal(db, access);
       const data = atomic(db, () => ({
-        version: 4,
+        version: 5,
         family: familyExport(db),
         priorities: listPriorities(db),
         lists: listLists(db, { owner: true, lists: [] }),
@@ -476,7 +477,11 @@ async function handle(
           )
           .get(),
         categories: db.prepare("SELECT * FROM categories").all(),
-        gifts: db.prepare("SELECT * FROM gifts").all(),
+        gifts: listGifts(db, true, {
+          owner: true,
+          lists: [],
+          revealSurprises: true,
+        }),
         contributions: db.prepare("SELECT * FROM contributions").all(),
         payments: db.prepare("SELECT * FROM payments").all(),
         payment_events: db.prepare("SELECT * FROM payment_events").all(),
@@ -508,6 +513,10 @@ async function handle(
     if (path.startsWith("admin/family/")) {
       if (!authorized(db, token))
         throw new AppError("Connexion administrateur requise.", 401);
+      if (path === "admin/family/coordinator") {
+        setSuggestionCoordinator(db, data);
+        return response({ ok: true });
+      }
       if (path === "admin/family/invite")
         return response(inviteMember(db, data));
       if (path === "admin/family/access") {

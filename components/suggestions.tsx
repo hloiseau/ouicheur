@@ -61,6 +61,8 @@ export function SuggestGift({
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [secret, setSecret] = useState(false);
+  const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [token, setToken] = useState("");
@@ -96,7 +98,9 @@ export function SuggestGift({
             <div className="stack">
               <Notice>
                 {t(
-                  "Votre suggestion a été envoyée. Elle reste privée jusqu’à la décision du propriétaire.",
+                  secret
+                    ? "Votre idée secrète a été confiée au coorganisateur de cette liste."
+                    : "Votre suggestion a été envoyée. Elle reste privée jusqu’à la décision du propriétaire.",
                 )}
               </Notice>
               <TrackingLink token={token} />
@@ -104,6 +108,7 @@ export function SuggestGift({
                 className="button secondary"
                 onClick={() => {
                   setToken("");
+                  setConsent(false);
                   setValue((v) => ({
                     ...v,
                     title: "",
@@ -126,7 +131,10 @@ export function SuggestGift({
                 setBusy(true);
                 setError("");
                 try {
-                  const r = await api<{ token: string }>("suggestions", value);
+                  const r = await api<{ token: string }>("suggestions", {
+                    ...value,
+                    recipient_visible: !secret,
+                  });
                   setToken(r.token);
                 } catch (e) {
                   setError((e as Error).message);
@@ -137,15 +145,19 @@ export function SuggestGift({
             >
               <p>
                 {t(
-                  "Le propriétaire lira votre idée, votre pseudo et votre message, même en mode surprise. Les autres visiteurs ne voient pas votre proposition.",
+                  secret
+                    ? "Seul le coorganisateur désigné peut lire et préparer cette idée dans l’application. Le destinataire ne la voit pas, même en révélant ses surprises."
+                    : "Le propriétaire lira votre idée, votre pseudo et votre message, même en mode surprise. Les autres visiteurs ne voient pas votre proposition.",
                 )}
               </p>
               <Field label={t("Liste")}>
                 <select
                   value={value.list_id}
-                  onChange={(e) =>
-                    setValue({ ...value, list_id: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setValue({ ...value, list_id: e.target.value });
+                    setSecret(false);
+                    setConsent(false);
+                  }}
                 >
                   {lists.map((l) => (
                     <option key={l.id} value={l.id}>
@@ -154,6 +166,23 @@ export function SuggestGift({
                   ))}
                 </select>
               </Field>
+              {lists.find((l) => l.id === value.list_id)
+                ?.secret_suggestions_available && (
+                <Field label={t("Qui peut lire cette idée ?")}>
+                  <select
+                    value={secret ? "secret" : "owner"}
+                    onChange={(e) => {
+                      setSecret(e.target.value === "secret");
+                      setConsent(false);
+                    }}
+                  >
+                    <option value="owner">{t("Le propriétaire")}</option>
+                    <option value="secret">
+                      {t("Le coorganisateur, en secret")}
+                    </option>
+                  </select>
+                </Field>
+              )}
               <Field label={t("Votre idée")}>
                 <input
                   required
@@ -181,7 +210,7 @@ export function SuggestGift({
                   onChange={(e) => setValue({ ...value, url: e.target.value })}
                 />
               </Field>
-              <Field label={t("Message au propriétaire (facultatif)")}>
+              <Field label={t("Message (facultatif)")}>
                 <textarea
                   maxLength={2000}
                   value={value.message}
@@ -194,13 +223,13 @@ export function SuggestGift({
                 <input
                   type="checkbox"
                   required
-                  checked={value.recipient_visible}
-                  onChange={(e) =>
-                    setValue({ ...value, recipient_visible: e.target.checked })
-                  }
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
                 />
                 {t(
-                  "Je comprends que cette proposition sera visible au propriétaire.",
+                  secret
+                    ? "Je confie cette idée au coorganisateur. Comme toute donnée auto-hébergée, elle reste accessible à la personne qui administre le serveur et ses sauvegardes."
+                    : "Je comprends que cette proposition sera visible au propriétaire.",
                 )}
               </label>
               {error && <Notice error>{error}</Notice>}
@@ -312,6 +341,13 @@ export function SuggestionTracker() {
           {value && (
             <>
               <h2>{value.title}</h2>
+              {value.secret && (
+                <Notice>
+                  {t(
+                    "Idée secrète : supprimer la proposition supprime aussi sa préparation privée.",
+                  )}
+                </Notice>
+              )}
               <strong>{t(labels[value.state])}</strong>
               <p>{date(value.created_at)}</p>
               {value.nickname && <p>{value.nickname}</p>}

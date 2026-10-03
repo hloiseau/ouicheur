@@ -1,4 +1,7 @@
 "use client";
+import type { GiftOffer, WishKind } from "../lib/wish-details";
+import { variantSummary, offerConditions } from "../lib/wish-details";
+import type { ReservedDetails } from "../lib/reservation-details";
 import { useEffect, useState } from "react";
 import { api, Field, Notice } from "./ui";
 import { useI18n } from "./language";
@@ -7,12 +10,17 @@ export function ReservationForm({
   giftId,
   available,
   closed,
+  offers = [],
+  kind = "product",
 }: {
   giftId: string;
   available: number;
   closed: boolean;
+  offers?: GiftOffer[];
+  kind?: WishKind;
 }) {
   const { t } = useI18n();
+  const [offerId, setOfferId] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -21,7 +29,9 @@ export function ReservationForm({
       <h2>{t("Offrir ce cadeau directement")}</h2>
       <p>
         {t(
-          "Réservez pendant 14 jours, achetez chez le marchand puis confirmez l’achat avec votre lien personnel. Aucun paiement n’est enregistré par Ouicheur.",
+          kind === "product"
+            ? "Réservez pendant 14 jours, achetez chez le marchand puis confirmez l’achat avec votre lien personnel. Aucun paiement n’est enregistré par Ouicheur."
+            : "Réservez votre attention pendant 14 jours, puis confirmez quand elle est prête à offrir. Aucun paiement n’est enregistré par Ouicheur.",
         )}
       </p>
       <p>
@@ -47,6 +57,7 @@ export function ReservationForm({
               const r = await api<{ token: string }>("reservations", {
                 gift_id: giftId,
                 quantity,
+                offer_id: offerId || null,
               });
               window.location.assign(`/reservation/${r.token}`);
             } catch (e) {
@@ -55,6 +66,22 @@ export function ReservationForm({
             }
           }}
         >
+          {!!offers.length && (
+            <Field label={t("Offre choisie")}>
+              <select
+                value={offerId}
+                onChange={(e) => setOfferId(e.target.value)}
+              >
+                <option value="">{t("Envie principale")}</option>
+                {offers.map((o, i) => (
+                  <option value={o.id} key={o.id}>
+                    {t("Offre {0}", i + 1)} · {t(offerConditions[o.condition])}{" "}
+                    · {new URL(o.url).hostname}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field label={t("Quantité")}>
             <input
               type="number"
@@ -77,6 +104,8 @@ export function ReservationForm({
 export function ReservationStatus({ token }: { token: string }) {
   const { t, date } = useI18n();
   const [data, setData] = useState<{
+    details: ReservedDetails | null;
+    details_changed: boolean;
     quantity: number;
     state: string;
     expires_at: string;
@@ -104,6 +133,31 @@ export function ReservationStatus({ token }: { token: string }) {
       {!data && !error && <p role="status">{t("Chargement…")}</p>}
       {data && (
         <>
+          {data.details && (
+            <div className="stack">
+              <h2>{data.details.title}</h2>
+              <p>
+                {variantSummary({
+                  ...data.details,
+                  variant_policy: data.details.variant_policy as
+                    "exact" | "flexible",
+                  kind: data.details.kind as WishKind,
+                })}
+              </p>
+              {data.details.offer_note && <p>{data.details.offer_note}</p>}
+              <p>
+                {t("Caractéristiques conservées au moment de la réservation.")}
+              </p>
+            </div>
+          )}
+          {data.details_changed && (
+            <Notice>
+              {t(
+                "Cette envie a changé depuis votre réservation. Vérifiez les caractéristiques avec l’organisateur avant d’offrir.",
+              )}
+            </Notice>
+          )}
+
           <p>
             {data.state === "reserved"
               ? t(

@@ -17,6 +17,17 @@ test("Throne : les produits publics Next.js deviennent un aperçu sans frais ni 
   const items = parseThrone(html, "https://throne.com/fixture");
   assert.equal(items.length, 2);
   assert.deepEqual(items[0], {
+    kind: "product",
+    budget_mode: "fixed",
+    size: "",
+    color: "",
+    model: "",
+    variant_note: "",
+    variant_policy: "exact",
+    time_hint: "",
+    offers: [],
+    quantity: 1,
+    original_url: "https://www.amazon.fr/dp/B000TEST01?tag=tracking",
     source: "throne",
     source_id: "wish-camera",
     title: "Objectif photo",

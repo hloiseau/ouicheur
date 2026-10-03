@@ -90,7 +90,18 @@ test("family migration preserves owner, sessions, gift assignments and original 
       .sort())
       db.exec(readFileSync(`migrations/${file}`, "utf8"));
     await initializeOwner(db, "Owner", ownerPassword);
-    const id = saveGift(db, gift);
+    const id = randomUUID();
+    db.prepare(
+      "INSERT INTO gifts(id,url,title,target,currency,created_at,updated_at) VALUES (?,?,?,?,?,?,?)",
+    ).run(
+      id,
+      gift.url,
+      gift.title,
+      2500,
+      "EUR",
+      new Date().toISOString(),
+      new Date().toISOString(),
+    );
     const token = "c".repeat(64);
     db.prepare("INSERT INTO sessions(hash,expires,id) VALUES (?,?,?)").run(
       hashToken(token),
@@ -98,7 +109,10 @@ test("family migration preserves owner, sessions, gift assignments and original 
       "d".repeat(32),
     );
     const before = db.prepare("SELECT * FROM owner").get();
-    db.exec(readFileSync("migrations/015-family-accounts.sql", "utf8"));
+    for (const file of readdirSync("migrations")
+      .filter((f) => f.endsWith(".sql") && f >= "015")
+      .sort())
+      db.exec(readFileSync(`migrations/${file}`, "utf8"));
     assert.deepEqual(db.prepare("SELECT * FROM owner").get(), before);
     assert.ok(authorized(db, token));
     assert.equal(listGifts(db, true)[0].id, id);

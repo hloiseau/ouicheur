@@ -1,3 +1,4 @@
+import { variantKey, type WishDetails } from "./wish-details.ts";
 import { enqueueNotification } from "./notifications.ts";
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
@@ -20,13 +21,15 @@ import {
   dateNow,
   giftSchema,
   imageSchema,
+  wishDetailsSchema,
   money,
   webUrl,
 } from "./validation";
 import { saveGiftInTransaction } from "./gifts";
 import { downloadImage } from "./images";
 
-export type ImportItem = {
+export type ImportItem = WishDetails & {
+  quantity?: number;
   source: string;
   source_id: string;
   url: string;
@@ -62,8 +65,36 @@ function item(
     currency: String(input.currency || "").toUpperCase(),
     errors: [],
   };
+  const detailInput = { ...input, offers: input.offers };
+  if (typeof detailInput.offers === "string") {
+    try {
+      detailInput.offers = JSON.parse(detailInput.offers || "[]");
+    } catch {
+      detailInput.offers = null;
+    }
+  }
+  const details = wishDetailsSchema.safeParse(detailInput);
+  Object.assign(
+    result,
+    details.success ? details.data : wishDetailsSchema.parse({}),
+  );
+  result.offers = result.offers?.map(({ id: _id, ...o }) => o);
+  if (!details.success)
+    result.errors.push("Caractéristiques ou offres à vérifier.");
+  const quantity = Number(input.quantity || 1);
+  result.quantity =
+    Number.isInteger(quantity) && quantity >= 1 && quantity <= 999
+      ? quantity
+      : 1;
+  result.original_url = String(input.original_url || input.url || "").slice(
+    0,
+    2048,
+  );
   try {
-    result.url = canonicalUrl(String(input.url || ""));
+    result.url =
+      !input.url && result.kind !== "product"
+        ? ""
+        : canonicalUrl(String(input.url || ""));
   } catch {
     result.errors.push(
       "URL marchande manquante ou invalide : correction requise.",
@@ -71,7 +102,7 @@ function item(
   }
   if (!result.title) result.errors.push("Titre manquant.");
   try {
-    money(result.price);
+    if (result.budget_mode === "fixed") money(result.price);
   } catch {
     result.price = "";
     result.errors.push("Objectif à renseigner.");
@@ -241,10 +272,17 @@ export function parseGeneric(content: string, format: "csv" | "json") {
     return item(
       row,
       "generic",
-      String(row.source_id || row.url || `missing-${randomUUID()}`).slice(
-        0,
-        2048,
-      ),
+      String(
+        row.source_id ||
+          (row.url
+            ? variantKey({
+                url: String(row.url),
+                size: String(row.size || ""),
+                color: String(row.color || ""),
+                model: String(row.model || ""),
+              })
+            : `missing-${randomUUID()}`),
+      ).slice(0, 2048),
     );
   });
 }
@@ -512,9 +550,16 @@ export async function prepareImport(db: DatabaseSync, id: string) {
   const conversions = items.flatMap((item) => {
     const duplicate = db
       .prepare(
-        "SELECT currency FROM gifts WHERE url=? OR (source=? AND source_id=?)",
+        "SELECT currency FROM gifts WHERE (url<>'' AND url=? AND size=? COLLATE NOCASE AND color=? COLLATE NOCASE AND model=? COLLATE NOCASE) OR (source=? AND source_id=?)",
       )
-      .get(item.url, item.source, item.source_id);
+      .get(
+        item.url,
+        item.size || "",
+        item.color || "",
+        item.model || "",
+        item.source,
+        item.source_id,
+      );
     const currency = String(duplicate?.currency || owner.currency);
     return item.price && item.currency && item.currency !== currency
       ? [{ item, currency }]
@@ -577,15 +622,23 @@ export function getImport(db: DatabaseSync, id: string) {
   const seenUrls = new Map<string, number>();
   for (const [index, item] of items.entries()) {
     if (item.url) {
-      const previous = seenUrls.get(item.url);
+      const key = variantKey(item);
+      const previous = seenUrls.get(key);
       if (previous !== undefined) item.duplicate_index = previous;
-      else seenUrls.set(item.url, index);
+      else seenUrls.set(key, index);
     }
     const duplicate = db
       .prepare(
-        "SELECT id,currency FROM gifts WHERE url=? OR (source=? AND source_id=?)",
+        "SELECT id,currency FROM gifts WHERE (url<>'' AND url=? AND size=? COLLATE NOCASE AND color=? COLLATE NOCASE AND model=? COLLATE NOCASE) OR (source=? AND source_id=?)",
       )
-      .get(item.url, item.source, item.source_id);
+      .get(
+        item.url,
+        item.size || "",
+        item.color || "",
+        item.model || "",
+        item.source,
+        item.source_id,
+      );
     if (duplicate) {
       item.duplicate_id = String(duplicate.id);
       item.duplicate_currency = String(duplicate.currency);
@@ -630,9 +683,16 @@ export function commitImport(db: DatabaseSync, id: string, input: unknown) {
       seen.add(choice.index);
       const duplicates = db
         .prepare(
-          "SELECT id FROM gifts WHERE url=? OR (source=? AND source_id=?)",
+          "SELECT id FROM gifts WHERE (url<>'' AND url=? AND size=? COLLATE NOCASE AND color=? COLLATE NOCASE AND model=? COLLATE NOCASE) OR (source=? AND source_id=?)",
         )
-        .all(choice.gift.url, row.source, row.source_id);
+        .all(
+          choice.gift.url,
+          choice.gift.size,
+          choice.gift.color,
+          choice.gift.model,
+          row.source,
+          row.source_id,
+        );
       const duplicate = duplicates[0];
       if (choice.replace && duplicates.length > 1)
         throw new AppError(

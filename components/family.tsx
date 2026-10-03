@@ -21,7 +21,12 @@ type Member = {
 type FamilyData = {
   profiles: Person[];
   members: Member[];
-  lists: { id: string; name: string; profile_id: string | null }[];
+  lists: {
+    id: string;
+    name: string;
+    profile_id: string | null;
+    suggestion_coordinator: string | null;
+  }[];
 };
 export function Family({ onChange }: { onChange: () => Promise<void> }) {
   const { t, date } = useI18n();
@@ -296,6 +301,66 @@ export function Family({ onChange }: { onChange: () => Promise<void> }) {
             </Field>
             <button className="button secondary" disabled={busy}>
               {t("Enregistrer le destinataire")}
+            </button>
+          </form>
+        ))}
+      </section>
+      <section className="panel stack">
+        <h2>{t("Coordination des idées secrètes")}</h2>
+        <p>
+          {t(
+            "Choisissez un proche pour recevoir les idées surprises de chaque liste. Les propositions déjà envoyées restent confiées au même compte.",
+          )}
+        </p>
+        {data.lists.map((l) => (
+          <form
+            className="family-assignment"
+            key={`${l.id}-${l.suggestion_coordinator}`}
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const member_id = String(
+                new FormData(e.currentTarget).get("coordinator") || "",
+              );
+              setBusy(true);
+              setError("");
+              try {
+                await api("admin/family/coordinator", {
+                  list_id: l.id,
+                  member_id,
+                  confirm: true,
+                });
+                await refresh();
+                await onChange();
+              } catch (e) {
+                setError((e as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <Field label={t("Proche chargé des surprises : {0}", l.name)}>
+              <select
+                name="coordinator"
+                defaultValue={l.suggestion_coordinator || ""}
+              >
+                <option value="">{t("Désactivé")}</option>
+                {data.members
+                  .filter(
+                    (m) =>
+                      m.enabled &&
+                      m.lists.includes(l.id) &&
+                      data.profiles.find((p) => p.id === l.profile_id)
+                        ?.recipient !== m.id,
+                  )
+                  .map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+              </select>
+            </Field>
+            <button className="button secondary" disabled={busy}>
+              {t("Enregistrer")}
             </button>
           </form>
         ))}

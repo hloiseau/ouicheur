@@ -1,3 +1,7 @@
+import {
+  createSecretSuggestion,
+  manageSecretSuggestion,
+} from "./secret-suggestions.ts";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import ipaddr from "ipaddr.js";
@@ -32,7 +36,7 @@ export type Suggestion = {
 export type SuggestionStatus = Pick<
   Suggestion,
   "title" | "nickname" | "message" | "url" | "state" | "created_at"
->;
+> & { secret?: boolean };
 const fields =
   "s.id,s.list_id,s.title,s.nickname,s.message,s.url,s.state,s.gift_id,s.created_at,s.reviewed_at";
 
@@ -69,7 +73,7 @@ export function createSuggestion(
       nickname: text(80).default(""),
       message: text(2000).default(""),
       url: text(2048).default("").transform(proposalUrl),
-      recipient_visible: z.literal(true),
+      recipient_visible: z.boolean(),
     })
     .strict()
     .parse(input);
@@ -90,6 +94,7 @@ export function createSuggestion(
         "Les suggestions sont indisponibles pour cette liste.",
         404,
       );
+    if (!v.recipient_visible) return createSecretSuggestion(db, v);
     // Bound persistent storage even across changing client addresses and quotas.
     if (
       Number(
@@ -143,6 +148,10 @@ export function manageSuggestion(db: DatabaseSync, input: unknown) {
     .strict()
     .parse(input);
   return atomic(db, () => {
+    if (!/^[a-f0-9]{64}$/.test(v.token))
+      throw new AppError("Suggestion introuvable.", 404);
+    const secret = manageSecretSuggestion(db, v);
+    if (secret) return secret;
     const row = fromToken(db, v.token);
     if (v.action === "status") {
       const { title, nickname, message, url, state, created_at } = row;

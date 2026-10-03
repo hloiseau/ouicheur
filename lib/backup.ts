@@ -106,6 +106,14 @@ export function restoreInstance(source: string, destination: string) {
   for (const name of Object.keys(manifest.files))
     copyFileSync(join(folder, name), join(target, name));
   const restored = new DatabaseSync(join(target, "wishlist.sqlite"));
+  if (
+    restored
+      .prepare(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='secret_suggestions'",
+      )
+      .get()
+  )
+    restored.exec("UPDATE secret_suggestions SET token_hash=NULL");
   restored.exec("DELETE FROM sessions; DELETE FROM rate_limits;");
   if (
     restored

@@ -1,3 +1,4 @@
+import { variantKey } from "./wish-details.ts";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
@@ -47,7 +48,9 @@ export function familyAdmin(db: DatabaseSync) {
           .map((x) => String(x.list_id)),
       })),
     lists: db
-      .prepare("SELECT id,name,profile_id FROM lists ORDER BY created_at,id")
+      .prepare(
+        "SELECT l.id,l.name,l.profile_id,c.member_id suggestion_coordinator FROM lists l LEFT JOIN suggestion_coordinators c ON c.list_id=l.id ORDER BY l.created_at,l.id",
+      )
       .all(),
   };
 }
@@ -380,13 +383,30 @@ export function saveMemberGift(
       throw new AppError("Catégorie inconnue.");
     const duplicate = db
       .prepare(
-        "SELECT g.id FROM gifts g JOIN member_lists ml ON ml.list_id=g.list_id WHERE ml.member_id=? AND g.url=? AND g.id<>?",
+        "SELECT g.id FROM gifts g JOIN member_lists ml ON ml.list_id=g.list_id WHERE ml.member_id=? AND g.url<>'' AND g.url=? AND g.size=? COLLATE NOCASE AND g.color=? COLLATE NOCASE AND g.model=? COLLATE NOCASE AND g.id<>?",
       )
-      .get(access.memberId!, gift.url, id || "");
-    const previousUrl = id
-      ? db.prepare("SELECT url FROM gifts WHERE id=?").get(id)?.url
+      .get(
+        access.memberId!,
+        gift.url,
+        gift.size,
+        gift.color,
+        gift.model,
+        id || "",
+      );
+    const previousVariant = id
+      ? db.prepare("SELECT url,size,color,model FROM gifts WHERE id=?").get(id)
       : null;
-    if (duplicate && previousUrl !== gift.url && !gift.allow_duplicate)
+    if (
+      duplicate &&
+      (!previousVariant ||
+        variantKey({
+          url: String(previousVariant.url),
+          size: String(previousVariant.size),
+          color: String(previousVariant.color),
+          model: String(previousVariant.model),
+        }) !== variantKey(gift)) &&
+      !gift.allow_duplicate
+    )
       throw new AppError(
         "Ce lien produit existe déjà dans votre Ouichlist. Cochez « Autoriser un doublon » pour créer une autre envie.",
         409,

@@ -83,13 +83,44 @@ export function paypalLink(name: string, amount: number, currency: string) {
     throw new AppError("Le propriétaire n’a pas encore configuré PayPal.Me.");
   return `https://paypal.me/${paypalName(name)}/${Math.floor(amount / 100)}.${String(amount % 100).padStart(2, "0")}${currencySchema.parse(currency)}`;
 }
-export const giftSchema = z.object({
-  list_id: text(64).min(1).optional(),
+export const offerSchema = z.object({
+  id: z.uuid().optional(),
   url: urlSchema,
+  condition: z.enum(["new", "used", "refurbished", "handmade"]).default("new"),
+  note: text(500).default(""),
+  price: z.number().int().min(0).max(100000000).nullable().default(null),
+  currency: currencySchema.default("EUR"),
+  shipping: z.number().int().min(0).max(100000000).nullable().default(null),
+  availability: z
+    .enum(["unknown", "available", "unavailable"])
+    .default("unknown"),
+  checked_at: z.iso.datetime().nullable().default(null),
+});
+export const wishDetailsSchema = z.object({
+  kind: z
+    .enum(["product", "experience", "service", "handmade", "other"])
+    .default("product"),
+  budget_mode: z.enum(["fixed", "unknown", "free"]).default("fixed"),
+  size: text(100).default(""),
+  color: text(100).default(""),
+  model: text(160).default(""),
+  variant_note: text(500).default(""),
+  variant_policy: z.enum(["exact", "flexible"]).default("exact"),
+  time_hint: text(300).default(""),
+  original_url: text(2048).default(""),
+  offers: z.array(offerSchema).max(10).default([]),
+});
+export const giftSchema = z.object({
+  ...wishDetailsSchema.shape,
+  list_id: text(64).min(1).optional(),
+  url: z.union([z.literal(""), urlSchema]).default(""),
   title: text(160).min(1),
   description: text(2000).default(""),
   image: imageSchema.default(""),
-  target: amountSchema,
+  target: z
+    .string()
+    .default("")
+    .transform((v) => (v.trim() ? money(v, true) : 0)),
   quantity: z.number().int().min(1).max(999).default(1),
   allow_duplicate: z.boolean().default(false),
   category_id: text(64).nullable().default(null),
