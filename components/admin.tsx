@@ -106,7 +106,9 @@ export function Admin() {
       const updated = await api<AdminData>("admin");
       const add = new URLSearchParams(location.search).get("add");
       if (add !== null) {
-        location.assign(`/add?url=${encodeURIComponent(add)}`);
+        location.assign(
+          `/add?url=${encodeURIComponent(add)}&title=${encodeURIComponent(new URLSearchParams(location.search).get("add_title") || "")}`,
+        );
         return;
       }
       setData(updated);

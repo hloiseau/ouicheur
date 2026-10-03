@@ -11,6 +11,7 @@ import type { Appearance } from "./appearance";
 import { hiddenSurpriseLists, requireSurpriseReveal } from "./surprise.ts";
 
 export type Gift = WishDetails & {
+  position?: number;
   id: string;
   list_id: string;
   reserved: number | null;
@@ -259,6 +260,10 @@ export function saveGiftInTransaction(
     now,
   );
   db.prepare("UPDATE gifts SET list_id=? WHERE id=?").run(listId, id);
+  if (!existing)
+    db.prepare(
+      "UPDATE gifts SET position=COALESCE((SELECT MAX(position)+1 FROM gifts WHERE list_id=? AND id<>?),0) WHERE id=?",
+    ).run(listId, id, id);
   db.prepare(
     "UPDATE gifts SET kind=?,budget_mode=?,size=?,color=?,model=?,variant_note=?,variant_policy=?,time_hint=?,original_url=? WHERE id=?",
   ).run(

@@ -1,4 +1,5 @@
 "use client";
+import { PreferenceEditor } from "./list-tools";
 import { hasBudget } from "../lib/wish-details";
 import { SecretSuggestions } from "./secret-suggestions";
 import { useEffect, useState } from "react";
@@ -187,6 +188,12 @@ export function TeamWorkspace() {
                       {t("Ajouter une envie")}
                     </button>
                   </div>
+                  <details className="panel stack">
+                    <summary>
+                      {t("Préférences et notes de préparation")}
+                    </summary>
+                    <PreferenceEditor key={listId} listId={listId} />
+                  </details>
                   {!!selectedList?.archived && (
                     <Notice>{t("Cette liste est archivée.")}</Notice>
                   )}

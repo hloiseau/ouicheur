@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { dataDir } from "./db";
 import { variantKey, type WishDetails } from "./wish-details.ts";
 import { enqueueNotification } from "./notifications.ts";
 import { randomUUID } from "node:crypto";
@@ -81,6 +84,13 @@ function item(
   result.offers = result.offers?.map(({ id: _id, ...o }) => o);
   if (!details.success)
     result.errors.push("Caractéristiques ou offres à vérifier.");
+  if (
+    typeof input.image === "string" &&
+    imageSchema.safeParse(input.image).success &&
+    input.image &&
+    existsSync(join(dataDir(), "images", input.image.slice(7)))
+  )
+    result.image = input.image;
   const quantity = Number(input.quantity || 1);
   result.quantity =
     Number.isInteger(quantity) && quantity >= 1 && quantity <= 999
@@ -262,6 +272,14 @@ export function parseGeneric(content: string, format: "csv" | "json") {
       "Fichier invalide. Vérifiez le format de l’exemple CSV ou JSON.",
     );
   }
+  if (
+    rows &&
+    typeof rows === "object" &&
+    !Array.isArray(rows) &&
+    (rows as { schema?: string }).schema === "ouicheur.list" &&
+    (rows as { version?: number }).version === 1
+  )
+    rows = (rows as { gifts?: unknown }).gifts;
   if (!Array.isArray(rows) || rows.length > 200)
     throw new AppError("L’import attend un tableau de 200 éléments maximum.");
   if (!rows.length) throw new AppError("Le fichier d’import est vide.");
@@ -269,6 +287,13 @@ export function parseGeneric(content: string, format: "csv" | "json") {
     if (!value || typeof value !== "object" || Array.isArray(value))
       return item({}, "generic", `missing-${randomUUID()}`);
     const row = value as Record<string, unknown>;
+    if (row._ouicheur_schema === "ouicheur.list/1")
+      for (const key of Object.keys(row))
+        if (
+          typeof row[key] === "string" &&
+          /^'(?:\s*[=+\-@]|[\t\r\n'])/.test(row[key])
+        )
+          row[key] = row[key].slice(1);
     return item(
       row,
       "generic",
