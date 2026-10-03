@@ -74,6 +74,10 @@ if (existsSync("node_modules/@img")) {
     if (existsSync(path)) native[name] = JSON.parse(readFileSync(path, "utf8"));
   }
 }
+if (!Object.values(native).some((versions) => versions.vips))
+  throw Error(
+    "Native libvips component versions are missing from the final image",
+  );
 writeFileSync(
   join(destination, "runtime-inventory.json"),
   JSON.stringify(
