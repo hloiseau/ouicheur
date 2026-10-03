@@ -1,4 +1,5 @@
 "use client";
+import type { GiftPriority } from "../lib/priority-labels";
 import { useEffect, useState } from "react";
 import type { Wishlist } from "../lib/lists";
 import type { Suggestion, SuggestionStatus } from "../lib/suggestions";
@@ -357,10 +358,12 @@ export function SuggestionTracker() {
 }
 
 export function SuggestionsInbox({
+  priorities,
   categories,
   currency,
   refresh,
 }: {
+  priorities: GiftPriority[];
   categories: { id: string; name: string }[];
   currency: string;
   refresh: () => Promise<void>;
@@ -513,6 +516,7 @@ export function SuggestionsInbox({
       {selected && (
         <GiftEditor
           gift={null}
+          priorities={priorities}
           categories={categories}
           currency={currency}
           listId={selected.list_id}

@@ -1,3 +1,4 @@
+import { listPriorities, savePriorities } from "../../../lib/priorities";
 import { productGet, productPost } from "../../../lib/product-api";
 import {
   createSuggestion,
@@ -31,7 +32,7 @@ import {
   setPassword,
   verifyPassword,
 } from "../../../lib/auth";
-import { listGifts, saveGift } from "../../../lib/gifts";
+import { listGifts, saveGift, setGiftPurchased } from "../../../lib/gifts";
 import {
   hiddenSurpriseLists,
   requireSurpriseReveal,
@@ -306,6 +307,7 @@ async function handle(
         ),
         lists: listLists(db, { owner: true, lists: [] }),
         gifts: listGifts(db, true, access),
+        priorities: listPriorities(db),
         categories: db.prepare("SELECT * FROM categories ORDER BY name").all(),
         contributions: db
           .prepare(
@@ -328,7 +330,8 @@ async function handle(
     if (path === "admin/export" && request.method === "GET") {
       requireSurpriseReveal(db, access);
       const data = atomic(db, () => ({
-        version: 2,
+        version: 3,
+        priorities: listPriorities(db),
         lists: listLists(db, { owner: true, lists: [] }),
         reservations: db
           .prepare(
@@ -475,6 +478,7 @@ async function handle(
       });
       return response({ ok: true });
     }
+    if (path === "admin/priorities") return response(savePriorities(db, data));
     if (path === "admin/categories") {
       const v = z
         .object({
@@ -501,6 +505,13 @@ async function handle(
       return response({ ok: true });
     }
     if (path === "admin/gifts") return response({ id: saveGift(db, data) });
+    if (
+      segments[0] === "admin" &&
+      segments[1] === "gifts" &&
+      segments.length === 4 &&
+      segments[3] === "purchased"
+    )
+      return response(setGiftPurchased(db, segments[2], data, access));
     if (
       segments[0] === "admin" &&
       segments[1] === "gifts" &&

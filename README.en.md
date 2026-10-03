@@ -34,7 +34,9 @@ product update is validated. Existing image tags do not include an unmerged PR.
 
 ## Features
 
-- Multiple event lists, categories, quantities, priorities and profile customization.
+- Multiple event lists, categories, quantities and profile customization.
+- Rename, add and reorder priorities in **My wishes → Manage priorities**. Choose the level shown with a heart; all levels are available in the priority filter. Existing assignments are preserved.
+- Owners can mark a gift as bought with a reversible switch on its card or detail page. **Pause this wish** blocks new contributions and reservations while keeping existing records.
 - Public, unlisted and owner-only lists; revocable private links and local QR codes.
 - Anonymous gift reservations with a personal management link and 14-day expiration.
 - Direct PayPal.Me contributions, optional approval before counting, auditable payment corrections.

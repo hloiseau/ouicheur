@@ -1,4 +1,5 @@
 "use client";
+import type { GiftPriority } from "../lib/priority-labels";
 import { useI18n } from "./language";
 
 import { useEffect, useState } from "react";
@@ -18,6 +19,7 @@ type Job = {
 };
 type Choice = { selected: boolean; replace: boolean; gift: GiftDraft };
 export function Imports({
+  priorities,
   categories,
   currency,
   jobs,
@@ -26,6 +28,7 @@ export function Imports({
   lists = [],
 }: {
   lists?: Wishlist[];
+  priorities: GiftPriority[];
   categories: { id: string; name: string }[];
   currency: string;
   jobs: Omit<Job, "items">[];
@@ -445,6 +448,7 @@ export function Imports({
                                 ),
                               )
                             }
+                            priorities={priorities}
                             categories={categories}
                             currency={
                               choices[index].gift.allow_duplicate

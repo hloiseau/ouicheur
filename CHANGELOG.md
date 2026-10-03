@@ -2,6 +2,14 @@
 
 ## Unreleased — 1.2 development
 
+- Priorités personnalisables : noms, nouveaux niveaux, ordre de tri et choix du
+  niveau affiché avec un cœur. Filtres et formulaires reprennent ces réglages.
+  Migration 013 préservant les affectations existantes, export et sauvegardes inclus.
+- Interrupteur propriétaire « Cadeau acheté » sur les cartes et fiches, réversible
+  et compatible avec le mode surprise. Le formulaire propose désormais
+  « Mettre cette envie en pause », avec une explication de ses effets.
+- Retrait du parcours personnel ChatGPT / Sendico de l’interface.
+
 - Suggestions des proches activables par liste, modération par le propriétaire,
   acceptation atomique en une seule envie et suivi privé par lien révocable.
   Le pseudo et le message ne sont pas publiés automatiquement. Migration 012,

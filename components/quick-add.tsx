@@ -1,4 +1,5 @@
 "use client";
+import type { GiftPriority } from "../lib/priority-labels";
 import { useEffect, useState } from "react";
 import { GiftEditor } from "./admin-gifts";
 import { api, Notice } from "./ui";
@@ -7,6 +8,7 @@ export function QuickAdd({ url }: { url: string }) {
   const { t } = useI18n();
   const [data, setData] = useState<{
     profile: { currency: string };
+    priorities: GiftPriority[];
     categories: { id: string; name: string }[];
   } | null>(null);
   const [error, setError] = useState("");
@@ -28,6 +30,7 @@ export function QuickAdd({ url }: { url: string }) {
         <GiftEditor
           gift={null}
           initialUrl={url}
+          priorities={data.priorities}
           categories={data.categories}
           currency={data.profile.currency}
           onDone={() => location.assign("/admin")}

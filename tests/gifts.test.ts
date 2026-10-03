@@ -32,7 +32,7 @@ test("la migration désactive la recherche au Japon pour les envies existantes",
   }
 });
 
-test("chaque envie conserve son choix explicite de recherche au Japon", async () => {
+test("les anciennes options Japon restent compatibles sans être exposées", async () => {
   const db = openDatabase(":memory:");
   try {
     await initializeOwner(db, "Test", "test-only-password-2026");
@@ -40,24 +40,22 @@ test("chaque envie conserve son choix explicite de recherche au Japon", async ()
       title: "Appareil photo",
       url: "https://example.com/camera",
       target: "89",
-      visibility: "visible",
     };
-    const disabled = saveGift(db, input);
-    assert.equal(listGifts(db)[0].japan_search, 0);
-    const enabled = saveGift(db, {
-      ...input,
-      url: "https://example.com/camera-jp",
-      japan_search: true,
-    });
-    assert.equal(listGifts(db).find((g) => g.id === enabled)!.japan_search, 1);
-    assert.equal(listGifts(db).find((g) => g.id === disabled)!.japan_search, 0);
-    saveGift(db, { ...input, japan_search: true }, disabled);
-    assert.equal(listGifts(db).find((g) => g.id === disabled)!.japan_search, 1);
-    saveGift(db, { ...input, japan_search: false }, disabled);
-    assert.equal(listGifts(db).find((g) => g.id === disabled)!.japan_search, 0);
-    assert.throws(() =>
-      saveGift(db, { ...input, japan_search: "false" }, disabled),
+    const id = saveGift(db, { ...input, japan_search: true });
+    assert.equal(
+      db.prepare("SELECT japan_search FROM gifts WHERE id=?").get(id)!
+        .japan_search,
+      0,
     );
+    db.prepare("UPDATE gifts SET japan_search=1 WHERE id=?").run(id);
+    assert.ok(!("japan_search" in listGifts(db)[0]));
+    saveGift(db, input, id);
+    assert.equal(
+      db.prepare("SELECT japan_search FROM gifts WHERE id=?").get(id)!
+        .japan_search,
+      1,
+    );
+    assert.equal(listGifts(db)[0].title, input.title);
   } finally {
     db.close();
   }

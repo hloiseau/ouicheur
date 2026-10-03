@@ -1,4 +1,5 @@
 "use client";
+import type { GiftPriority } from "../lib/priority-labels";
 import packageInfo from "../package.json";
 import { PageHeader } from "./page-header";
 import { SurpriseNotice } from "./surprise-notice";
@@ -43,6 +44,7 @@ type AdminData = {
   lists: Wishlist[];
   profile: Profile;
   gifts: Gift[];
+  priorities: GiftPriority[];
   categories: Category[];
   contributions: Contribution[];
   imports: {
@@ -285,6 +287,7 @@ export function Admin() {
               payments_enabled: Number(!!data.profile.paypal),
             }}
             gifts={data.gifts}
+            priorities={data.priorities}
             categories={data.categories}
             lists={data.lists}
             owner={{ gifts: data.gifts, currency: data.profile.currency }}
@@ -343,6 +346,7 @@ export function Admin() {
         {page === "imports" && (
           <Imports
             lists={data.lists}
+            priorities={data.priorities}
             categories={data.categories}
             currency={data.profile.currency}
             jobs={data.imports}
@@ -357,6 +361,7 @@ export function Admin() {
         )}
         {page === "suggestions" && (
           <SuggestionsInbox
+            priorities={data.priorities}
             categories={data.categories}
             currency={data.profile.currency}
             refresh={refresh}

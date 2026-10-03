@@ -1,3 +1,4 @@
+import { listPriorities } from "./priorities";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { database } from "./db";
@@ -40,6 +41,9 @@ export async function renderWishlist(listId?: string, preview = false) {
     <PublicWishlist
       profile={profile}
       gifts={gifts}
+      priorities={listPriorities(db).filter(
+        (p) => access.owner || gifts.some((g) => g.priority === p.id),
+      )}
       categories={categories}
       lists={listId ? lists.filter((l) => l.id === listId) : lists}
       initialList={listId || ""}
