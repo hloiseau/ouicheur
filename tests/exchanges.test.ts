@@ -291,9 +291,9 @@ test("exchange reminders require per-exchange consent and an enabled channel, st
 });
 
 test("restoring a snapshot cancels old exchanges instead of silently replaying a draw", async () => {
-  const f = await fixture(),
-    mkdirSync(resolve(".local"), { recursive: true });
-    folder = mkdtempSync(resolve(".local/exchange-restore-"));
+  const f = await fixture();
+  mkdirSync(resolve(".local"), { recursive: true });
+  const folder = mkdtempSync(resolve(".local/exchange-restore-"));
   try {
     const id = create(f);
     for (const m of f.members) accept(f, id, m.token, { reminders: true });
