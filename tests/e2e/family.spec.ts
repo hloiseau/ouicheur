@@ -75,7 +75,7 @@ test("owner invites a coorganizer, assigns a family profile and prepares a priva
     .fill(`Léa ${info.project.name}`);
   await page
     .getByRole("dialog")
-    .getByLabel("Type de profil", { exact: true })
+    .getByRole("combobox", { name: "Type de profil", exact: true })
     .selectOption("child");
   await page
     .getByRole("dialog")
