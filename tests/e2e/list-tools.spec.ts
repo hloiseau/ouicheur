@@ -155,10 +155,12 @@ test("the browser bookmark opens an authenticated preview without saving a wish"
     data: { password: "test-only-password-2026" },
   });
   await page.goto("/help");
-  const code = await page
-    .getByRole("textbox", { name: "Adresse du favori", exact: true })
-    .inputValue();
-  expect(code).toMatch(/^javascript:/);
+  const bookmark = page.getByRole("textbox", {
+    name: "Adresse du favori",
+    exact: true,
+  });
+  await expect(bookmark).toHaveValue(/^javascript:/);
+  const code = await bookmark.inputValue();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   const before = (await (await context.request.get("/api/admin")).json()).gifts
     .length;
