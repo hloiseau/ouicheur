@@ -93,15 +93,19 @@ export const giftSchema = z.object({
   quantity: z.number().int().min(1).max(999).default(1),
   allow_duplicate: z.boolean().default(false),
   category_id: text(64).nullable().default(null),
-  priority: z.number().int().min(0).max(2).default(0),
+  priority: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(Number.MAX_SAFE_INTEGER)
+    .default(0),
   visibility: z.preprocess(
     // Accept old saved forms while removing drafts from the current model.
     (value) => (value === "draft" ? "visible" : value),
     z.enum(["visible", "archived"]).default("visible"),
   ),
-  purchased: z.boolean().default(false),
+  purchased: z.boolean().optional(),
   closed: z.boolean().default(false),
-  japan_search: z.boolean().default(false),
   suggested_price: z
     .number()
     .int()

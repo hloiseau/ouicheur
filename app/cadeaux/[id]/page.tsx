@@ -1,3 +1,5 @@
+import { listPriorities } from "../../../lib/priorities";
+import { priorityLabel } from "../../../lib/priority-labels";
 import { PageHeader } from "../../../components/page-header";
 import { cookies } from "next/headers";
 import { accessFromCookies } from "../../../lib/lists";
@@ -10,7 +12,7 @@ import { listGifts, publicProfile } from "../../../lib/gifts";
 import { GiftArt, Progress } from "../../../components/public-wishlist";
 import { ContributionForm } from "../../../components/contribution";
 import { SurpriseNotice } from "../../../components/surprise-notice";
-import { JapanSearch } from "../../../components/japan-search";
+import { GiftPurchaseToggle } from "../../../components/gift-purchase-toggle";
 
 export const metadata = { robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -25,6 +27,7 @@ export default async function GiftPage({
   const access = accessFromCookies(db, await cookies());
   const gift = listGifts(db, access.owner, access).find((g) => g.id === id);
   const profile = publicProfile(db);
+  const priority = listPriorities(db).find((p) => p.id === gift?.priority);
   if (!gift || !profile) notFound();
   const supporters = db
     .prepare(
@@ -58,6 +61,11 @@ export default async function GiftPage({
             {gift.category || t("Une petite envie")}
           </span>
           <h1>{gift.title}</h1>
+          {priority && (
+            <p className="fine-print">
+              {t("Priorité")} : {priorityLabel(priority, t)}
+            </p>
+          )}
           <p className="detail-description">{gift.description}</p>
           {gift.quantity > 1 && (
             <p className="fine-print">
@@ -76,14 +84,14 @@ export default async function GiftPage({
           >
             {t("Voir le produit chez le marchand ↗")}{" "}
           </a>
-          <JapanSearch
-            japan_search={gift.japan_search}
-            title={gift.title}
-            url={gift.url}
-            description={gift.description}
-            target={gift.target}
-            currency={gift.currency}
-          />
+          {access.owner && !gift.surprise_hidden && (
+            <GiftPurchaseToggle
+              id={gift.id}
+              title={gift.title}
+              purchased={!!gift.purchased}
+              details
+            />
+          )}
           <div className="detail-progress">
             <Progress gift={gift} />
           </div>
@@ -91,6 +99,9 @@ export default async function GiftPage({
             <p className="notice">
               {t("Ce cadeau a été acheté par le propriétaire.")}{" "}
             </p>
+          )}
+          {!!gift.closed && !gift.purchased && (
+            <p className="notice">{t("Cette envie est en pause.")}</p>
           )}
           {gift.suggested_price != null && (
             <p className="fine-print">

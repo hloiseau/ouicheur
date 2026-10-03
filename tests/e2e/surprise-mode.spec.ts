@@ -85,6 +85,14 @@ test("surprise mode keeps owner payloads hidden while donors coordinate and the 
       });
     }
     expect(data.audit).toEqual([]);
+    expect(
+      (
+        await context.request.post(`/api/admin/gifts/${gift}/purchased`, {
+          headers,
+          data: { purchased: true },
+        })
+      ).status(),
+    ).toBe(409);
     for (const path of [
       "admin/export",
       "admin/operations",
@@ -128,6 +136,7 @@ test("surprise mode keeps owner payloads hidden while donors coordinate and the 
 
     await page.goto(`/lists/${list}`);
     await expect(page.locator(".gift-card")).toHaveCount(2);
+    await expect(page.getByRole("switch")).toHaveCount(0);
     await expect(
       page.getByText("1 exemplaire réservé", { exact: true }),
     ).toHaveCount(0);

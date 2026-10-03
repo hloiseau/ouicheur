@@ -4,6 +4,27 @@ import { suggestionEnglish } from "./suggestion-messages.ts";
 export const english: Record<string, string> = {
   ...productEnglish,
   ...suggestionEnglish,
+  Retirer: "Remove",
+  "Gérer les priorités": "Manage priorities",
+  "Les envies sont triées de haut en bas selon cet ordre. Choisissez la priorité affichée avec un cœur sur les cartes et dans les filtres.":
+    "Wishes are sorted from top to bottom in this order. Choose the priority shown with a heart on cards and in filters.",
+  "Priorités, de la plus forte à la plus faible":
+    "Priorities, from highest to lowest",
+  "Nom de la priorité {0}": "Priority {0} name",
+  "Afficher avec un cœur": "Show with a heart",
+  "Afficher {0} avec un cœur": "Show {0} with a heart",
+  "Monter {0}": "Move {0} up",
+  "Descendre {0}": "Move {0} down",
+  "Ajouter une priorité": "Add a priority",
+  "Filtrer par priorité": "Filter by priority",
+  "Toutes les priorités": "All priorities",
+  "Les priorités ont changé. Rechargez la page avant de réessayer.":
+    "The priorities have changed. Reload the page before trying again.",
+  "Configuration des priorités invalide.": "Invalid priority configuration.",
+  "Donnez un nom à chaque priorité.": "Give each priority a name.",
+  "Chaque priorité doit avoir un nom différent.":
+    "Each priority must have a different name.",
+  "Priorité inconnue.": "Unknown priority.",
   "Modifier la liste": "Edit list",
   "Liste enregistrée.": "List saved.",
   "Importez une liste publique Amazon ou Throne, puis vérifiez les envies avant de les ajouter. Si le site bloque la lecture, utilisez une page enregistrée ou un fichier CSV/JSON.":
@@ -165,18 +186,6 @@ export const english: Record<string, string> = {
     "A gift can only be replaced once per import.",
   "La page marchande présente un contrôle d’accès. Réessayez plus tard.":
     "The merchant page requires an access check. Try again later.",
-  "Chiner au Japon avec ChatGPT": "Find it in Japan with ChatGPT",
-  "Activer la recherche au Japon avec ChatGPT et Sendico":
-    "Enable Japan search with ChatGPT and Sendico",
-  "Copiez ce prompt dans ChatGPT pour chiner depuis la France via Sendico, même si les sites japonais vous sont inaccessibles. Il demande des pistes vérifiables et une marche à suivre en cas de blocage.":
-    "Copy this prompt into ChatGPT to search from France through Sendico, even when Japanese sites are inaccessible to you. It asks for verifiable leads and practical steps when access is blocked.",
-  "Prompt de recherche au Japon": "Japan search prompt",
-  "Prompt et lien copiés ! Collez-les dans ChatGPT.":
-    "Prompt and link copied! Paste them into ChatGPT.",
-  "La copie automatique est indisponible. Copiez le texte sélectionné, puis collez-le dans ChatGPT.":
-    "Automatic copying is unavailable. Copy the selected text, then paste it into ChatGPT.",
-  "Copier le prompt et le lien": "Copy prompt and link",
-  "Ouvrir ChatGPT ↗": "Open ChatGPT ↗",
   "Throne — page enregistrée (HTML)": "Throne — saved page (HTML)",
   "Page Throne enregistrée (.html)": "Saved Throne page (.html)",
   "Importer une page enregistrée": "Import a saved page",
@@ -224,9 +233,15 @@ export const english: Record<string, string> = {
   Visibilité: "Visibility",
   "Visible sur ma Ouichlist": "Visible on my Ouichlist",
   "Archivé (privé)": "Archived (private)",
-  "Fermer les nouvelles intentions de contribution":
-    "Close new contribution requests",
-  "J’ai effectivement acheté ce cadeau": "I have purchased this gift",
+  "Mettre cette envie en pause": "Pause this wish",
+  "Bloque les nouvelles participations et réservations sans supprimer le cadeau. Les participations déjà commencées peuvent être finalisées.":
+    "Blocks new contributions and reservations without deleting the gift. Contributions already started can still be completed.",
+  "En pause": "Paused",
+  "Cette envie est en pause.": "This wish is paused.",
+  "Cadeau acheté": "Gift purchased",
+  "Cadeau acheté : {0}": "Gift purchased: {0}",
+  "Une fois acheté, ce cadeau n’accepte plus de nouvelles participations ni réservations. Vous pouvez annuler ce choix à tout moment.":
+    "Once purchased, this gift no longer accepts new contributions or reservations. You can undo this choice at any time.",
   "Modifier cette envie": "Edit this wish",
   "Une nouvelle envie": "A new wish",
   Fermer: "Close",

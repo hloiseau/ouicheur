@@ -66,6 +66,7 @@ export function filterWishlist<T extends FilterableGift>(
     availableOnly: boolean;
     sort: WishSort;
     locale: string;
+    priorityOrder?: Readonly<Record<number, number>>;
   },
 ): T[] {
   const normalize = (text: string) =>
@@ -95,7 +96,11 @@ export function filterWishlist<T extends FilterableGift>(
       );
     })
     .sort((a, b) => {
-      if (filters.sort === "priority") return b.priority - a.priority;
+      if (filters.sort === "priority")
+        return filters.priorityOrder
+          ? (filters.priorityOrder[a.priority] ?? 999) -
+              (filters.priorityOrder[b.priority] ?? 999)
+          : b.priority - a.priority;
       if (filters.sort === "title")
         return a.title.localeCompare(b.title, filters.locale, {
           sensitivity: "base",

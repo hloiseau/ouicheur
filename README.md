@@ -52,6 +52,8 @@ neuve reste vide.
 
 ## Personnaliser sa Ouichlist
 
+Dans **Mes envies → Gérer les priorités**, renommer les niveaux (y compris « Coup de cœur »), en ajouter et les réordonner. Le niveau marqué d’un cœur est repris dans l’onglet et sur les cartes ; le filtre permet de choisir n’importe quelle priorité. Ces réglages sont communs aux listes de l’instance, conservés dans les sauvegardes et inclus dans l’export JSON. Les envies existantes gardent leur priorité.
+
 Dans **My profile / Mon profil**, choisir l’avatar, la bannière et son cadrage, la présentation, les liens sociaux, une image de fond et la couleur d’accent. Les presets rose, acidulé et menthe reprennent la palette Ouicheur ; le sélecteur de couleur accepte aussi une teinte personnelle. L’aperçu réagit avant l’enregistrement, et la teinte des textes est ajustée pour rester lisible sur fond sombre.
 
 La grille peut être compacte ou aérée. Les catégories deviennent des collections visuelles dont la vignette vient des cadeaux ; les onglets permettent de retrouver toutes les envies, les coups de cœur et les envies réalisées. Les photos, réglages et contenus restent locaux et sont inclus dans les sauvegardes. Les anciens profils conservent leurs contenus et reçoivent le style Ouicheur par défaut.
@@ -106,9 +108,9 @@ Un dépassement d’objectif est conservé et affiché intégralement. L’objec
 
 Un changement de devise de l’instance concerne les nouveaux cadeaux. Les cadeaux existants conservent leur devise et ceux dans une ancienne devise sont fermés aux nouvelles intentions. Le destinataire PayPal.Me est conservé sur chaque intention afin qu’une modification ultérieure du profil n’en change pas le lien.
 
-Pour les objets à chiner au Japon, cocher **Activer la recherche au Japon avec ChatGPT et Sendico** lors de la création ou de la modification de l’envie (également disponible dans l’aperçu d’import). Cette option est désactivée par défaut, y compris pour les envies existantes, et peut être décochée à tout moment. Le bloc **Chiner au Japon avec ChatGPT** apparaît uniquement pour les envies activées, sur leur fiche et dans **Mes envies**. **Copier le prompt et le lien** reprend le produit, sa description et l’objectif de la Ouichlist ; le texte demande des annonces sur Yahoo! Flea Market et d’autres sites japonais, puis les étapes d’achat via Sendico avec vérification des frais et de la compatibilité. **Ouvrir ChatGPT** permet ensuite d’y coller le texte. Si le navigateur bloque le presse-papiers, le prompt reste sélectionnable pour une copie manuelle. Aucun compte API n’est nécessaire et aucune recherche ni commande n’est lancée automatiquement.
+**Cadeau acheté** est un interrupteur disponible pour le propriétaire sur les cartes de **Mes envies** et sur la fiche du cadeau. L’activer marque le cadeau comme acheté et bloque les nouvelles participations et réservations ; le désactiver annule ce statut sans modifier les sommes reçues ni les réservations existantes. Le mode surprise demande de révéler la liste avant de modifier cet état.
 
-Le prompt tient compte des accès bloqués depuis la France : consultation via Sendico lorsqu’elle est possible, distinction entre annonces vérifiées et simples pistes, puis requêtes japonaises et message au support si nécessaire. Pour modifier cette fonctionnalité ou reprendre son développement, lire le [contexte du parcours Japon depuis la France](docs/japan-search.md).
+Dans **Plus d’options**, **Mettre cette envie en pause** bloque les nouvelles participations et réservations sans supprimer le cadeau. Les participations déjà commencées peuvent être finalisées. Décocher l’option retire la pause ; les autres conditions de disponibilité restent applicables (achat, objectif atteint, réservation, etc.).
 
 ## Corrections, remboursements et journal
 

@@ -1,4 +1,6 @@
 "use client";
+import { priorityLabel, type GiftPriority } from "../lib/priority-labels";
+import { PrioritiesEditor } from "./priorities";
 import { useI18n } from "./language";
 
 import { useEffect, useId, useRef, useState } from "react";
@@ -26,9 +28,7 @@ export type GiftDraft = {
   category_id: string | null;
   priority: number;
   visibility: string;
-  purchased: boolean;
   closed: boolean;
-  japan_search: boolean;
 };
 export const blankGift = (): GiftDraft => ({
   url: "",
@@ -41,9 +41,7 @@ export const blankGift = (): GiftDraft => ({
   category_id: null,
   priority: 0,
   visibility: "visible",
-  purchased: false,
   closed: false,
-  japan_search: false,
 });
 export function giftDraft(gift: Gift): GiftDraft {
   return {
@@ -58,28 +56,30 @@ export function giftDraft(gift: Gift): GiftDraft {
     category_id: gift.category_id,
     priority: gift.priority,
     visibility: gift.visibility,
-    purchased: !!gift.purchased,
     closed: !!gift.closed,
-    japan_search: !!gift.japan_search,
   };
 }
 export function GiftFields({
   value,
   onChange,
+  priorities,
   categories,
   currency,
   simple = false,
   onImageBusy,
   showDuplicate = true,
+  onManagePriorities,
   onCreateCategory,
 }: {
   value: GiftDraft;
   onChange: (value: GiftDraft) => void;
+  priorities: GiftPriority[];
   categories: { id: string; name: string }[];
   currency: string;
   simple?: boolean;
   onImageBusy?: (busy: boolean) => void;
   showDuplicate?: boolean;
+  onManagePriorities?: () => void;
   onCreateCategory?: () => void;
 }) {
   const { t, money } = useI18n();
@@ -205,11 +205,22 @@ export function GiftFields({
               value={value.priority}
               onChange={(e) => set("priority", Number(e.target.value))}
             >
-              <option value={0}>{t("Une petite envie")}</option>
-              <option value={1}>{t("J’aimerais beaucoup")}</option>
-              <option value={2}>{t("Coup de cœur")}</option>
+              {priorities.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {priorityLabel(p, t)}
+                </option>
+              ))}
             </select>
           </Field>
+          {onManagePriorities && (
+            <button
+              type="button"
+              className="text-link priority-manage-link"
+              onClick={onManagePriorities}
+            >
+              {t("Gérer les priorités")}
+            </button>
+          )}
           <Field label={t("Visibilité")}>
             <select
               value={value.visibility}
@@ -227,30 +238,21 @@ export function GiftFields({
               maxLength={2000}
             />
           </Field>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={value.japan_search}
-              onChange={(e) => set("japan_search", e.target.checked)}
-            />
-            {t("Activer la recherche au Japon avec ChatGPT et Sendico")}
-          </label>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={value.closed}
-              onChange={(e) => set("closed", e.target.checked)}
-            />
-            {t("Fermer les nouvelles intentions de contribution")}{" "}
-          </label>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={value.purchased}
-              onChange={(e) => set("purchased", e.target.checked)}
-            />
-            {t("J’ai effectivement acheté ce cadeau")}{" "}
-          </label>
+          <div className="gift-pause-option">
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={value.closed}
+                onChange={(e) => set("closed", e.target.checked)}
+              />
+              {t("Mettre cette envie en pause")}
+            </label>
+            <p className="fine-print">
+              {t(
+                "Bloque les nouvelles participations et réservations sans supprimer le cadeau. Les participations déjà commencées peuvent être finalisées.",
+              )}
+            </p>
+          </div>
         </div>
       </Options>
     </>
@@ -258,6 +260,7 @@ export function GiftFields({
 }
 export function GiftEditor({
   gift,
+  priorities,
   categories,
   currency,
   onDone,
@@ -269,6 +272,7 @@ export function GiftEditor({
   onCategoriesChanged,
 }: {
   gift: Gift | null;
+  priorities: GiftPriority[];
   categories: { id: string; name: string }[];
   currency: string;
   onDone: () => void;
@@ -291,6 +295,11 @@ export function GiftEditor({
           title: proposed?.title || "",
         },
   );
+  const [priorityEditor, setPriorityEditor] = useState(false);
+  const [savedPriorities, setSavedPriorities] = useState<GiftPriority[] | null>(
+    null,
+  );
+  const priorityOptions = savedPriorities || priorities;
   const [categoryEditor, setCategoryEditor] = useState(false);
   const [createdCategories, setCreatedCategories] = useState<Category[]>([]);
   const categoryOptions = [
@@ -527,6 +536,8 @@ export function GiftEditor({
             onImageBusy={setUploading}
             value={value}
             onChange={setValue}
+            priorities={priorityOptions}
+            onManagePriorities={() => setPriorityEditor(true)}
             categories={categoryOptions}
             onCreateCategory={() => setCategoryEditor(true)}
             currency={gift?.currency || currency}
@@ -550,6 +561,17 @@ export function GiftEditor({
           </div>
         </form>
       </Modal>
+      {priorityEditor && (
+        <PrioritiesEditor
+          priorities={priorityOptions}
+          onClose={() => setPriorityEditor(false)}
+          onSaved={(items) => {
+            setSavedPriorities(items);
+            setPriorityEditor(false);
+            onCategoriesChanged?.();
+          }}
+        />
+      )}
       {categoryEditor && (
         <CategoryEditor
           category={null}

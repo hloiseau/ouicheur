@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import { z } from "zod";
 import { atomic, audit } from "./db";
 import { AppError, dateNow, giftSchema } from "./validation";
 import { listLists, publicAccess, type Access } from "./lists.ts";
 import { reservedQuantity } from "./reservations.ts";
 import type { Appearance } from "./appearance";
-import { hiddenSurpriseLists } from "./surprise.ts";
+import { hiddenSurpriseLists, requireSurpriseReveal } from "./surprise.ts";
 
 export type Gift = {
   id: string;
@@ -25,7 +26,6 @@ export type Gift = {
   visibility: string;
   purchased: number | null;
   closed: number | null;
-  japan_search: number;
   confirmed: number;
   funded: number;
   unknown_gross: number;
@@ -72,11 +72,15 @@ export function listGifts(
     COALESCE((SELECT SUM(p.net-p.net_reversed) FROM payments p JOIN contributions n ON n.id=p.contribution_id WHERE n.gift_id=g.id AND p.net IS NOT NULL),0) confirmed,
     COALESCE((SELECT SUM(p.gross-MAX(p.refunded,p.net_reversed)) FROM payments p JOIN contributions n ON n.id=p.contribution_id WHERE n.gift_id=g.id AND p.net IS NULL),0) unknown_gross
     FROM gifts g LEFT JOIN categories c ON c.id=g.category_id
+    LEFT JOIN gift_priorities gp ON gp.id=COALESCE(g.priority_id,g.priority)
     LEFT JOIN (${fundingTotalsSql}) f ON f.gift_id=g.id ${admin ? "" : "WHERE g.visibility='visible'"}
-    ORDER BY g.priority DESC,g.created_at DESC`,
+    ORDER BY gp.position,g.created_at DESC`,
     )
     .all(dateNow())
-    .map((row) => ({ ...row })) as Omit<Gift, "surprise_hidden">[];
+    .map(({ japan_search: _retired, priority_id, ...row }) => ({
+      ...row,
+      priority: priority_id ?? row.priority,
+    })) as Omit<Gift, "surprise_hidden">[];
   const hidden = hiddenSurpriseLists(db, access);
   return (
     admin ? rows : rows.filter((g) => allowed.includes(g.list_id))
@@ -95,6 +99,38 @@ export function listGifts(
 export function saveGift(db: DatabaseSync, input: unknown, id?: string) {
   const gift = giftSchema.parse(input);
   return atomic(db, () => saveGiftInTransaction(db, gift, id));
+}
+export function setGiftPurchased(
+  db: DatabaseSync,
+  id: string,
+  input: unknown,
+  access: Access,
+) {
+  if (!access.owner)
+    throw new AppError("Connexion administrateur requise.", 401);
+  const { purchased } = z
+    .object({ purchased: z.boolean() })
+    .strict()
+    .parse(input);
+  return atomic(db, () => {
+    const gift = db
+      .prepare("SELECT list_id,purchased FROM gifts WHERE id=?")
+      .get(id);
+    if (!gift) throw new AppError("Cadeau introuvable.", 404);
+    requireSurpriseReveal(db, access, String(gift.list_id));
+    if (!!gift.purchased !== purchased) {
+      db.prepare("UPDATE gifts SET purchased=?,updated_at=? WHERE id=?").run(
+        Number(purchased),
+        dateNow(),
+        id,
+      );
+      audit(db, "gift.purchase", id, {
+        before: !!gift.purchased,
+        after: purchased,
+      });
+    }
+    return { purchased };
+  });
 }
 // Called inside an existing transaction by import commit too.
 export function saveGiftInTransaction(
@@ -119,6 +155,10 @@ export function saveGiftInTransaction(
     !db.prepare("SELECT 1 FROM categories WHERE id=?").get(gift.category_id)
   )
     throw new AppError("Catégorie inconnue.");
+  if (
+    !db.prepare("SELECT 1 FROM gift_priorities WHERE id=?").get(gift.priority)
+  )
+    throw new AppError("Priorité inconnue.");
   const duplicate = db
     .prepare("SELECT id FROM gifts WHERE url=? AND id<>?")
     .get(gift.url, id);
@@ -140,10 +180,10 @@ export function saveGiftInTransaction(
       .get(source.source, source.source_id, id);
   const now = dateNow();
   db.prepare(
-    `INSERT INTO gifts(id,url,title,description,image,target,quantity,currency,category_id,priority,visibility,purchased,closed,japan_search,source,source_id,created_at,updated_at)
+    `INSERT INTO gifts(id,url,title,description,image,target,quantity,currency,category_id,priority,priority_id,visibility,purchased,closed,source,source_id,created_at,updated_at)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET url=excluded.url,title=excluded.title,description=excluded.description,
-    image=excluded.image,target=excluded.target,quantity=excluded.quantity,category_id=excluded.category_id,priority=excluded.priority,visibility=excluded.visibility,
-    purchased=excluded.purchased,closed=excluded.closed,japan_search=excluded.japan_search,updated_at=excluded.updated_at`,
+    image=excluded.image,target=excluded.target,quantity=excluded.quantity,category_id=excluded.category_id,priority=excluded.priority,priority_id=excluded.priority_id,visibility=excluded.visibility,
+    purchased=excluded.purchased,closed=excluded.closed,updated_at=excluded.updated_at`,
   ).run(
     id,
     gift.url,
@@ -154,11 +194,11 @@ export function saveGiftInTransaction(
     gift.quantity,
     existing?.currency || owner.currency,
     gift.category_id || null,
+    gift.priority <= 2 ? gift.priority : 0,
     gift.priority,
     gift.visibility,
-    Number(gift.purchased),
+    Number(gift.purchased ?? existing?.purchased ?? false),
     Number(gift.closed),
-    Number(gift.japan_search),
     source?.source || null,
     copiedSource ? null : source?.source_id || null,
     now,

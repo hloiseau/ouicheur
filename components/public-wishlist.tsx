@@ -1,4 +1,6 @@
 "use client";
+import { priorityLabel, type GiftPriority } from "../lib/priority-labels";
+import { PrioritiesEditor } from "./priorities";
 import { LanguageSwitcher, useI18n } from "./language";
 
 import type { Wishlist } from "../lib/lists";
@@ -14,7 +16,7 @@ import { ProfileHeader } from "./profile-header";
 import { Brand, Icon } from "./ui";
 import { GiftEditor } from "./admin-gifts";
 import { Categories, type Category } from "./categories";
-import { JapanSearch } from "./japan-search";
+import { GiftPurchaseToggle } from "./gift-purchase-toggle";
 import {
   filterWishlist,
   parseBudget,
@@ -100,6 +102,7 @@ export function Progress({
 export function PublicWishlist({
   profile,
   gifts,
+  priorities,
   categories,
   owner,
   embedded = false,
@@ -113,6 +116,7 @@ export function PublicWishlist({
   initialList?: string;
   profile: PublicProfile | null;
   gifts: PublicGift[];
+  priorities: GiftPriority[];
   categories: Category[];
   owner?: { gifts: Gift[]; currency: string };
   embedded?: boolean;
@@ -127,6 +131,14 @@ export function PublicWishlist({
   const currentList = lists.find((l) => l.id === selectedList);
   const [shown, setShown] = useState(24);
   const [editor, setEditor] = useState<Gift | "new" | null>(null);
+  const [priorityEditor, setPriorityEditor] = useState(false);
+  const [priorityFilter, setPriorityFilter] = useState("");
+  const featured = priorities.find((p) => p.featured);
+  const giftPriority = (gift: PublicGift) =>
+    priorities.find((p) => p.id === gift.priority);
+  const priorityOrder = Object.fromEntries(
+    priorities.map((p) => [p.id, p.position]),
+  );
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<WishSort>("priority");
@@ -140,6 +152,7 @@ export function PublicWishlist({
     setView("all");
     setSearch("");
     setCategory("");
+    setPriorityFilter("");
     setMinimum("");
     setMaximum("");
     setCurrency("");
@@ -167,7 +180,7 @@ export function PublicWishlist({
   const scoped = (safeView === "archived" && owner ? archived : active).filter(
     (gift) =>
       safeView === "favorites"
-        ? gift.priority === 2
+        ? gift.priority === featured?.id
         : safeView === "completed"
           ? completed(gift)
           : true,
@@ -198,6 +211,7 @@ export function PublicWishlist({
         scoped.filter(
           (gift) =>
             (!category || gift.category_id === category) &&
+            (!priorityFilter || gift.priority === Number(priorityFilter)) &&
             (!safeAvailableOnly ||
               !lists.find((list) => list.id === gift.list_id)?.archived),
         ),
@@ -210,6 +224,7 @@ export function PublicWishlist({
           availableOnly: safeAvailableOnly,
           sort,
           locale,
+          priorityOrder,
         },
       );
   return (
@@ -268,13 +283,21 @@ export function PublicWishlist({
                   <strong>{t("Mes envies")}</strong>
                 )}
               </div>
-              <button
-                className="button primary"
-                onClick={() => setEditor("new")}
-              >
-                <Icon name="plus" size={18} />
-                {t("Ajouter une envie")}
-              </button>
+              <div className="form-actions">
+                <button
+                  className="button secondary"
+                  onClick={() => setPriorityEditor(true)}
+                >
+                  {t("Gérer les priorités")}
+                </button>
+                <button
+                  className="button primary"
+                  onClick={() => setEditor("new")}
+                >
+                  <Icon name="plus" size={18} />
+                  {t("Ajouter une envie")}
+                </button>
+              </div>
             </div>
           )}
           {lists.length > 0 && (
@@ -351,8 +374,14 @@ export function PublicWishlist({
               },
               {
                 key: "favorites",
-                label: t("Coups de cœur"),
-                count: active.filter((g) => g.priority === 2).length,
+                label:
+                  featured?.name ??
+                  (featured?.id === 2
+                    ? t("Coups de cœur")
+                    : featured
+                      ? priorityLabel(featured, t)
+                      : t("Coups de cœur")),
+                count: active.filter((g) => g.priority === featured?.id).length,
                 icon: "heart",
               },
               {
@@ -372,7 +401,11 @@ export function PublicWishlist({
                   ]
                 : []),
             ]
-              .filter((item) => !hasHiddenSurprises || item.key !== "completed")
+              .filter(
+                (item) =>
+                  (!hasHiddenSurprises || item.key !== "completed") &&
+                  (item.key !== "favorites" || !!featured),
+              )
               .map((item) => (
                 <button
                   type="button"
@@ -380,6 +413,7 @@ export function PublicWishlist({
                   aria-pressed={safeView === item.key}
                   onClick={() => {
                     setView(item.key);
+                    setPriorityFilter("");
                     setCategory("");
                     setShown(24);
                   }}
@@ -421,6 +455,25 @@ export function PublicWishlist({
                     }}
                   />
                 </label>
+                <label className="sort-label priority-filter">
+                  {t("Priorité")}
+                  <select
+                    aria-label={t("Filtrer par priorité")}
+                    value={priorityFilter}
+                    onChange={(e) => {
+                      setPriorityFilter(e.target.value);
+                      setShown(24);
+                      if (view === "favorites") setView("all");
+                    }}
+                  >
+                    <option value="">{t("Toutes les priorités")}</option>
+                    {priorities.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {priorityLabel(p, t)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <label className="sort-label">
                   {t("Trier par")}{" "}
                   <select
@@ -430,7 +483,7 @@ export function PublicWishlist({
                       setShown(24);
                     }}
                   >
-                    <option value="priority">{t("Coups de cœur")}</option>
+                    <option value="priority">{t("Priorité")}</option>
                     <option value="price">{t("Objectif croissant")}</option>
                     <option value="price-desc">
                       {t("Objectif décroissant")}
@@ -612,18 +665,25 @@ export function PublicWishlist({
                     aria-label={t("Découvrir {0}", gift.title)}
                   >
                     <GiftArt gift={gift} />
-                    {gift.priority === 2 && (
-                      <span className="card-badge">
-                        <Icon name="heart" size={12} />
-                        {t("Coup de cœur")}{" "}
-                      </span>
-                    )}
+                    {giftPriority(gift) &&
+                      (gift.priority !== 0 ||
+                        giftPriority(gift)?.name ||
+                        !!giftPriority(gift)?.featured) && (
+                        <span className="card-badge">
+                          {gift.priority === featured?.id && (
+                            <Icon name="heart" size={12} />
+                          )}
+                          {priorityLabel(giftPriority(gift)!, t)}
+                        </span>
+                      )}
                     {gift.surprise_hidden ? (
                       <span className="card-status">
                         {t("Surprise préservée")}
                       </span>
                     ) : gift.purchased ? (
                       <span className="card-status">{t("Déjà acheté")}</span>
+                    ) : gift.closed ? (
+                      <span className="card-status">{t("En pause")}</span>
                     ) : gift.funded >= gift.target ? (
                       <span className="card-status">
                         {t("Objectif atteint")}
@@ -686,10 +746,14 @@ export function PublicWishlist({
                             : t("Modifier")}{" "}
                           <Icon name="arrow" size={17} />
                         </button>
-                        {(() => {
-                          const g = owner.gifts.find((g) => g.id === gift.id);
-                          return g && <JapanSearch {...g} />;
-                        })()}
+                        {!gift.surprise_hidden && (
+                          <GiftPurchaseToggle
+                            id={gift.id}
+                            title={gift.title}
+                            purchased={!!gift.purchased}
+                            onSaved={refresh}
+                          />
+                        )}
                       </>
                     ) : (
                       <Link
@@ -749,10 +813,21 @@ export function PublicWishlist({
           )}
         </section>
       </div>
+      {owner && priorityEditor && (
+        <PrioritiesEditor
+          priorities={priorities}
+          onClose={() => setPriorityEditor(false)}
+          onSaved={() => {
+            setPriorityEditor(false);
+            refresh();
+          }}
+        />
+      )}
       {owner && editor && (
         <GiftEditor
           key={editor === "new" ? "new" : editor.id}
           gift={editor === "new" ? null : editor}
+          priorities={priorities}
           categories={categories}
           currency={owner.currency}
           onCategoriesChanged={refresh}
