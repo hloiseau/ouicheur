@@ -159,6 +159,9 @@ export function Family({ onChange }: { onChange: () => Promise<void> }) {
         {data.members.map((m) => (
           <article className="family-member" key={m.id}>
             <div className="stack">
+              <a className="text-link" href="/exchanges">
+                {t("Échanges de cadeaux en famille")}
+              </a>
               <h3>{m.name}</h3>
               <p>
                 {t("Identifiant de connexion")} : <strong>{m.login}</strong> ·{" "}

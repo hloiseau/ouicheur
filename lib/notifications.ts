@@ -20,6 +20,7 @@ export const notificationMessages: Record<string, string> = {
   reservation_expiring: "Ouicheur: a reservation will expire soon.",
   offer_changed: "Ouicheur: a watched offer has an update.",
   backup_failed: "Ouicheur: a backup needs your attention.",
+  exchange_reminder: "Ouicheur: a gift exchange is coming up.",
   digest: "Ouicheur: new updates are waiting in your account.",
 };
 function listForEvent(db: DatabaseSync, kind: string, key: string) {
@@ -41,6 +42,12 @@ export function notificationAccountAllowed(
   listId: string,
   kind: string,
 ) {
+  if (kind === "exchange_reminder")
+    return !!db
+      .prepare(
+        "SELECT 1 FROM exchange_participants p JOIN gift_exchanges e ON e.id=p.exchange_id WHERE p.exchange_id=? AND p.account_id=? AND p.accepted=1 AND p.reminders=1 AND e.state='drawn' AND (p.account_id='owner' OR EXISTS(SELECT 1 FROM members m WHERE m.id=p.account_id AND m.enabled=1))",
+      )
+      .get(listId, account);
   if (account !== "owner") {
     if (
       !db.prepare("SELECT 1 FROM members WHERE id=? AND enabled=1").get(account)
@@ -158,6 +165,7 @@ export function enqueueNotification(
       "reservation_expiring",
       "offer_changed",
       "backup_failed",
+      "exchange_reminder",
     ].includes(kind) &&
     !db
       .prepare(
@@ -270,6 +278,10 @@ export async function deliverNotifications(
             .get(listId) as unknown as Wishlist | undefined)
         : undefined;
     const stale =
+      (kind === "exchange_reminder" &&
+        db
+          .prepare("SELECT event_date FROM gift_exchanges WHERE id=?")
+          .get(listId)?.event_date !== source) ||
       currentList !== listId ||
       (kind === "event_reminder" &&
         (!event || nextOccurrence(event, now) !== source)) ||
@@ -347,6 +359,18 @@ export function scheduleReminders(db: DatabaseSync, now = new Date()) {
     !db.prepare("SELECT 1 FROM notification_preferences WHERE enabled=1").get()
   )
     return;
+  for (const e of db
+    .prepare(
+      "SELECT id,event_date,timezone FROM gift_exchanges WHERE state='drawn'",
+    )
+    .all()) {
+    enqueueNotification(db, "exchange_reminder", `${e.id}:${e.event_date}`, {
+      listId: String(e.id),
+      sourceKey: String(e.event_date),
+      days: daysUntil(String(e.event_date), now, String(e.timezone)),
+      now,
+    });
+  }
   const lists = db
     .prepare("SELECT * FROM lists WHERE archived=0 AND event_date<>''")
     .all() as unknown as Wishlist[];

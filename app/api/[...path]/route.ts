@@ -1,4 +1,13 @@
 import {
+  exchangeAdmin,
+  createExchange,
+  manageExchange,
+  myExchanges,
+  exchangePreferences,
+  exchangeQuestion,
+  exchangeCalendar,
+} from "../../../lib/exchanges";
+import {
   donorReservations,
   saveDonorReservation,
   changeDonorReservation,
@@ -305,6 +314,20 @@ async function handle(
         throw new AppError("Votre session a expiré. Reconnectez-vous.", 401);
       touchSession(db, token!);
       if (request.method === "GET") {
+        if (path === "account/exchanges")
+          return response({
+            owner: sessionAccount(db, token)?.role === "owner",
+            events: myExchanges(db, token!),
+          });
+        if (path === "account/exchanges/admin")
+          return response(exchangeAdmin(db, token!));
+        if (path === "account/exchanges/calendar")
+          return exchangeCalendar(
+            db,
+            token!,
+            request.nextUrl.searchParams.get("id") || "",
+            process.env.APP_ORIGIN || request.nextUrl.origin,
+          );
         if (path === "account/donor")
           return response(
             donorReservations(
@@ -348,6 +371,20 @@ async function handle(
           request,
           path === "team/images" ? 7 * 1024 * 1024 : 32 * 1024,
         );
+        if (path === "account/exchanges/create") {
+          rateLimit(db, "exchange-create", 20, 3600000);
+          return response(createExchange(db, token!, input));
+        }
+        if (path === "account/exchanges/manage")
+          return response(manageExchange(db, token!, input));
+        if (path === "account/exchanges/preferences") {
+          exchangePreferences(db, token!, input);
+          return response({ ok: true });
+        }
+        if (path === "account/exchanges/question") {
+          exchangeQuestion(db, token!, input);
+          return response({ ok: true });
+        }
         if (path === "account/donor/save") {
           rateLimit(db, `donor:${hashToken(token!)}`, 30, 60000);
           saveDonorReservation(db, token!, input);

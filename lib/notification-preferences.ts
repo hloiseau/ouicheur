@@ -104,6 +104,10 @@ export function saveNotificationPreferences(
     data = readNotificationPreferences(db, access);
   const unique = new Set<string>();
   for (const r of v.rules) {
+    if (r.kind === "exchange_reminder" && r.list_id)
+      throw new AppError(
+        "Les rappels d’échange utilisent le réglage Toutes les listes.",
+      );
     if (r.list_id && !data.lists.some((l) => l.id === r.list_id))
       throw new AppError("Liste introuvable.", 404);
     if (r.channel === "ntfy" && !access.owner)
