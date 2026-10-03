@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { atomic, audit } from "./db.ts";
 import {
-  authorized,
+  sessionAccount,
   createSession,
   hashPassword,
   hashToken,
@@ -18,9 +18,10 @@ export type SessionSummary = {
   expires_at: string;
 };
 function requireSession(db: DatabaseSync, token: string) {
-  if (!authorized(db, token))
+  const account = sessionAccount(db, token);
+  if (!account)
     throw new AppError("Votre session a expiré. Reconnectez-vous.", 401);
-  return hashToken(token);
+  return { hash: hashToken(token), memberId: account.memberId };
 }
 export function touchSession(db: DatabaseSync, token: string) {
   const now = Date.now();
@@ -32,14 +33,14 @@ export function listSessions(
   db: DatabaseSync,
   token: string,
 ): SessionSummary[] {
-  const currentHash = requireSession(db, token);
+  const { hash: currentHash, memberId } = requireSession(db, token);
   const date = (value: unknown) =>
     Number(value) > 0 ? new Date(Number(value)).toISOString() : null;
   return db
     .prepare(
-      "SELECT id,hash,device,created_at,last_seen,expires FROM sessions WHERE expires>? ORDER BY (hash=?) DESC,last_seen DESC,id",
+      "SELECT id,hash,device,created_at,last_seen,expires FROM sessions WHERE member_id IS ? AND expires>? ORDER BY (hash=?) DESC,last_seen DESC,id",
     )
-    .all(Date.now(), currentHash)
+    .all(memberId, Date.now(), currentHash)
     .map((row) => ({
       id: String(row.id),
       current: row.hash === currentHash,
@@ -55,23 +56,25 @@ export function revokeSessions(
   target: string,
 ) {
   return atomic(db, () => {
-    const currentHash = requireSession(db, token);
+    const { hash: currentHash, memberId } = requireSession(db, token);
     if (target === "others") {
       const result = db
-        .prepare("DELETE FROM sessions WHERE hash<>?")
-        .run(currentHash);
-      audit(db, "sessions.revoke_others", "1", {
+        .prepare("DELETE FROM sessions WHERE hash<>? AND member_id IS ?")
+        .run(currentHash, memberId);
+      audit(db, "sessions.revoke_others", memberId || "1", {
         count: Number(result.changes),
       });
       return { signed_out: false };
     }
     const session = db
-      .prepare("SELECT hash FROM sessions WHERE id=? AND expires>?")
-      .get(target, Date.now());
+      .prepare(
+        "SELECT hash FROM sessions WHERE id=? AND expires>? AND member_id IS ?",
+      )
+      .get(target, Date.now(), memberId);
     if (!session)
       throw new AppError("Cette session est déjà fermée ou introuvable.", 404);
     db.prepare("DELETE FROM sessions WHERE id=?").run(target);
-    audit(db, "session.revoke", target);
+    audit(db, "session.revoke", target, { actor: memberId || "1" });
     return { signed_out: session.hash === currentHash };
   });
 }
@@ -108,9 +111,11 @@ export async function changeSessionPassword(
   password: string,
   userAgent = "",
 ) {
-  requireSession(db, token);
+  const { memberId } = requireSession(db, token);
+  const table = memberId === null ? "owner" : "members";
+  const id = memberId ?? 1;
   const before = String(
-    db.prepare("SELECT password_hash FROM owner WHERE id=1").get()!
+    db.prepare(`SELECT password_hash FROM ${table} WHERE id=?`).get(id)!
       .password_hash,
   );
   if (!(await verifyPassword(current, before)))
@@ -119,17 +124,20 @@ export async function changeSessionPassword(
   return atomic(db, () => {
     requireSession(db, token);
     if (
-      db.prepare("SELECT password_hash FROM owner WHERE id=1").get()
+      db.prepare(`SELECT password_hash FROM ${table} WHERE id=?`).get(id)
         ?.password_hash !== before
     )
       throw new AppError(
         "Le mot de passe a changé. Reconnectez-vous avant de réessayer.",
         409,
       );
-    db.prepare("UPDATE owner SET password_hash=? WHERE id=1").run(encoded);
-    db.exec("DELETE FROM sessions");
-    const replacement = createSession(db, userAgent);
-    audit(db, "owner.password_changed", "1");
+    db.prepare(`UPDATE ${table} SET password_hash=? WHERE id=?`).run(
+      encoded,
+      id,
+    );
+    db.prepare("DELETE FROM sessions WHERE member_id IS ?").run(memberId);
+    const replacement = createSession(db, userAgent, memberId);
+    audit(db, "account.password_changed", String(id));
     return replacement;
   });
 }

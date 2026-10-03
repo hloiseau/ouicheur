@@ -2,6 +2,8 @@ import { Admin } from "../../components/admin";
 import { database } from "../../lib/db";
 import { redirect } from "next/navigation";
 import { getI18n } from "../../lib/i18n-server";
+import { cookies } from "next/headers";
+import { sessionAccount } from "../../lib/auth";
 export const dynamic = "force-dynamic";
 export async function generateMetadata() {
   const { t } = await getI18n();
@@ -10,7 +12,14 @@ export async function generateMetadata() {
     robots: { index: false, follow: false },
   };
 }
-export default function Page() {
+export default async function Page() {
   if (!database().prepare("SELECT 1 FROM owner").get()) redirect("/setup");
+  if (
+    sessionAccount(
+      database(),
+      (await cookies()).get("wishlister_session")?.value,
+    )?.role === "member"
+  )
+    redirect("/organiser");
   return <Admin />;
 }

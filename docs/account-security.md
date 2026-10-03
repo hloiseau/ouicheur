@@ -28,7 +28,7 @@ node scripts/manage.ts password
 ```
 
 La commande demande et confirme le nouveau mot de passe sans l’afficher. Elle
-ferme toutes les sessions et conserve les envies et les données. Elle nécessite
+ferme les sessions du propriétaire et conserve les envies et les données. Elle nécessite
 l’accès au serveur ; aucun lien de récupération distant ni compte externe n’est
 nécessaire. Une restauration de sauvegarde révoque également les sessions.
 
@@ -44,7 +44,7 @@ Les sessions ont une durée absolue de 12 heures. Les cookies restent HttpOnly,
 SameSite=Strict et Secure en HTTPS. La session est vérifiée côté serveur à chaque
 requête protégée ; les opérations POST vérifient l’origine et les changements de
 mot de passe sont limités en fréquence. Les sessions expirées sont nettoyées et
-les 100 connexions les plus récentes sont conservées au maximum. Les noms
+les 100 connexions les plus récentes par compte sont conservées au maximum. Les noms
 d’appareils sont de simples indications, pas une preuve d’identité.
 
 Sauvegarder avant la mise à jour. Pour revenir à une image antérieure à la
@@ -53,9 +53,11 @@ revenir à l’ancienne image seule ne remet pas la base à son ancien schéma.
 
 ## Évolutions des accès
 
-Le périmètre livré ici reste le propriétaire de l’instance. Les coorganisateurs
-auront des comptes individuels et des autorisations explicites par liste (#20) ;
-ils ne doivent jamais devenir administrateurs par simple présence d’une session.
+Les [coorganisateurs](family.md) disposent de comptes individuels et de droits
+par liste. Chaque compte ne voit et ne révoque que ses propres sessions. Le
+propriétaire peut désactiver un coorganisateur ou lui envoyer lui-même une nouvelle
+invitation depuis la gestion familiale ; cela révoque les sessions de ce compte.
+La récupération locale par commande concerne uniquement le propriétaire.
 
 TOTP et OIDC ont été évalués dans #22, sans activation dans ce lot. Pour TOTP,
 prévoir une bibliothèque maintenue, l’enrôlement confirmé, la protection du secret,

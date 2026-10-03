@@ -55,7 +55,7 @@ export async function setPassword(db: DatabaseSync, password: string) {
     if (!db.prepare("SELECT 1 FROM owner").get())
       throw new AppError("Initialisez d’abord le propriétaire.");
     db.prepare("UPDATE owner SET password_hash=? WHERE id=1").run(encoded);
-    db.exec("DELETE FROM sessions");
+    db.exec("DELETE FROM sessions WHERE member_id IS NULL");
     audit(db, "owner.password_changed", "1");
   });
 }
@@ -85,12 +85,16 @@ export function sessionDevice(userAgent = "") {
             : "";
   return [browser, platform].filter(Boolean).join(" · ");
 }
-export function createSession(db: DatabaseSync, userAgent = "") {
+export function createSession(
+  db: DatabaseSync,
+  userAgent = "",
+  memberId: string | null = null,
+) {
   const token = randomBytes(32).toString("hex");
   const now = Date.now();
   db.prepare("DELETE FROM sessions WHERE expires <= ?").run(now);
   db.prepare(
-    "INSERT INTO sessions(hash,expires,id,created_at,last_seen,device) VALUES (?,?,?,?,?,?)",
+    "INSERT INTO sessions(hash,expires,id,created_at,last_seen,device,member_id) VALUES (?,?,?,?,?,?,?)",
   ).run(
     hashToken(token),
     now + sessionLifetime,
@@ -98,10 +102,11 @@ export function createSession(db: DatabaseSync, userAgent = "") {
     now,
     now,
     sessionDevice(userAgent),
+    memberId,
   );
-  db.exec(
-    "DELETE FROM sessions WHERE hash IN (SELECT hash FROM sessions ORDER BY created_at DESC,rowid DESC LIMIT -1 OFFSET 100)",
-  );
+  db.prepare(
+    "DELETE FROM sessions WHERE hash IN (SELECT hash FROM sessions WHERE member_id IS ? ORDER BY created_at DESC,rowid DESC LIMIT -1 OFFSET 100)",
+  ).run(memberId);
   return token;
 }
 export function authorized(db: DatabaseSync, token?: string) {
@@ -109,9 +114,37 @@ export function authorized(db: DatabaseSync, token?: string) {
     !!token &&
     /^[a-f0-9]{64}$/.test(token) &&
     !!db
-      .prepare("SELECT 1 FROM sessions WHERE hash=? AND expires>?")
+      .prepare(
+        "SELECT 1 FROM sessions WHERE hash=? AND expires>? AND member_id IS NULL",
+      )
       .get(hashToken(token), Date.now())
   );
+}
+export type SessionAccount = {
+  memberId: string | null;
+  role: "owner" | "member";
+  name: string;
+  login: string;
+  revealed: boolean;
+};
+export function sessionAccount(
+  db: DatabaseSync,
+  token?: string,
+): SessionAccount | undefined {
+  if (!token || !/^[a-f0-9]{64}$/.test(token)) return;
+  const row = db
+    .prepare(
+      "SELECT s.member_id,s.surprises_revealed,m.name,m.login,m.enabled FROM sessions s LEFT JOIN members m ON m.id=s.member_id WHERE s.hash=? AND s.expires>?",
+    )
+    .get(hashToken(token), Date.now());
+  if (!row || (row.member_id !== null && !row.enabled)) return;
+  return {
+    memberId: row.member_id === null ? null : String(row.member_id),
+    role: row.member_id === null ? "owner" : "member",
+    name: String(row.name || ""),
+    login: String(row.login || ""),
+    revealed: !!row.surprises_revealed,
+  };
 }
 export function rateLimit(
   db: DatabaseSync,

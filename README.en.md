@@ -2,8 +2,8 @@
 
 [Français](README.md) · [Feature and upgrade guide](docs/product-features.md)
 
-Ouicheur is a self-hosted, MIT-licensed personal Ouichlist. One owner manages gifts
-and events; visitors can reserve a gift without an account or contribute directly
+Ouicheur is a self-hosted, MIT-licensed personal and family Ouichlist. One owner manages gifts
+and events and can invite coorganizers with access to selected lists; visitors can reserve a gift without an account or contribute directly
 through the owner's PayPal.Me link. The interface supports English and French.
 Ouicheur never holds money or automatically buys products.
 
@@ -35,9 +35,11 @@ product update is validated. Existing image tags do not include an unmerged PR.
 ## Features
 
 - Multiple event lists, categories, quantities and profile customization.
+- Named, expiring invitations, individual coorganizer accounts and permissions per list. Family profiles identify recipients and preserve surprises for their accounts. [Family guide](docs/family.md).
+- Connected devices, session revocation and password changes with isolated sessions per account. [Security and recovery](docs/account-security.md).
 - Rename, add and reorder priorities in **My wishes → Manage priorities**. Choose the level shown with a heart; all levels are available in the priority filter. Existing assignments are preserved.
 - Owners can mark a gift as bought with a reversible switch on its card or detail page. **Pause this wish** blocks new contributions and reservations while keeping existing records.
-- Public, unlisted and owner-only lists; revocable private links and local QR codes.
+- Public, unlisted and private lists; revocable private links and local QR codes. Private lists are visible to the owner and explicitly assigned coorganizers.
 - Anonymous gift reservations with a personal management link and 14-day expiration.
 - Direct PayPal.Me contributions, optional approval before counting, auditable payment corrections.
 - Product metadata extraction, dated price/availability refresh with explicit goal confirmation.

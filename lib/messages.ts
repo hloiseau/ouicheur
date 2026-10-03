@@ -1,11 +1,13 @@
 import { productEnglish } from "./product-messages.ts";
 import { suggestionEnglish } from "./suggestion-messages.ts";
 import { accountEnglish } from "./account-messages.ts";
+import { familyEnglish } from "./family-messages.ts";
 // French source messages and their English translations. Keep placeholders in both.
 export const english: Record<string, string> = {
   ...productEnglish,
   ...suggestionEnglish,
   ...accountEnglish,
+  ...familyEnglish,
   Retirer: "Remove",
   "Gérer les priorités": "Manage priorities",
   "Les envies sont triées de haut en bas selon cet ordre. Choisissez la priorité affichée avec un cœur sur les cartes et dans les filtres.":

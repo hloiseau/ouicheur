@@ -2,6 +2,11 @@
 
 ## Unreleased — 1.2 development
 
+- Comptes coorganisateurs par invitation à usage unique et droits par liste,
+  profils familiaux avec destinataire lié au mode surprise, espace de préparation
+  partagé et gestion des sessions propre à chaque compte. Migration 015 sans
+  changement des visibilités existantes ; invitations révoquées à la restauration.
+
 - Écran Accès et sécurité : appareils connectés, révocation individuelle ou des
   autres sessions, changement de mot de passe conservant l’appareil courant avec
   rotation du jeton. Migration 014, récupération locale conservée et protection

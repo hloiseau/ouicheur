@@ -2,7 +2,7 @@
 
 [English quick start](README.en.md) · [Nouvelles fonctionnalités et mise à jour](docs/product-features.md) · [Changelog](CHANGELOG.md)
 
-Une Ouichlist personnelle libre et auto-hébergeable, en anglais par défaut avec une interface française au choix. Un propriétaire, des cadeaux ajoutés par liens, des contributions sans compte visiteur et des versements directs sur son **compte PayPal particulier**.
+Une Ouichlist personnelle et familiale libre et auto-hébergeable, en anglais par défaut avec une interface française au choix. Un propriétaire peut confier certaines listes à des coorganisateurs avec leur propre compte. Des cadeaux ajoutés par liens, des contributions sans compte visiteur et des versements directs sur son **compte PayPal particulier**.
 
 Le sélecteur **English / Français** est disponible sur toutes les pages, y compris l’installation. Le choix reste mémorisé dans ce navigateur pendant un an. Textes, erreurs, titres, dates et montants suivent cette préférence ; les contenus personnels ne sont pas traduits. Le changement de langue conserve les formulaires en cours. [Localization and upgrade notes](docs/localization.md).
 
@@ -52,6 +52,12 @@ neuve reste vide.
 
 ## Personnaliser sa Ouichlist
 
+Dans **Famille et coorganisateurs**, inviter un proche, choisir les listes qu’il
+peut préparer et associer des profils adultes ou enfants aux listes. Les profils
+ne sont pas publiés automatiquement. Chaque compte gère ses appareils connectés
+et son mot de passe dans **Accès et sécurité**. Voir les guides
+[famille et droits](docs/family.md) et [sessions et récupération](docs/account-security.md).
+
 Dans **Mes envies → Gérer les priorités**, renommer les niveaux (y compris « Coup de cœur »), en ajouter et les réordonner. Le niveau marqué d’un cœur est repris dans l’onglet et sur les cartes ; le filtre permet de choisir n’importe quelle priorité. Ces réglages sont communs aux listes de l’instance, conservés dans les sauvegardes et inclus dans l’export JSON. Les envies existantes gardent leur priorité.
 
 Dans **My profile / Mon profil**, choisir l’avatar, la bannière et son cadrage, la présentation, les liens sociaux, une image de fond et la couleur d’accent. Les presets rose, acidulé et menthe reprennent la palette Ouicheur ; le sélecteur de couleur accepte aussi une teinte personnelle. L’aperçu réagit avant l’enregistrement, et la teinte des textes est ajustée pour rester lisible sur fond sombre.
@@ -78,7 +84,7 @@ Production locale : `npm run build`, puis `npm start`. Ces démarrages affichent
 | `npm run dev`                                        | Développement sur localhost:3000                                    |
 | `npm run build` / `npm start`                        | Compiler / démarrer en production                                   |
 | `npm run setup`                                      | Alternative locale facultative au setup web, une seule fois         |
-| `npm run password`                                   | Récupérer l’accès depuis le serveur, révoquer toutes les sessions   |
+| `npm run password`                                   | Récupérer l’accès propriétaire et révoquer ses sessions             |
 | `npm run check`                                      | Vérifier TypeScript                                                 |
 | `npm test`                                           | Tests du registre, sécurité, imports, sauvegarde/restauration       |
 | `npm run browser:install`                            | Installer Chromium pour l’import Throne et les tests dans `.local/` |

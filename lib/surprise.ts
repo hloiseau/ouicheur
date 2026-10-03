@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { Access } from "./lists.ts";
-import { authorized, hashToken } from "./auth.ts";
+import { sessionAccount, hashToken } from "./auth.ts";
 import { atomic, audit } from "./db.ts";
 import { AppError } from "./validation.ts";
 
@@ -11,7 +11,12 @@ export function hiddenSurpriseLists(db: DatabaseSync, access: Access) {
   return db
     .prepare("SELECT id FROM lists WHERE surprise_mode=1")
     .all()
-    .map((row) => String(row.id));
+    .map((row) => String(row.id))
+    .filter(
+      (id) =>
+        access.recipientLists === undefined ||
+        access.recipientLists.includes(id),
+    );
 }
 
 export function requireSurpriseReveal(
@@ -32,14 +37,18 @@ export function setSurpriseReveal(
   token: string,
   reveal: boolean,
 ) {
-  if (!authorized(db, token))
-    throw new AppError("Connexion administrateur requise.", 401);
+  const account = sessionAccount(db, token);
+  if (!account) throw new AppError("Connexion administrateur requise.", 401);
   atomic(db, () => {
     db.prepare("UPDATE sessions SET surprises_revealed=? WHERE hash=?").run(
       Number(reveal),
       hashToken(token),
     );
-    audit(db, reveal ? "surprise.reveal" : "surprise.hide", "1");
+    audit(
+      db,
+      reveal ? "surprise.reveal" : "surprise.hide",
+      account.memberId || "1",
+    );
   });
 }
 
