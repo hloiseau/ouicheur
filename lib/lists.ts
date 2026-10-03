@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
-import { authorized, hashToken } from "./auth.ts";
+import { sessionAccount, hashToken } from "./auth.ts";
 import { atomic, audit } from "./db.ts";
 import { AppError, dateNow, text } from "./validation.ts";
 
@@ -21,6 +21,9 @@ export type Access = {
   lists: string[];
   recipient?: boolean;
   revealSurprises?: boolean;
+  memberId?: string;
+  managedLists?: string[];
+  recipientLists?: string[];
 };
 export const publicAccess: Access = { owner: false, lists: [] };
 export const shareCookie = (id: string) => `ouicheur_share_${id}`;
@@ -28,7 +31,8 @@ export function accessFromCookies(
   db: DatabaseSync,
   cookies: { get(name: string): { value: string } | undefined },
 ): Access {
-  const owner = authorized(db, cookies.get("wishlister_session")?.value);
+  const account = sessionAccount(db, cookies.get("wishlister_session")?.value);
+  const owner = account?.role === "owner";
   const lists = db
     .prepare(
       "SELECT id,share_hash FROM lists WHERE visibility='unlisted' AND archived=0 AND share_hash IS NOT NULL",
@@ -43,13 +47,29 @@ export function accessFromCookies(
       );
     })
     .map((row) => String(row.id));
-  const revealSurprises =
-    owner &&
-    !!db
-      .prepare("SELECT surprises_revealed FROM sessions WHERE hash=?")
-      .get(hashToken(cookies.get("wishlister_session")!.value))
-      ?.surprises_revealed;
-  return { owner, lists, recipient: owner, revealSurprises };
+  const managedLists = account?.memberId
+    ? db
+        .prepare("SELECT list_id FROM member_lists WHERE member_id=?")
+        .all(account.memberId)
+        .map((r) => String(r.list_id))
+    : [];
+  const recipientLists = account
+    ? db
+        .prepare(
+          "SELECT l.id FROM lists l LEFT JOIN family_profiles p ON p.id=l.profile_id WHERE COALESCE(p.recipient,'owner')=?",
+        )
+        .all(account.memberId || "owner")
+        .map((r) => String(r.id))
+    : [];
+  return {
+    owner,
+    lists,
+    recipient: recipientLists.length > 0,
+    revealSurprises: !!account?.revealed,
+    memberId: account?.memberId || undefined,
+    managedLists,
+    recipientLists,
+  };
 }
 export function listLists(db: DatabaseSync, access: Access = publicAccess) {
   return (
@@ -62,6 +82,7 @@ export function listLists(db: DatabaseSync, access: Access = publicAccess) {
   ).filter(
     (l) =>
       access.owner ||
+      !!access.managedLists?.includes(l.id) ||
       (!l.archived &&
         (l.visibility === "public" ||
           (l.visibility === "unlisted" && access.lists.includes(l.id)))),
@@ -174,6 +195,13 @@ export function canReadImage(
   access: Access = publicAccess,
 ) {
   if (access.owner) return true;
+  if (
+    access.memberId &&
+    db
+      .prepare("SELECT 1 FROM member_uploads WHERE member_id=? AND path=?")
+      .get(access.memberId, path)
+  )
+    return true;
   const lists = listLists(db, access).map((l) => l.id);
   if (!lists.length) return false;
   // Profile artwork is shared by all visible lists. Category artwork needs a visible gift.
@@ -185,8 +213,13 @@ export function canReadImage(
     return true;
   return db
     .prepare(
-      "SELECT g.list_id FROM gifts g LEFT JOIN categories c ON c.id=g.category_id WHERE g.visibility='visible' AND (g.image=? OR c.image=?)",
+      "SELECT g.list_id,g.visibility FROM gifts g LEFT JOIN categories c ON c.id=g.category_id WHERE (g.image=? OR c.image=?)",
     )
     .all(path, path)
-    .some((row) => lists.includes(String(row.list_id)));
+    .some(
+      (row) =>
+        lists.includes(String(row.list_id)) &&
+        (row.visibility === "visible" ||
+          !!access.managedLists?.includes(String(row.list_id))),
+    );
 }

@@ -83,7 +83,11 @@ export function listGifts(
     })) as Omit<Gift, "surprise_hidden">[];
   const hidden = hiddenSurpriseLists(db, access);
   return (
-    admin ? rows : rows.filter((g) => allowed.includes(g.list_id))
+    admin && access.owner
+      ? rows
+      : rows.filter((g) =>
+          (admin ? access.managedLists || [] : allowed).includes(g.list_id),
+        )
   ).map<Gift>((gift) =>
     hidden.includes(gift.list_id)
       ? {

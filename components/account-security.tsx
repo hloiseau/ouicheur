@@ -7,10 +7,13 @@ import { api, Field, Notice } from "./ui";
 
 export function AccountSecurity({
   onChange,
+  member = false,
 }: {
   onChange: () => Promise<void>;
+  member?: boolean;
 }) {
   const { t, date } = useI18n();
+  const prefix = member ? "account" : "admin";
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -20,7 +23,7 @@ export function AccountSecurity({
   const [target, setTarget] = useState<SessionSummary | "others" | null>(null);
   const [dialogError, setDialogError] = useState("");
   const refresh = async () =>
-    setSessions(await api<SessionSummary[]>("admin/sessions"));
+    setSessions(await api<SessionSummary[]>(`${prefix}/sessions`));
   useEffect(() => {
     void refresh().catch((e) => setError(e.message));
   }, []);
@@ -126,7 +129,7 @@ export function AccountSecurity({
           }
           setBusy(true);
           try {
-            await api("admin/password", {
+            await api(`${prefix}/password`, {
               current: fields.get("current"),
               password: fields.get("password"),
             });
@@ -188,19 +191,29 @@ export function AccountSecurity({
       </form>
       <section className="panel stack">
         <h2>{t("Récupérer mon accès")}</h2>
-        <p>
-          {t(
-            "Si vous perdez votre mot de passe, utilisez la commande locale depuis votre serveur. Elle déconnecte tous les appareils sans supprimer vos envies.",
-          )}
-        </p>
-        <code>npm run password</code>
-        <a
-          href="https://github.com/hloiseau/ouicheur/blob/main/docs/account-security.md"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {t("Voir la procédure de récupération")}
-        </a>
+        {member ? (
+          <p>
+            {t(
+              "Si vous perdez votre accès, demandez au propriétaire une nouvelle invitation. Vos envies seront conservées.",
+            )}
+          </p>
+        ) : (
+          <>
+            <p>
+              {t(
+                "Si vous perdez votre mot de passe, utilisez la commande locale depuis votre serveur. Elle déconnecte tous les appareils sans supprimer vos envies.",
+              )}
+            </p>
+            <code>npm run password</code>
+            <a
+              href="https://github.com/hloiseau/ouicheur/blob/main/docs/account-security.md"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t("Voir la procédure de récupération")}
+            </a>
+          </>
+        )}
       </section>
       {target && (
         <Modal
@@ -238,14 +251,16 @@ export function AccountSecurity({
                 setNotice("");
                 try {
                   const result = await api<{ signed_out: boolean }>(
-                    "admin/sessions/revoke",
+                    `${prefix}/sessions/revoke`,
                     {
                       id: target === "others" ? target : target.id,
                       confirm: true,
                     },
                   );
                   if (result.signed_out) {
-                    window.location.assign("/admin?tab=security");
+                    window.location.assign(
+                      member ? "/admin?member=1" : "/admin?tab=security",
+                    );
                     return;
                   }
                   setTarget(null);

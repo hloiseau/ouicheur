@@ -110,7 +110,9 @@ export function PublicWishlist({
   lists = [],
   initialList = "",
   surprise,
+  member = false,
 }: {
+  member?: boolean;
   surprise?: { revealed: boolean };
   lists?: Wishlist[];
   initialList?: string;
@@ -241,8 +243,8 @@ export function PublicWishlist({
         <header className="public-masthead">
           <Brand />
           <div className="header-actions">
-            {owner && (
-              <a className="text-link" href="/admin">
+            {(owner || member) && (
+              <a className="text-link" href={member ? "/organiser" : "/admin"}>
                 {t("Mon espace")} <Icon name="arrow" size={16} />
               </a>
             )}
@@ -862,7 +864,7 @@ export function PublicWishlist({
           </details>
           <footer className="personal-footer">
             <span>Ouicheur</span>
-            <a href="/admin">
+            <a href={member ? "/organiser" : "/admin"}>
               <Icon name="lock" size={14} />
               {t("Mon espace")}{" "}
             </a>

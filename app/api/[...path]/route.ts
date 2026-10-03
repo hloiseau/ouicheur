@@ -1,5 +1,17 @@
 import { listPriorities, savePriorities } from "../../../lib/priorities";
 import {
+  acceptInvitation,
+  assignFamilyProfile,
+  familyAdmin,
+  familyExport,
+  inspectInvitation,
+  inviteMember,
+  loginMember,
+  saveFamilyProfile,
+  updateMemberAccess,
+} from "../../../lib/family";
+import { teamGet, teamPost } from "../../../lib/family-api";
+import {
   changeSessionPassword,
   listSessions,
   loginOwner,
@@ -36,6 +48,7 @@ import {
   hashToken,
   rateLimit,
   requireOrigin,
+  sessionAccount,
 } from "../../../lib/auth";
 import { listGifts, saveGift, setGiftPurchased } from "../../../lib/gifts";
 import {
@@ -162,17 +175,112 @@ async function handle(
     if (path === "login" && request.method === "POST") {
       rateLimit(db, `login:${ip}`, 10, 15 * 60000);
       const value = z
-        .object({ password: z.string().min(1).max(256) })
+        .object({
+          password: z.string().min(1).max(256),
+          login: z.string().max(40).optional(),
+        })
         .parse(await body(request));
       return authCookie(
         request,
+        response({ ok: true, role: value.login ? "member" : "owner" }),
+        value.login
+          ? await loginMember(
+              db,
+              value.login,
+              value.password,
+              request.headers.get("user-agent") || "",
+            )
+          : await loginOwner(
+              db,
+              value.password,
+              request.headers.get("user-agent") || "",
+            ),
+      );
+    }
+    if (path === "invitation" && request.method === "POST") {
+      rateLimit(db, `invitation:${ip}`, 30, 15 * 60000);
+      const v = z
+        .object({ token: z.string().max(64) })
+        .parse(await body(request, 1024));
+      return response(inspectInvitation(db, v.token));
+    }
+    if (path === "invitation/accept" && request.method === "POST") {
+      rateLimit(db, `invitation-accept:${ip}`, 10, 15 * 60000);
+      return authCookie(
+        request,
         response({ ok: true }),
-        await loginOwner(
+        await acceptInvitation(
           db,
-          value.password,
+          await body(request, 2048),
           request.headers.get("user-agent") || "",
         ),
       );
+    }
+    if (path === "logout" && request.method === "POST") {
+      if (token)
+        db.prepare("DELETE FROM sessions WHERE hash=?").run(hashToken(token));
+      return authCookie(request, response({ ok: true }), "", 0);
+    }
+    if (segments[0] === "account" || segments[0] === "team") {
+      if (!sessionAccount(db, token))
+        throw new AppError("Votre session a expiré. Reconnectez-vous.", 401);
+      touchSession(db, token!);
+      if (request.method === "GET") {
+        if (path === "account/sessions")
+          return response(listSessions(db, token!));
+        if (segments[0] === "team") return teamGet(db, token!, path);
+      }
+      if (request.method === "POST") {
+        const input = await body(
+          request,
+          path === "team/images" ? 7 * 1024 * 1024 : 32 * 1024,
+        );
+        if (path === "account/sessions/revoke") {
+          const v = z
+            .object({
+              id: z.union([
+                z.literal("others"),
+                z.string().regex(/^[a-f0-9]{32}$/),
+              ]),
+              confirm: z.literal(true),
+            })
+            .parse(input);
+          const result = revokeSessions(db, token!, v.id);
+          return result.signed_out
+            ? authCookie(request, response(result), "", 0)
+            : response(result);
+        }
+        if (path === "account/password") {
+          rateLimit(db, `password:${ip}`, 5, 15 * 60000);
+          const v = z
+            .object({
+              current: z.string().max(256),
+              password: z.string().max(256),
+            })
+            .parse(input);
+          return authCookie(
+            request,
+            response({ ok: true }),
+            await changeSessionPassword(
+              db,
+              token!,
+              v.current,
+              v.password,
+              request.headers.get("user-agent") || "",
+            ),
+          );
+        }
+        if (path === "account/surprises") {
+          const v = z
+            .object({ reveal: z.boolean(), confirm: z.literal(true) })
+            .parse(input);
+          setSurpriseReveal(db, token!, v.reveal);
+          return response({ ok: true });
+        }
+        if (segments[0] === "team")
+          return await teamPost(db, token!, path, input);
+      }
+      throw new AppError("Page introuvable.", 404);
     }
     if (path === "contributions" && request.method === "POST") {
       rateLimit(db, `intent:${ip}`, 30, 60 * 60000);
@@ -268,6 +376,8 @@ async function handle(
         : response(result);
     }
     const access = accessFromCookies(db, request.cookies);
+    if (path === "admin/family" && request.method === "GET")
+      return response(familyAdmin(db));
     const hiddenSurprises = hiddenSurpriseLists(db, access);
     if (path === "admin/suggestions" && request.method === "GET")
       return response(
@@ -296,16 +406,12 @@ async function handle(
       const reply = await productGet(db, path, request.nextUrl, access);
       if (reply) return reply;
     }
-    if (path === "logout" && request.method === "POST") {
-      db.prepare("DELETE FROM sessions WHERE hash=?").run(hashToken(token!));
-      return authCookie(request, response({ ok: true }), "", 0);
-    }
     if (path === "admin" && request.method === "GET") {
       expireIntents(db);
       return response({
-        surprises_enabled: !!db
-          .prepare("SELECT 1 FROM lists WHERE surprise_mode=1")
-          .get(),
+        surprises_enabled: listLists(db, access).some(
+          (l) => l.surprise_mode && access.recipientLists?.includes(l.id),
+        ),
         surprises_revealed: !!access.revealSurprises,
         profile: db
           .prepare(
@@ -349,7 +455,8 @@ async function handle(
     if (path === "admin/export" && request.method === "GET") {
       requireSurpriseReveal(db, access);
       const data = atomic(db, () => ({
-        version: 3,
+        version: 4,
+        family: familyExport(db),
         priorities: listPriorities(db),
         lists: listLists(db, { owner: true, lists: [] }),
         reservations: db
@@ -398,6 +505,22 @@ async function handle(
       request,
       path === "admin/images" ? 7 * 1024 * 1024 : 1024 * 1024,
     );
+    if (path.startsWith("admin/family/")) {
+      if (!authorized(db, token))
+        throw new AppError("Connexion administrateur requise.", 401);
+      if (path === "admin/family/invite")
+        return response(inviteMember(db, data));
+      if (path === "admin/family/access") {
+        updateMemberAccess(db, data);
+        return response({ ok: true });
+      }
+      if (path === "admin/family/profile")
+        return response({ id: saveFamilyProfile(db, data) });
+      if (path === "admin/family/assign") {
+        assignFamilyProfile(db, data);
+        return response({ ok: true });
+      }
+    }
     if (path === "admin/surprises") {
       const v = z
         .object({ reveal: z.boolean(), confirm: z.literal(true) })

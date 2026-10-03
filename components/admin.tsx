@@ -7,6 +7,7 @@ import { ListsEditor } from "./lists";
 import { SuggestionsInbox } from "./suggestions";
 import { Operations } from "./operations";
 import { AccountSecurity } from "./account-security";
+import { Family } from "./family";
 import { History } from "./history";
 import type { Wishlist } from "../lib/lists";
 import { LanguageSwitcher, useI18n } from "./language";
@@ -74,6 +75,7 @@ const navigation = [
   { key: "operations", label: "Mon instance", icon: "lock" },
   { key: "profile", label: "Mon profil", icon: "user" },
   { key: "security", label: "Accès et sécurité", icon: "lock" },
+  { key: "family", label: "Famille et coorganisateurs", icon: "user" },
 ];
 export function Admin() {
   const { t, date } = useI18n();
@@ -81,6 +83,7 @@ export function Admin() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const params = useSearchParams();
+  const [memberLogin, setMemberLogin] = useState(params.has("member"));
   const tab = params.get("tab") || "gifts";
   const page =
     navigation.some((n) => n.key === tab) || tab === "audit" ? tab : "gifts";
@@ -175,7 +178,17 @@ export function Admin() {
                 setError("");
                 const form = new FormData(event.currentTarget);
                 try {
-                  await api("login", { password: form.get("password") });
+                  const login = await api<{ role: "owner" | "member" }>(
+                    "login",
+                    {
+                      password: form.get("password"),
+                      ...(memberLogin ? { login: form.get("login") } : {}),
+                    },
+                  );
+                  if (login.role === "member") {
+                    window.location.assign("/organiser");
+                    return;
+                  }
                   await refresh();
                 } catch (error) {
                   setError((error as Error).message);
@@ -184,6 +197,25 @@ export function Admin() {
                 }
               }}
             >
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={memberLogin}
+                  onChange={(e) => setMemberLogin(e.target.checked)}
+                />
+                {t("Je suis coorganisateur")}
+              </label>
+              {memberLogin && (
+                <Field label={t("Identifiant de connexion")}>
+                  <input
+                    name="login"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    maxLength={40}
+                    required
+                  />
+                </Field>
+              )}
               <Field label={t("Mot de passe")}>
                 <input
                   type="password"
@@ -199,11 +231,19 @@ export function Admin() {
                 <Icon name="arrow" size={17} />
               </button>
             </form>
-            <p className="fine-print">
-              {t("Accès perdu ? La commande locale")}{" "}
-              <code>npm run password</code>{" "}
-              {t("permet de réinitialiser votre mot de passe.")}
-            </p>
+            {memberLogin ? (
+              <p className="fine-print">
+                {t(
+                  "Si vous perdez votre accès, demandez au propriétaire une nouvelle invitation. Vos envies seront conservées.",
+                )}
+              </p>
+            ) : (
+              <p className="fine-print">
+                {t("Accès perdu ? La commande locale")}{" "}
+                <code>npm run password</code>{" "}
+                {t("permet de réinitialiser votre mot de passe.")}
+              </p>
+            )}
           </section>
         </main>
       </>
@@ -380,6 +420,7 @@ export function Admin() {
           <ProfileEditor profile={data.profile} refresh={refresh} />
         )}
         {page === "security" && <AccountSecurity onChange={refresh} />}
+        {page === "family" && <Family onChange={refresh} />}
         {page === "audit" && (
           <section className="panel">
             <div className="panel-heading">

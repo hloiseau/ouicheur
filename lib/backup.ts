@@ -110,6 +110,14 @@ export function restoreInstance(source: string, destination: string) {
   if (
     restored
       .prepare(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='member_invitations'",
+      )
+      .get()
+  )
+    restored.exec("DELETE FROM member_invitations");
+  if (
+    restored
+      .prepare(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='suggestions'",
       )
       .get()

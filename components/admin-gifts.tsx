@@ -70,6 +70,7 @@ export function GiftFields({
   showDuplicate = true,
   onManagePriorities,
   onCreateCategory,
+  imageEndpoint = "admin/images",
 }: {
   value: GiftDraft;
   onChange: (value: GiftDraft) => void;
@@ -81,6 +82,7 @@ export function GiftFields({
   showDuplicate?: boolean;
   onManagePriorities?: () => void;
   onCreateCategory?: () => void;
+  imageEndpoint?: string;
 }) {
   const { t, money } = useI18n();
   let total: number | undefined;
@@ -191,6 +193,7 @@ export function GiftFields({
         </label>
       )}
       <ImagePicker
+        endpoint={imageEndpoint}
         value={value.image}
         allowUrl={false}
         onChange={(v) => set("image", v)}
@@ -270,6 +273,7 @@ export function GiftEditor({
   initialUrl = "",
   suggestion: proposed,
   onCategoriesChanged,
+  apiPrefix = "admin",
 }: {
   gift: Gift | null;
   priorities: GiftPriority[];
@@ -282,6 +286,7 @@ export function GiftEditor({
   initialUrl?: string;
   suggestion?: { id: string; title: string };
   onCategoriesChanged?: () => void;
+  apiPrefix?: "admin" | "team";
 }) {
   const { t, date } = useI18n();
   const [value, setValue] = useState(
@@ -310,10 +315,10 @@ export function GiftEditor({
   ];
   const [lists, setLists] = useState<Wishlist[]>([]);
   useEffect(() => {
-    void api<Wishlist[]>("admin/lists")
+    void api<Wishlist[]>(`${apiPrefix}/lists`)
       .then(setLists)
       .catch(() => {});
-  }, []);
+  }, [apiPrefix]);
   const [uploading, setUploading] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -349,7 +354,7 @@ export function GiftEditor({
         price: number | null;
         currency: string;
         extracted_at: string;
-      }>("admin/extract", { url });
+      }>(`${apiPrefix}/extract`, { url });
       setValue((v) => ({
         ...v,
         url: m.url,
@@ -376,9 +381,12 @@ export function GiftEditor({
       });
       if (m.image_url && !initial.image) {
         try {
-          const { image } = await api<{ image: string }>("admin/images", {
-            url: m.image_url,
-          });
+          const { image } = await api<{ image: string }>(
+            `${apiPrefix}/images`,
+            {
+              url: m.image_url,
+            },
+          );
           setValue((v) => (v.image === initial.image ? { ...v, image } : v));
         } catch (e) {
           setError(
@@ -428,8 +436,8 @@ export function GiftEditor({
                 proposed
                   ? `admin/suggestions/${proposed.id}/accept`
                   : gift
-                    ? `admin/gifts/${gift.id}`
-                    : "admin/gifts",
+                    ? `${apiPrefix}/gifts/${gift.id}`
+                    : `${apiPrefix}/gifts`,
                 {
                   ...value,
                   ...suggestion,
@@ -483,7 +491,7 @@ export function GiftEditor({
               "La récupération est facultative. Seuls les champs vides sont complétés.",
             )}
           </p>
-          {gift && (
+          {gift && apiPrefix === "admin" && (
             <ProductRefresh
               id={gift.id}
               currency={gift.currency}
@@ -537,9 +545,14 @@ export function GiftEditor({
             value={value}
             onChange={setValue}
             priorities={priorityOptions}
-            onManagePriorities={() => setPriorityEditor(true)}
+            imageEndpoint={`${apiPrefix}/images`}
+            onManagePriorities={
+              apiPrefix === "admin" ? () => setPriorityEditor(true) : undefined
+            }
             categories={categoryOptions}
-            onCreateCategory={() => setCategoryEditor(true)}
+            onCreateCategory={
+              apiPrefix === "admin" ? () => setCategoryEditor(true) : undefined
+            }
             currency={gift?.currency || currency}
           />
           <div className="form-actions">

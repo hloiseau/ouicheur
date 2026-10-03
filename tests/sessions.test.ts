@@ -34,6 +34,7 @@ test("session migration preserves existing logins and surprise choices without i
       "INSERT INTO sessions(hash,expires,surprises_revealed) VALUES (?,?,1)",
     ).run(hashToken(token), expiry);
     db.exec(readFileSync("migrations/014-session-management.sql", "utf8"));
+    db.exec(readFileSync("migrations/015-family-accounts.sql", "utf8"));
     assert.ok(authorized(db, token));
     const [session] = listSessions(db, token);
     assert.equal(session.created_at, null);

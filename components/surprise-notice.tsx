@@ -25,7 +25,7 @@ export function SurpriseNotice({ revealed = false }: { revealed?: boolean }) {
       </p>
       <p className="fine-print">
         {t(
-          "L’historique détaillé, les exports, les sauvegardes et la modification des envies protégées demandent une révélation volontaire. Une visite anonyme à une liste publique ou l’accès au serveur peut contourner ce mode de confort.",
+          "La modification des envies protégées demande une révélation volontaire. Une visite anonyme à une liste publique ou l’accès au serveur peut contourner ce mode de confort.",
         )}
       </p>
       <button
@@ -44,7 +44,10 @@ export function SurpriseNotice({ revealed = false }: { revealed?: boolean }) {
           setBusy(true);
           setError("");
           try {
-            await api("admin/surprises", { reveal: !revealed, confirm: true });
+            await api("account/surprises", {
+              reveal: !revealed,
+              confirm: true,
+            });
             // Drop previously rendered pages and prefetched recipient data too.
             location.reload();
           } catch (e) {

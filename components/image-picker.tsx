@@ -8,12 +8,14 @@ export function ImagePicker({
   allowUrl = true,
   label = "",
   onBusyChange,
+  endpoint = "admin/images",
 }: {
   value: string;
   onChange: (value: string) => void;
   allowUrl?: boolean;
   label?: string;
   onBusyChange?: (busy: boolean) => void;
+  endpoint?: string;
 }) {
   const { t } = useI18n();
   label ||= t("Image");
@@ -29,7 +31,7 @@ export function ImagePicker({
     onBusyChange?.(true);
     setError("");
     try {
-      const result = await api<{ image: string }>("admin/images", data);
+      const result = await api<{ image: string }>(endpoint, data);
       latestChange.current(result.image);
     } catch (e) {
       setError((e as Error).message);
