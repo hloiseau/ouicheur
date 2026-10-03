@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+} from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { openDatabase } from "../lib/db";
@@ -51,6 +57,7 @@ test("migration keeps all existing gift fields, contribution references", () => 
 });
 
 test("renamed and added priorities sort by configuration, reject stale edits and survive backup", async () => {
+  mkdirSync(".local", { recursive: true });
   const folder = mkdtempSync(".local/priority-test-");
   const db = openDatabase(join(folder, "wishlist.sqlite"));
   try {
