@@ -1,3 +1,8 @@
+import {
+  readPriceHistory,
+  savePriceWatch,
+  refreshOfferPrice,
+} from "./price-history";
 import { calendarFeedStatus, rotateCalendarFeed } from "./calendar";
 import { bulkGifts, reorderGift, duplicateList } from "./organization";
 import type { DatabaseSync } from "node:sqlite";
@@ -33,6 +38,16 @@ export async function productGet(
     path.startsWith("admin/backups/")
   )
     requireSurpriseReveal(db, access);
+  if (path === "admin/price-history")
+    return json(
+      readPriceHistory(
+        db,
+        z.uuid().parse(url.searchParams.get("gift_id")),
+        z
+          .union([z.uuid(), z.literal("")])
+          .parse(url.searchParams.get("offer_id") || ""),
+      ),
+    );
   if (path === "admin/calendar")
     return json(
       calendarFeedStatus(
@@ -119,6 +134,20 @@ export async function productPost(
   data: unknown,
   access: Access = { owner: true, lists: [] },
 ): Promise<Response | undefined> {
+  if (path === "admin/price-watch") {
+    savePriceWatch(db, data);
+    return json({ ok: true });
+  }
+  if (path === "admin/price-history/refresh") {
+    rateLimit(db, "extract", 20, 60000);
+    const v = z
+      .object({
+        gift_id: z.uuid(),
+        offer_id: z.union([z.uuid(), z.literal("")]).default(""),
+      })
+      .parse(data);
+    return json(await refreshOfferPrice(db, v.gift_id, v.offer_id));
+  }
   if (path === "admin/calendar")
     return json(rotateCalendarFeed(db, data, access));
   if (path === "admin/gifts/bulk") return json(bulkGifts(db, data, access));

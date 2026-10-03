@@ -1,3 +1,4 @@
+import { pollPriceWatches } from "./price-history.ts";
 import {
   readdirSync,
   createReadStream,
@@ -181,6 +182,7 @@ export async function runMaintenance(db: DatabaseSync) {
     if (!last || Date.parse(String(last.created_at)) + interval < Date.now())
       await createBackup(db).catch(() => {});
   }
+  await pollPriceWatches(db);
   scheduleReminders(db);
   await deliverNotifications(db);
 }

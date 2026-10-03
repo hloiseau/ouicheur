@@ -20,7 +20,7 @@ import { ImagePicker } from "./image-picker";
 export { ImagePicker } from "./image-picker";
 import { CategoryEditor, type Category } from "./categories";
 
-import { ProductRefresh } from "./product-refresh";
+import { PriceHistory } from "./price-history";
 import type { Wishlist } from "../lib/lists";
 
 export type GiftDraft = WishDetails & {
@@ -547,13 +547,6 @@ export function GiftEditor({
               "La récupération est facultative. Seuls les champs vides sont complétés.",
             )}
           </p>
-          {gift && gift.url && apiPrefix === "admin" && (
-            <ProductRefresh
-              id={gift.id}
-              currency={gift.currency}
-              onSaved={onSaved || onDone}
-            />
-          )}
           {notice && <Notice>{notice}</Notice>}
           {error && <Notice error>{error}</Notice>}
           {extractionError && (
@@ -629,6 +622,11 @@ export function GiftEditor({
             </button>
           </div>
         </form>
+        {gift &&
+          apiPrefix === "admin" &&
+          !!(gift.url || gift.offers?.length) && (
+            <PriceHistory gift={gift} onSaved={onSaved || onDone} />
+          )}
       </Modal>
       {priorityEditor && (
         <PrioritiesEditor

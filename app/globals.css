@@ -3153,3 +3153,27 @@ textarea::placeholder {
     color: black;
   }
 }
+
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.table-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table-scroll th,
+.table-scroll td {
+  padding: 0.65rem;
+  text-align: start;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.table-scroll caption {
+  text-align: start;
+  font-weight: 700;
+  margin-bottom: 0.7rem;
+}
+.price-history {
+  margin-top: 1rem;
+}

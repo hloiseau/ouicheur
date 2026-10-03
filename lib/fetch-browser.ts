@@ -4,8 +4,8 @@ import {
   connectionReset,
   MAX_HTML_BYTES,
   resolvePublic,
-} from "./fetch-safe";
-import { AppError, webUrl } from "./validation";
+} from "./fetch-safe.ts";
+import { AppError, webUrl } from "./validation.ts";
 
 // Chromium's network stack can read public pages refused by Node's TLS client.
 // It only downloads the document: no page scripts, assets, credentials or stored session.

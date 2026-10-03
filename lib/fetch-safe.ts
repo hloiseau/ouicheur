@@ -6,7 +6,7 @@ import tls from "node:tls";
 import type { LookupFunction } from "node:net";
 import { addAbortSignal, type Readable } from "node:stream";
 import ipaddr from "ipaddr.js";
-import { AppError, webUrl } from "./validation";
+import { AppError, webUrl } from "./validation.ts";
 
 // Large merchant pages (notably Amazon) exceed 2 MiB before their product data.
 export const MAX_HTML_BYTES = 8 * 1024 * 1024;
