@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Container version="2">
   <Name>Ouicheur</Name>
-  <Repository>ghcr.io/hloiseau/ouicheur:sha-285b41eca5adb181a9a340dea10a636d12865969</Repository>
+  <Repository>ghcr.io/hloiseau/ouicheur:sha-35e849507983f3e5139b7b4f34f13899214a8f46</Repository>
   <Registry>https://github.com/hloiseau/ouicheur/pkgs/container/ouicheur</Registry>
   <Network>bridge</Network>
   <Shell>bash</Shell>
@@ -9,7 +9,7 @@
   <Support>https://github.com/hloiseau/ouicheur/issues</Support>
   <Project>https://github.com/hloiseau/ouicheur</Project>
   <ReadMe>https://github.com/hloiseau/ouicheur/blob/main/docs/unraid.md</ReadMe>
-  <Overview>Self-hosted personal wishlist with English and French interfaces, product-link imports, local images and optional direct PayPal.Me contributions. One owner per instance; visitors do not need accounts. Declared contributions are not verified payments. First setup requires the private code from the container logs. Preview template: native Unraid installation and upgrades still need validation.</Overview>
+  <Overview>Self-hosted family wishlists with English and French interfaces, product imports, per-list coorganizers, revocable sessions, reservations, surprise protection and gift exchanges. Optional direct PayPal.Me contributions are declared, not verified payments. Visitors can use shared lists without accounts. First setup requires the private code from the container logs. Preview template: record final 1.2.0 installation and upgrade results before catalog submission.</Overview>
   <Category>Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:3000]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/hloiseau/ouicheur/main/templates/ouicheur.xml</TemplateURL>

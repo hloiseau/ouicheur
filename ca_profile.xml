@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <CommunityApplications>
-  <Profile>Ouicheur is an MIT-licensed, self-hosted personal wishlist. This repository contains its source and an Unraid Docker template. Report installation issues through GitHub Issues.</Profile>
+  <Profile>Ouicheur is an MIT-licensed, self-hosted family wishlist. This repository contains its source and an Unraid Docker template. Report installation issues through GitHub Issues.</Profile>
   <Icon>https://raw.githubusercontent.com/hloiseau/ouicheur/main/public/icon.png</Icon>
   <WebPage>https://github.com/hloiseau/ouicheur</WebPage>
   <Forum>https://github.com/hloiseau/ouicheur/issues</Forum>

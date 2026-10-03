@@ -1,8 +1,8 @@
 # TrueNAS catalog candidate
 
 The `ouicheur/` directory is prepared for `ix-dev/community/ouicheur/` in
-https://github.com/truenas/apps. It uses rendering library **2.3.14**, inspected at
-upstream commit `c988f4a626e1540c9849b6278780a7c1df00f3d3` on 28 September 2026.
+https://github.com/truenas/apps. It uses rendering library **2.3.15**, inspected at
+upstream commit `fcb435722d2a50f84ce5457b3288b72b8d170ac5` on 3 October 2026.
 Check the current library before submitting. The icon points to the real upstream
 512 × 512 PNG; catalog maintainers can mirror it to their CDN.
 
@@ -14,9 +14,9 @@ does not require privileged mode, host networking or the Docker socket. The
 temporary permission-init container is a separate catalog-managed exception.
 
 The image reference is an existing tested commit tag, not a fabricated release.
-It predates this proposal's license-packaging change. Before final submission,
-publish the corrected numbered image and update `ix_values.yaml` and
-`app_version`. No `latest` tag is assumed. Catalog metadata (`capabilities`,
+It contains the 1.2.0 application, MIT license, dependency notices and runtime
+inventories. Before final submission, choose the published stable image and
+record its verified digest. No `latest` tag is assumed. Catalog metadata (`capabilities`,
 `run_as_context`, hashes and `item.yaml`) must be regenerated with upstream tools;
 the checked-in values here are initial input, not certified generated metadata.
 
@@ -32,8 +32,18 @@ python .github/scripts/ci.py --app ouicheur --train community --test-file host-p
 
 The two scenarios cover default ixVolumes and preconfigured host paths with a
 different UID/GID. They contain synthetic test paths, not paths to reuse on a NAS.
-Local rendering with the upstream Python library is a useful preliminary check,
-but does not replace these commands or testing on TrueNAS.
+Both scenarios were rendered successfully with the pinned upstream Python library
+on 3 October 2026. Reproduce that preliminary check from the Ouicheur checkout
+with the upstream Python dependencies installed:
+
+```sh
+python scripts/validate-nas.py /path/to/truenas/apps/library/2.3.15
+```
+
+It checks matching Unraid/TrueNAS image references, UID/GID, dropped capabilities
+and persistent mounts. The renderer uses its simulated environment. This does
+not run Docker, generate certified catalog metadata or replace the official
+commands above. Native catalog installation and upgrade remain to be recorded.
 
 Before requesting merge, verify initial setup, persistence after restart, actual
 Chromium imports under the selected UID, upgrade from the old image, backup and

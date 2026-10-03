@@ -70,4 +70,6 @@ docker compose -f compose.truenas.yaml pull
 docker compose -f compose.truenas.yaml up -d
 ```
 
-Les migrations s’appliquent au démarrage et le compte existant reste configuré. Vérifier `/api/health` et l’affichage des envies après la mise à jour.
+Les migrations s’appliquent au démarrage et le compte existant reste configuré. Vérifier `/api/health`, puis **Mon instance** pour relever la version et le commit réellement exécutés. Contrôler les envies/images, une réservation fictive, les droits d’un proche et un redémarrage.
+
+Les [notes 1.2.0](releases/1.2.0.md) détaillent les nouvelles options et les effets d’une restauration. Pour revenir à une ancienne image, restaurer aussi sa sauvegarde de schéma correspondant dans un stockage vide ; ne pas ouvrir la base migrée avec l’ancienne image. Consigner le résultat dans le [formulaire NAS](https://github.com/hloiseau/ouicheur/issues/new?template=nas.yml).
