@@ -82,6 +82,7 @@ import {
   sessionAccount,
 } from "../../../lib/auth";
 import { listGifts, saveGift, setGiftPurchased } from "../../../lib/gifts";
+import { queryWishlist } from "../../../lib/wishlist-query";
 import {
   hiddenSurpriseLists,
   requireSurpriseReveal,
@@ -187,6 +188,16 @@ async function handle(
             .trim()
             .slice(0, 100)
         : "shared";
+    if (path === "wishes" && request.method === "GET") {
+      rateLimit(db, `wishes:${ip}`, 600, 60000);
+      return response(
+        queryWishlist(
+          db,
+          Object.fromEntries(request.nextUrl.searchParams),
+          accessFromCookies(db, request.cookies),
+        ),
+      );
+    }
     if (path === "setup") {
       if (request.method !== "POST")
         throw new AppError("Méthode refusée.", 405);
@@ -364,7 +375,20 @@ async function handle(
           );
         if (path === "account/sessions")
           return response(listSessions(db, token!));
-        if (segments[0] === "team") return teamGet(db, token!, path);
+        if (segments[0] === "team")
+          return teamGet(
+            db,
+            token!,
+            path,
+            request.nextUrl.searchParams.get("summary") === "1"
+              ? {
+                  list: request.nextUrl.searchParams.get("list") || "",
+                  locale: resolveLocale(
+                    request.cookies.get(localeCookie)?.value,
+                  ),
+                }
+              : undefined,
+          );
       }
       if (request.method === "POST") {
         const input = await body(
@@ -604,6 +628,17 @@ async function handle(
     }
     if (path === "admin" && request.method === "GET") {
       expireIntents(db);
+      const wishlist =
+        request.nextUrl.searchParams.get("summary") === "1"
+          ? queryWishlist(
+              db,
+              {
+                mode: "owner",
+                locale: resolveLocale(request.cookies.get(localeCookie)?.value),
+              },
+              access,
+            )
+          : undefined;
       return response({
         surprises_enabled: listLists(db, access).some(
           (l) => l.surprise_mode && access.recipientLists?.includes(l.id),
@@ -627,7 +662,8 @@ async function handle(
             .get()!.n,
         ),
         lists: listLists(db, { owner: true, lists: [] }),
-        gifts: listGifts(db, true, access),
+        gifts: wishlist?.items || listGifts(db, true, access),
+        wishlist,
         priorities: listPriorities(db),
         categories: db.prepare("SELECT * FROM categories ORDER BY name").all(),
         contributions: db

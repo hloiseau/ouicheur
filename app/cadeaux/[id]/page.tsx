@@ -31,7 +31,9 @@ export default async function GiftPage({
   const { id } = await params;
   const db = database();
   const access = accessFromCookies(db, await cookies());
-  const gift = listGifts(db, access.owner, access).find((g) => g.id === id);
+  const gift = listGifts(db, access.owner, access, { ids: [id] }).find(
+    (g) => g.id === id,
+  );
   const profile = publicProfile(db);
   const priority = listPriorities(db).find((p) => p.id === gift?.priority);
   if (!gift || !profile) notFound();

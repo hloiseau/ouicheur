@@ -1,4 +1,7 @@
 "use client";
+import type { WishlistPage } from "../lib/wishlist-query";
+import { imageSrcSet } from "../lib/image-srcset";
+import { useWishlistPage } from "./wishlist-loader";
 import { nextOccurrence } from "../lib/event-dates";
 import { ListTools } from "./list-tools";
 import { BulkOrganizer } from "./bulk-organizer";
@@ -21,7 +24,7 @@ import { useRouter } from "next/navigation";
 import type { Gift, PublicProfile } from "../lib/gifts";
 import { appearanceStyle, defaultAppearance } from "../lib/appearance";
 import { ProfileHeader } from "./profile-header";
-import { Brand, Icon } from "./ui";
+import { Brand, Icon, Notice } from "./ui";
 import { GiftEditor } from "./admin-gifts";
 import { Categories, type Category } from "./categories";
 import { GiftPurchaseToggle } from "./gift-purchase-toggle";
@@ -59,7 +62,16 @@ export function GiftArt({ gift }: { gift: Pick<Gift, "image" | "title"> }) {
   return (
     <div className="gift-art">
       {gift.image ? (
-        <img src={gift.image} alt={gift.title} loading="lazy" />
+        <img
+          src={gift.image}
+          srcSet={imageSrcSet(gift.image)}
+          sizes="(max-width: 700px) 45vw, 320px"
+          width={640}
+          height={640}
+          alt={gift.title}
+          loading="lazy"
+          decoding="async"
+        />
       ) : (
         <div className="gift-illustration" aria-hidden="true">
           <Icon name="gift" size={38} />
@@ -132,7 +144,9 @@ export function PublicWishlist({
   initialList = "",
   surprise,
   member = false,
+  initialPage,
 }: {
+  initialPage?: WishlistPage;
   member?: boolean;
   surprise?: { revealed: boolean };
   lists?: Wishlist[];
@@ -197,7 +211,26 @@ export function PublicWishlist({
     owner?.gifts.filter(
       (gift) => gift.visibility === "archived" && inList(gift),
     ) || [];
-  const hasHiddenSurprises = active.some((g) => g.surprise_hidden);
+  const minAmount = parseBudget(minimum);
+  const maxAmount = parseBudget(maximum);
+  const remote = useWishlistPage(initialPage, {
+    mode: owner ? "owner" : "public",
+    list: selectedList,
+    search,
+    category,
+    priority: priorityFilter,
+    view: view as "all" | "favorites" | "completed" | "archived",
+    currency,
+    basis,
+    minimum: minAmount ?? undefined,
+    maximum: maxAmount ?? undefined,
+    available: availableOnly ? "1" : "0",
+    sort,
+    locale,
+  });
+  const result = remote.page;
+  const hasHiddenSurprises =
+    result?.hidden ?? active.some((g) => g.surprise_hidden);
   const safeView = hasHiddenSurprises && view === "completed" ? "all" : view;
   const safeAvailableOnly = availableOnly && !hasHiddenSurprises;
   const scoped = (safeView === "archived" && owner ? archived : active).filter(
@@ -208,15 +241,15 @@ export function PublicWishlist({
           ? completed(gift)
           : true,
   );
-  const currencies = [...new Set(gifts.map((gift) => gift.currency))].sort();
-  const listCurrencies = [
-    ...new Set(gifts.filter(inList).map((gift) => gift.currency)),
-  ].sort();
+  const currencies =
+    result?.currencies ??
+    [...new Set(gifts.map((gift) => gift.currency))].sort();
+  const listCurrencies =
+    result?.currencies ??
+    [...new Set(gifts.filter(inList).map((gift) => gift.currency))].sort();
   const defaultCurrency = listCurrencies.includes(profile?.currency || "")
     ? profile!.currency
     : listCurrencies[0] || currencies[0] || "EUR";
-  const minAmount = parseBudget(minimum);
-  const maxAmount = parseBudget(maximum);
   const budgetError =
     minAmount === undefined || maxAmount === undefined
       ? t(
@@ -230,26 +263,28 @@ export function PublicWishlist({
   const budgetActive = !!(minimum || maximum || currency || availableOnly);
   const visible = budgetError
     ? []
-    : filterWishlist(
-        scoped.filter(
-          (gift) =>
-            (!category || gift.category_id === category) &&
-            (!priorityFilter || gift.priority === Number(priorityFilter)) &&
-            (!safeAvailableOnly ||
-              !lists.find((list) => list.id === gift.list_id)?.archived),
-        ),
-        {
-          search,
-          currency,
-          basis,
-          minimum: minAmount ?? null,
-          maximum: maxAmount ?? null,
-          availableOnly: safeAvailableOnly,
-          sort,
-          locale,
-          priorityOrder,
-        },
-      );
+    : result
+      ? result.items
+      : filterWishlist(
+          scoped.filter(
+            (gift) =>
+              (!category || gift.category_id === category) &&
+              (!priorityFilter || gift.priority === Number(priorityFilter)) &&
+              (!safeAvailableOnly ||
+                !lists.find((list) => list.id === gift.list_id)?.archived),
+          ),
+          {
+            search,
+            currency,
+            basis,
+            minimum: minAmount ?? null,
+            maximum: maxAmount ?? null,
+            availableOnly: safeAvailableOnly,
+            sort,
+            locale,
+            priorityOrder,
+          },
+        );
   return (
     <div
       className={
@@ -332,6 +367,9 @@ export function PublicWishlist({
                   value={selectedList}
                   onChange={(e) => {
                     setSelectedList(e.target.value);
+                    setCategory("");
+                    setPriorityFilter("");
+                    setCurrency("");
                     setShown(24);
                   }}
                 >
@@ -406,7 +444,7 @@ export function PublicWishlist({
               {
                 key: "all",
                 label: t("Ma Ouichlist"),
-                count: active.length,
+                count: result?.counts.all ?? active.length,
                 icon: "gift",
               },
               {
@@ -418,13 +456,16 @@ export function PublicWishlist({
                     : featured
                       ? priorityLabel(featured, t)
                       : t("Coups de cœur")),
-                count: active.filter((g) => g.priority === featured?.id).length,
+                count:
+                  result?.counts.favorites ??
+                  active.filter((g) => g.priority === featured?.id).length,
                 icon: "heart",
               },
               {
                 key: "completed",
                 label: t("Envies réalisées"),
-                count: active.filter(completed).length,
+                count:
+                  result?.counts.completed ?? active.filter(completed).length,
                 icon: "check",
               },
               ...(owner
@@ -432,7 +473,7 @@ export function PublicWishlist({
                     {
                       key: "archived",
                       label: t("Archivées"),
-                      count: archived.length,
+                      count: result?.counts.archived ?? archived.length,
                       icon: "book",
                     },
                   ]
@@ -465,6 +506,8 @@ export function PublicWishlist({
             <Categories
               categories={categories}
               gifts={scoped}
+              counts={result?.categories}
+              total={result?.category_total}
               selected={category}
               onSelect={(value) => {
                 setCategory(value);
@@ -474,11 +517,15 @@ export function PublicWishlist({
               onSaved={refresh}
             />
           )}
-          {gifts.length > 0 && (
+          {(result?.all_total ?? gifts.length) > 0 && (
             <>
               <div className="wishlist-tools">
                 <span className="results-count" role="status">
-                  {countLabel(visible.length)}
+                  {remote.loading
+                    ? t("Chargement…")
+                    : countLabel(
+                        budgetError ? 0 : (result?.total ?? visible.length),
+                      )}
                 </span>
                 <label className="search-box">
                   <Icon name="search" size={18} />
@@ -700,9 +747,13 @@ export function PublicWishlist({
               onChange={refresh}
             />
           )}
+          {remote.error && <Notice error>{remote.error}</Notice>}
+          {remote.loading && !visible.length && (
+            <p role="status">{t("Chargement…")}</p>
+          )}
           {visible.length ? (
             <div className="gift-grid">
-              {visible.slice(0, shown).map((gift) => (
+              {(result ? visible : visible.slice(0, shown)).map((gift) => (
                 <article
                   className={`gift-card${owner ? " admin-gift-row" : ""}`}
                   key={gift.id}
@@ -798,7 +849,9 @@ export function PublicWishlist({
                           disabled={gift.surprise_hidden}
                           onClick={() =>
                             setEditor(
-                              owner.gifts.find((g) => g.id === gift.id)!,
+                              result
+                                ? (gift as Gift)
+                                : owner.gifts.find((g) => g.id === gift.id)!,
                             )
                           }
                         >
@@ -834,21 +887,21 @@ export function PublicWishlist({
                 </article>
               ))}
             </div>
-          ) : (
+          ) : !remote.loading ? (
             <div className="empty-state">
               <h2>
-                {gifts.length
+                {(result?.all_total ?? gifts.length)
                   ? t("Aucune envie trouvée")
                   : t("Pas encore d’envies")}
               </h2>
               <p>
-                {gifts.length
+                {(result?.all_total ?? gifts.length)
                   ? t(
                       "Essayez un autre budget, une autre catégorie ou quelques mots différents.",
                     )
                   : t("La liste est vide pour le moment.")}
               </p>
-              {gifts.length > 0 && (
+              {(result?.all_total ?? gifts.length) > 0 && (
                 <button
                   type="button"
                   className="button secondary"
@@ -863,11 +916,15 @@ export function PublicWishlist({
                 </a>
               )}
             </div>
-          )}
-          {visible.length > shown && (
+          ) : null}
+          {((result && !!result.next) ||
+            (!result && visible.length > shown)) && (
             <button
               className="button secondary"
-              onClick={() => setShown((n) => n + 24)}
+              disabled={remote.loading}
+              onClick={() =>
+                result ? void remote.more() : setShown((n) => n + 24)
+              }
             >
               {t("Afficher plus")}
             </button>

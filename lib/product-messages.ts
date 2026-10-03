@@ -38,8 +38,8 @@ export const productEnglish: Record<string, string> = {
   Description: "Description",
   "Date de l’événement": "Event date",
   Confidentialité: "Privacy",
-  "Publique : visible par tous. Non répertoriée : accessible avec un lien privé. Privée : réservée au propriétaire. Le profil est commun à vos listes.":
-    "Public: visible to everyone. Unlisted: accessible with a private link. Private: owner only. Your profile is shared across your lists.",
+  "Publique : visible par tous. Non répertoriée : accessible avec un lien privé. Privée : accessible au propriétaire et aux comptes autorisés. Le profil est commun à vos listes.":
+    "Public: visible to everyone. Unlisted: accessible with a private link. Private: visible to the owner and authorized accounts. Your profile is shared across your lists.",
   "Archiver cette liste": "Archive this list",
   "Changer la confidentialité ou archiver révoque le lien existant.":
     "Changing privacy or archiving revokes the existing link.",

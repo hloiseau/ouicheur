@@ -65,8 +65,17 @@ export function listGifts(
   db: DatabaseSync,
   admin = false,
   access: Access = admin ? { owner: true, lists: [] } : publicAccess,
+  options: { listId?: string; ids?: string[] } = {},
 ) {
-  const allowed = listLists(db, access).map((l) => l.id);
+  const allowed = listLists(db, access)
+    .filter(
+      (l) =>
+        (!options.listId || l.id === options.listId) &&
+        (!admin || access.owner || access.managedLists?.includes(l.id)),
+    )
+    .map((l) => l.id);
+  if (!allowed.length || options.ids?.length === 0) return [];
+  const clause = `WHERE g.list_id IN (SELECT value FROM json_each(?)) ${admin ? "" : "AND g.visibility='visible'"} ${options.ids ? "AND g.id IN (SELECT value FROM json_each(?))" : ""}`;
   const rows = db
     .prepare(
       `SELECT g.*,c.name category,COALESCE(f.funded,0) funded,
@@ -76,19 +85,30 @@ export function listGifts(
     COALESCE((SELECT SUM(p.gross-MAX(p.refunded,p.net_reversed)) FROM payments p JOIN contributions n ON n.id=p.contribution_id WHERE n.gift_id=g.id AND p.net IS NULL),0) unknown_gross
     FROM gifts g LEFT JOIN categories c ON c.id=g.category_id
     LEFT JOIN gift_priorities gp ON gp.id=COALESCE(g.priority_id,g.priority)
-    LEFT JOIN (${fundingTotalsSql}) f ON f.gift_id=g.id ${admin ? "" : "WHERE g.visibility='visible'"}
-    ORDER BY gp.position,g.created_at DESC`,
+    LEFT JOIN (${fundingTotalsSql}) f ON f.gift_id=g.id ${clause}
+    ORDER BY gp.position,g.created_at DESC,g.id`,
     )
-    .all(dateNow())
+    .all(
+      dateNow(),
+      JSON.stringify(allowed),
+      ...(options.ids ? [JSON.stringify(options.ids)] : []),
+    )
     .map(({ japan_search: _retired, priority_id, ...row }) => ({
       ...row,
       priority: priority_id ?? row.priority,
     })) as Omit<Gift, "surprise_hidden">[];
   const offers = db
     .prepare(
-      "SELECT id,gift_id,url,condition,note,price,currency,shipping,availability,checked_at FROM gift_offers ORDER BY position,id",
+      "SELECT id,gift_id,url,condition,note,price,currency,shipping,availability,checked_at FROM gift_offers WHERE gift_id IN (SELECT value FROM json_each(?)) ORDER BY position,id",
     )
-    .all();
+    .all(JSON.stringify(rows.map((r) => r.id)));
+  const offersByGift = new Map<string, GiftOffer[]>();
+  for (const { gift_id, ...o } of offers) {
+    const key = String(gift_id);
+    const group = offersByGift.get(key) || [];
+    group.push(o as GiftOffer);
+    offersByGift.set(key, group);
+  }
   const hidden = hiddenSurpriseLists(db, access);
   return (
     admin && access.owner
@@ -100,9 +120,7 @@ export function listGifts(
     .map((gift) => ({
       ...gift,
       target: gift.budget_mode === "fixed" ? gift.target : 0,
-      offers: offers
-        .filter((o) => o.gift_id === gift.id)
-        .map(({ gift_id: _id, ...o }) => o) as GiftOffer[],
+      offers: offersByGift.get(gift.id) || [],
     }))
     .map<Gift>((gift) =>
       hidden.includes(gift.list_id)

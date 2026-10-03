@@ -7,6 +7,10 @@ import { accountEnglish } from "./account-messages.ts";
 import { familyEnglish } from "./family-messages.ts";
 // French source messages and their English translations. Keep placeholders in both.
 export const english: Record<string, string> = {
+  "La liste a changé. Actualisez les résultats pour continuer.":
+    "The list changed. Results have been refreshed; continue from the first page.",
+  "Le serveur est occupé. Réessayez dans un instant.":
+    "The server is busy. Please try again shortly.",
   ...finalEnglish,
   ...exchangeEnglish,
   ...trackingEnglish,

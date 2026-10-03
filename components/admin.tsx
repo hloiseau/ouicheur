@@ -1,5 +1,6 @@
 "use client";
 import type { GiftPriority } from "../lib/priority-labels";
+import type { WishlistPage } from "../lib/wishlist-query";
 import packageInfo from "../package.json";
 import { PageHeader } from "./page-header";
 import { SurpriseNotice } from "./surprise-notice";
@@ -39,6 +40,7 @@ type Profile = Appearance & {
   strict_contributions: number;
 };
 type AdminData = {
+  wishlist: WishlistPage;
   surprises_enabled: boolean;
   surprises_revealed: boolean;
   pending_contributions: number;
@@ -103,7 +105,7 @@ export function Admin() {
   const refresh = async () => {
     setLoadError("");
     try {
-      const updated = await api<AdminData>("admin");
+      const updated = await api<AdminData>("admin?summary=1");
       const add = new URLSearchParams(location.search).get("add");
       if (add !== null) {
         location.assign(
@@ -334,6 +336,7 @@ export function Admin() {
               payments_enabled: Number(!!data.profile.paypal),
             }}
             gifts={data.gifts}
+            initialPage={data.wishlist}
             priorities={data.priorities}
             categories={data.categories}
             lists={data.lists}

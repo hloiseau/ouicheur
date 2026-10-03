@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { boundedWork } from "./bounded-work.ts";
 import type { Element } from "domhandler";
 import { fetchHtml, fetchBrowserHtml } from "./fetch-browser.ts";
 import { AppError, canonicalUrl, money, webUrl } from "./validation.ts";
@@ -409,7 +410,11 @@ export function parseMetadata(html: string, url: string) {
     extracted_at: new Date().toISOString(),
   };
 }
+const extraction = boundedWork(2, 8, 30000);
 export async function extractMetadata(url: string) {
+  return extraction(() => extractMetadataNow(url));
+}
+async function extractMetadataNow(url: string) {
   const validatedUrl = canonicalUrl(url);
   const deadline = Date.now() + 15000;
   let page = await fetchHtml(validatedUrl, deadline);

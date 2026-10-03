@@ -16,10 +16,15 @@ import { AppError, urlSchema } from "./validation.ts";
 
 const json = (value: unknown) =>
   Response.json(value, { headers: { "Cache-Control": "no-store" } });
-export function teamGet(db: DatabaseSync, token: string, path: string) {
+export function teamGet(
+  db: DatabaseSync,
+  token: string,
+  path: string,
+  page?: { list: string; locale: "fr" | "en" },
+) {
   requireMember(db, token);
   if (path === "team/secrets") return json(secretInbox(db, token));
-  if (path === "team") return json(memberSummary(db, token));
+  if (path === "team") return json(memberSummary(db, token, page));
   if (path === "team/lists") {
     const access = memberAccess(db, token);
     return json(

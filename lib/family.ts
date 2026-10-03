@@ -17,6 +17,7 @@ import {
   type Access,
 } from "./lists.ts";
 import { listGifts, saveGiftInTransaction } from "./gifts.ts";
+import { queryWishlist } from "./wishlist-query.ts";
 import { listPriorities } from "./priorities.ts";
 import { requireSurpriseReveal } from "./surprise.ts";
 import { AppError, dateNow, giftSchema, text } from "./validation.ts";
@@ -324,21 +325,43 @@ function requireListEdit(
   if (editingExisting) requireSurpriseReveal(db, access, id);
   return access;
 }
-export function memberSummary(db: DatabaseSync, token: string) {
+export function memberSummary(
+  db: DatabaseSync,
+  token: string,
+  page?: { list: string; locale: "fr" | "en" },
+) {
   const account = requireMember(db, token);
   const access = memberAccess(db, token);
   const lists = listLists(db, access).filter((l) =>
     access.managedLists?.includes(l.id),
   );
-  const gifts = listGifts(db, true, access);
+  const wishlist = page
+    ? queryWishlist(
+        db,
+        {
+          mode: "team",
+          list: lists.some((l) => l.id === page.list)
+            ? page.list
+            : lists[0]?.id || "",
+          locale: page.locale,
+        },
+        access,
+      )
+    : undefined;
+  const gifts = wishlist?.items || listGifts(db, true, access);
   const categories = db
     .prepare("SELECT id,name FROM categories ORDER BY name")
     .all()
-    .filter((c) => gifts.some((g) => g.category_id === c.id));
+    .filter((c) =>
+      wishlist
+        ? wishlist.categories.some((g) => g.id === c.id)
+        : gifts.some((g) => g.category_id === c.id),
+    );
   return {
     account: { name: account.name, login: account.login },
     lists,
     gifts,
+    wishlist,
     categories,
     priorities: listPriorities(db),
     currency: String(
