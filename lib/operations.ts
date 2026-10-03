@@ -17,7 +17,11 @@ import { chromium } from "playwright-core";
 import { atomic, audit, dataDir } from "./db.ts";
 import { backupInstance } from "./backup.ts";
 import { getSettings } from "./settings.ts";
-import { deliverNotifications } from "./notifications.ts";
+import {
+  deliverNotifications,
+  enqueueNotification,
+  scheduleReminders,
+} from "./notifications.ts";
 import { AppError, dateNow } from "./validation.ts";
 import { storageStats } from "./storage.ts";
 
@@ -72,6 +76,7 @@ export async function createBackup(
     return id;
   } catch {
     db.prepare("UPDATE backup_jobs SET state='failed' WHERE id=?").run(id);
+    enqueueNotification(db, "backup_failed", id);
     rmSync(folder, { recursive: true, force: true });
     rmSync(archive, { force: true });
     throw new AppError(
@@ -176,5 +181,6 @@ export async function runMaintenance(db: DatabaseSync) {
     if (!last || Date.parse(String(last.created_at)) + interval < Date.now())
       await createBackup(db).catch(() => {});
   }
+  scheduleReminders(db);
   await deliverNotifications(db);
 }

@@ -1,4 +1,5 @@
 "use client";
+import { NotificationPreferencesPanel } from "./notification-preferences";
 import { useEffect, useState } from "react";
 import { api, Field, Notice } from "./ui";
 import { useI18n } from "./language";
@@ -156,48 +157,10 @@ export function Operations() {
                     }
                   />
                 </Field>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={settings.notifications}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        notifications: e.target.checked,
-                      })
-                    }
-                  />
-                  {t("Notifications ntfy")}
-                </label>
-                <p className="fine-print">
-                  {t(
-                    "Configurez NTFY_URL et éventuellement NTFY_TOKEN dans votre conteneur. Les notifications ne contiennent aucun nom, montant ou lien privé.",
-                  )}
-                </p>
-                <p>
-                  {t(
-                    data.diagnostics.ntfy_configured
-                      ? "Serveur ntfy configuré"
-                      : "Serveur ntfy à configurer",
-                  )}
-                </p>
                 <button className="button primary" disabled={busy}>
                   {t("Enregistrer")}
                 </button>
               </form>
-              <button
-                className="button secondary"
-                disabled={
-                  busy ||
-                  !data.settings.notifications ||
-                  !data.diagnostics.ntfy_configured
-                }
-                onClick={() =>
-                  void action(() => api("admin/notifications/test", {}))
-                }
-              >
-                {t("Tester les notifications")}
-              </button>
               {data.diagnostics.notification_counts.map((n) => (
                 <p key={n.state}>
                   {t(n.state)} : {n.count}
@@ -205,6 +168,7 @@ export function Operations() {
               ))}
             </section>
           </div>
+          <NotificationPreferencesPanel />
           <section className="panel stack">
             <h2>{t("Sauvegardes complètes")}</h2>
             <p>

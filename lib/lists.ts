@@ -1,3 +1,4 @@
+import { validTimezone } from "./event-dates.ts";
 import { secretCoordinator } from "./secret-suggestions.ts";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
@@ -13,6 +14,9 @@ export type Wishlist = {
   visibility: "public" | "unlisted" | "private";
   archived: number;
   event_date: string;
+  event_annual?: number;
+  event_timezone?: string;
+  leap_day?: string;
   shared: number;
   surprise_mode: number;
   suggestions_enabled: number;
@@ -77,7 +81,7 @@ export function listLists(db: DatabaseSync, access: Access = publicAccess) {
   return (
     db
       .prepare(
-        "SELECT id,name,description,visibility,archived,event_date,surprise_mode,suggestions_enabled,CASE WHEN share_hash IS NULL THEN 0 ELSE 1 END shared FROM lists ORDER BY created_at,id",
+        "SELECT id,name,description,visibility,archived,event_date,event_annual,event_timezone,leap_day,surprise_mode,suggestions_enabled,CASE WHEN share_hash IS NULL THEN 0 ELSE 1 END shared FROM lists ORDER BY created_at,id",
       )
       .all()
       .map((row) => ({
@@ -125,6 +129,11 @@ export function saveList(db: DatabaseSync, input: unknown) {
       archived: z.boolean().default(false),
       surprise_mode: z.boolean().optional(),
       suggestions_enabled: z.boolean().optional(),
+      event_annual: z.boolean().optional(),
+      event_timezone: text(80)
+        .refine(validTimezone, "Fuseau horaire invalide.")
+        .optional(),
+      leap_day: z.enum(["feb28", "skip"]).optional(),
       confirm_reveal: z.boolean().default(false),
       event_date: z.union([z.literal(""), z.iso.date()]).default(""),
     })
@@ -132,7 +141,9 @@ export function saveList(db: DatabaseSync, input: unknown) {
   return atomic(db, () => {
     const id = value.id || randomUUID();
     const existing = db
-      .prepare("SELECT surprise_mode,suggestions_enabled FROM lists WHERE id=?")
+      .prepare(
+        "SELECT surprise_mode,suggestions_enabled,event_annual,event_timezone,leap_day FROM lists WHERE id=?",
+      )
       .get(id);
     if (value.id && !existing) throw new AppError("Liste introuvable.", 404);
     const surprise = value.surprise_mode ?? !!existing?.surprise_mode;
@@ -155,6 +166,14 @@ export function saveList(db: DatabaseSync, input: unknown) {
     );
     db.prepare("UPDATE lists SET suggestions_enabled=? WHERE id=?").run(
       Number(value.suggestions_enabled ?? !!existing?.suggestions_enabled),
+      id,
+    );
+    db.prepare(
+      "UPDATE lists SET event_annual=?,event_timezone=?,leap_day=? WHERE id=?",
+    ).run(
+      Number(value.event_annual ?? !!existing?.event_annual),
+      value.event_timezone ?? existing?.event_timezone ?? "Europe/Paris",
+      value.leap_day ?? existing?.leap_day ?? "feb28",
       id,
     );
     if (surprise && !existing?.surprise_mode)

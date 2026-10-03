@@ -12,6 +12,14 @@ services:
       DATA_DIR: /app/data
       TRUST_PROXY: ${TRUST_PROXY:-0}
       NEXT_TELEMETRY_DISABLED: "1"
+      NTFY_URL: ${NTFY_URL:-}
+      NTFY_TOKEN: ${NTFY_TOKEN:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_TO: ${SMTP_TO:-}
     volumes:
       - wishlister-data:/app/data
       - wishlister-backups:/app/backups

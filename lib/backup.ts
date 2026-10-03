@@ -109,11 +109,30 @@ export function restoreInstance(source: string, destination: string) {
   if (
     restored
       .prepare(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='calendar_feeds'",
+      )
+      .get()
+  )
+    restored.exec("DELETE FROM calendar_feeds");
+  if (
+    restored
+      .prepare(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='secret_suggestions'",
       )
       .get()
   )
     restored.exec("UPDATE secret_suggestions SET token_hash=NULL");
+  if (
+    restored
+      .prepare(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='account_email'",
+      )
+      .get()
+  ) {
+    restored.exec(
+      "UPDATE account_email SET verified=0,challenge_hash=NULL,expires=0; UPDATE notification_preferences SET enabled=0; DELETE FROM notification_jobs; DELETE FROM notification_delivery; UPDATE settings SET value=json_set(value,'$.notifications',json('false')) WHERE key='operations';",
+    );
+  }
   restored.exec("DELETE FROM sessions; DELETE FROM rate_limits;");
   if (
     restored

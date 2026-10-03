@@ -199,4 +199,91 @@ export const finalEnglish: Record<string, string> = {
   "Couleurs préférées": "Favourite colours",
   "Déjà possédé": "Already owned",
   "Cadeaux à éviter": "Gifts to avoid",
+  "Ajouter à mon calendrier": "Add to my calendar",
+  "L’événement occupe une journée. Choisissez les informations à exporter ; les cadeaux et participations restent exclus.":
+    "This is an all-day event. Choose which details to export; gifts and contributions are excluded.",
+  "Inclure le nom de la liste": "Include the list name",
+  "Inclure sa description": "Include its description",
+  "Inclure le lien public": "Include the public link",
+  "Télécharger l’événement (.ics)": "Download the event (.ics)",
+  "Créer un lien d’abonnement": "Create a subscription link",
+  "Révoquer l’abonnement": "Revoke the subscription",
+  "Répéter chaque année": "Repeat every year",
+  "Fuseau horaire de l’événement": "Event time zone",
+  "Le 29 février les années non bissextiles": "February 29 in non-leap years",
+  "Fêter le 28 février": "Celebrate on February 28",
+  "Uniquement les années bissextiles": "Only in leap years",
+  "Chaque année": "Every year",
+  "Une seule fois": "Once",
+  "Révoquer l’abonnement à ce calendrier ?":
+    "Revoke this calendar subscription?",
+  "Créer un lien de calendrier privé ? Toute personne qui le possède pourra lire les champs choisis. L’ancien lien sera révoqué.":
+    "Create a private calendar link? Anyone with this link can read the selected fields. The old link will be revoked.",
+  "Abonnement révoqué. Les copies déjà importées peuvent subsister dans le calendrier.":
+    "Subscription revoked. Previously imported copies may remain in the calendar.",
+  "Copiez ce lien dans la fonction d’abonnement de votre calendrier. Conservez-le comme un lien privé.":
+    "Paste this link into your calendar subscription settings. Keep it private.",
+  "Mes rappels et notifications": "My reminders and notifications",
+  "Choisissez vos occasions, canaux et horaires. Les messages restent neutres, sans noms de cadeaux, montants ou liens privés.":
+    "Choose occasions, channels and quiet hours. Messages stay neutral, without gift names, amounts or private links.",
+  "Mon adresse de courriel": "My email address",
+  "Une adresse propriétaire est configurée sur le serveur.":
+    "An owner email address is configured on the server.",
+  "Adresse vérifiée : {0}": "Verified address: {0}",
+  "Adresse de courriel pour mes rappels": "Email address for my reminders",
+  "Recevoir un code de vérification": "Send a verification code",
+  "Code à 6 chiffres": "6-digit code",
+  "Vérifier l’adresse": "Verify the address",
+  "Supprimer mon adresse": "Remove my address",
+  "Activer mes rappels personnalisés": "Enable my custom reminders",
+  "Fuseau horaire des rappels": "Reminder time zone",
+  "Ne pas déranger à partir de": "Quiet hours start",
+  "Reprendre les envois à": "Resume sending at",
+  "Deux horaires identiques désactivent la pause nocturne. Le résumé est envoyé au plus une fois par jour et par canal, hors pause.":
+    "Matching times disable quiet hours. Digests are sent at most once a day per channel, outside quiet hours.",
+  "Rappel {0}": "Reminder {0}",
+  "Type de rappel {0}": "Reminder {0} type",
+  "Liste du rappel {0}": "Reminder {0} list",
+  "Toutes mes listes autorisées": "All my authorized lists",
+  "Canal du rappel {0}": "Reminder {0} channel",
+  Courriel: "Email",
+  "Fréquence du rappel {0}": "Reminder {0} frequency",
+  "À chaque événement": "For each event",
+  "Résumé quotidien": "Daily digest",
+  "Jours avant l’occasion {0}": "Days before occasion {0}",
+  "Supprimer le rappel {0}": "Remove reminder {0}",
+  "Ajouter un rappel": "Add a reminder",
+  "Enregistrer mes notifications": "Save my notifications",
+  "Cette liste n’a pas d’événement actif.": "This list has no active event.",
+  "Calendrier introuvable.": "Calendar not found.",
+  "Connexion requise.": "Sign in required.",
+  "Ce canal est réservé au propriétaire.":
+    "This channel is reserved for the owner.",
+  "Ce type de rappel est réservé au propriétaire.":
+    "This reminder type is reserved for the owner.",
+  "Un rappel identique existe déjà.": "An identical reminder already exists.",
+  "Configurez le canal et vérifiez votre adresse avant d’activer les rappels.":
+    "Configure the channel and verify your address before enabling reminders.",
+  "Le courriel n’est pas configuré sur cette instance.":
+    "Email is not configured on this instance.",
+  "Le courriel n’a pas pu être envoyé. Vérifiez la configuration SMTP.":
+    "The email could not be sent. Check the SMTP configuration.",
+  "Code invalide ou expiré.": "Invalid or expired code.",
+  "Serveur SMTP configuré": "SMTP server configured",
+  "Fuseau horaire invalide.": "Invalid time zone.",
+  "Un code valable 15 minutes a été envoyé. Aucune notification n’est activée par cette vérification.":
+    "A code valid for 15 minutes has been sent. Verification does not enable any notifications.",
+  "Adresse vérifiée.": "Address verified.",
+  "Adresse supprimée et envois en attente annulés.":
+    "Address removed and pending deliveries cancelled.",
+  "Préférences de notification enregistrées.":
+    "Notification preferences saved.",
+  "Participation à vérifier": "Contribution to review",
+  "Nouvelle réservation": "New reservation",
+  "Suggestion à lire": "Suggestion to read",
+  "Import à vérifier": "Import to review",
+  "Occasion à venir": "Upcoming occasion",
+  "Réservation bientôt expirée": "Reservation expiring soon",
+  "Baisse de prix ou disponibilité": "Price drop or availability",
+  "Échec de sauvegarde": "Backup failed",
 };

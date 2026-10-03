@@ -1,4 +1,5 @@
 "use client";
+import { NotificationPreferencesPanel } from "./notification-preferences";
 import { useEffect, useState } from "react";
 import type { SessionSummary } from "../lib/sessions";
 import { useI18n } from "./language";
@@ -278,6 +279,7 @@ export function AccountSecurity({
           </div>
         </Modal>
       )}
+      <NotificationPreferencesPanel />
     </div>
   );
 }

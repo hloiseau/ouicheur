@@ -1,3 +1,4 @@
+import { calendarFeedStatus, rotateCalendarFeed } from "./calendar";
 import { bulkGifts, reorderGift, duplicateList } from "./organization";
 import type { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
@@ -32,6 +33,13 @@ export async function productGet(
     path.startsWith("admin/backups/")
   )
     requireSurpriseReveal(db, access);
+  if (path === "admin/calendar")
+    return json(
+      calendarFeedStatus(
+        db,
+        text(64).min(1).parse(url.searchParams.get("list_id")),
+      ),
+    );
   if (path === "admin/operations") {
     const { files, before, ...storage } = cleanupPreview(db);
     return json({
@@ -111,6 +119,8 @@ export async function productPost(
   data: unknown,
   access: Access = { owner: true, lists: [] },
 ): Promise<Response | undefined> {
+  if (path === "admin/calendar")
+    return json(rotateCalendarFeed(db, data, access));
   if (path === "admin/gifts/bulk") return json(bulkGifts(db, data, access));
   if (path === "admin/gifts/order") {
     reorderGift(db, data, access);

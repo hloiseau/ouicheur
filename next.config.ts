@@ -4,7 +4,13 @@ const config: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: process.cwd(),
   poweredByHeader: false,
-  serverExternalPackages: ["sharp", "playwright-core", "tar", "zod"],
+  serverExternalPackages: [
+    "sharp",
+    "playwright-core",
+    "tar",
+    "zod",
+    "nodemailer",
+  ],
   outputFileTracingIncludes: {
     "/*": ["./migrations/**/*", "./node_modules/playwright-core/**/*"],
   },

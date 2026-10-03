@@ -73,6 +73,9 @@ const empty = {
   surprise_mode: false,
   suggestions_enabled: false,
   event_date: "",
+  event_annual: false,
+  event_timezone: "Europe/Paris",
+  leap_day: "feb28",
 };
 export function ListsEditor({
   lists,
@@ -91,6 +94,9 @@ export function ListsEditor({
     surprise_mode: boolean;
     suggestions_enabled: boolean;
     event_date: string;
+    event_annual: boolean;
+    event_timezone: string;
+    leap_day: string;
   }>(empty);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -125,6 +131,9 @@ export function ListsEditor({
               formHeading.current?.focus();
               setValue({
                 ...l,
+                event_annual: !!l.event_annual,
+                event_timezone: l.event_timezone || "Europe/Paris",
+                leap_day: l.leap_day || "feb28",
                 archived: !!l.archived,
                 surprise_mode: !!l.surprise_mode,
                 suggestions_enabled: !!l.suggestions_enabled,
@@ -219,6 +228,42 @@ export function ListsEditor({
               }
             />
           </Field>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={value.event_annual}
+              onChange={(e) =>
+                setValue({ ...value, event_annual: e.target.checked })
+              }
+            />
+            {t("Répéter chaque année")}
+          </label>
+          <Field label={t("Fuseau horaire de l’événement")}>
+            <input
+              required
+              maxLength={80}
+              value={value.event_timezone}
+              placeholder="Europe/Paris"
+              onChange={(e) =>
+                setValue({ ...value, event_timezone: e.target.value })
+              }
+            />
+          </Field>
+          {value.event_annual && value.event_date.endsWith("02-29") && (
+            <Field label={t("Le 29 février les années non bissextiles")}>
+              <select
+                value={value.leap_day}
+                onChange={(e) =>
+                  setValue({ ...value, leap_day: e.target.value })
+                }
+              >
+                <option value="feb28">{t("Fêter le 28 février")}</option>
+                <option value="skip">
+                  {t("Uniquement les années bissextiles")}
+                </option>
+              </select>
+            </Field>
+          )}
           <Field label={t("Confidentialité")}>
             <select
               value={value.visibility}
