@@ -58,6 +58,11 @@ ne sont pas publiés automatiquement. Chaque compte gère ses appareils connect�
 et son mot de passe dans **Accès et sécurité**. Voir les guides
 [famille et droits](docs/family.md) et [sessions et récupération](docs/account-security.md).
 
+Les [idées secrètes](docs/secret-suggestions.md) peuvent être confiées à un
+coorganisateur sans être publiées sur la liste. Les [types d’envies](docs/wish-types.md)
+couvrent les variantes, les offres de seconde main, les expériences et services
+sans lien marchand, avec budget facultatif.
+
 Dans **Mes envies → Gérer les priorités**, renommer les niveaux (y compris « Coup de cœur »), en ajouter et les réordonner. Le niveau marqué d’un cœur est repris dans l’onglet et sur les cartes ; le filtre permet de choisir n’importe quelle priorité. Ces réglages sont communs aux listes de l’instance, conservés dans les sauvegardes et inclus dans l’export JSON. Les envies existantes gardent leur priorité.
 
 Dans **My profile / Mon profil**, choisir l’avatar, la bannière et son cadrage, la présentation, les liens sociaux, une image de fond et la couleur d’accent. Les presets rose, acidulé et menthe reprennent la palette Ouicheur ; le sélecteur de couleur accepte aussi une teinte personnelle. L’aperçu réagit avant l’enregistrement, et la teinte des textes est ajustée pour rester lisible sur fond sombre.

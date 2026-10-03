@@ -1,4 +1,9 @@
 "use client";
+import {
+  hasBudget,
+  variantSummary,
+  type WishDetails,
+} from "../lib/wish-details";
 import { priorityLabel, type GiftPriority } from "../lib/priority-labels";
 import { PrioritiesEditor } from "./priorities";
 import { LanguageSwitcher, useI18n } from "./language";
@@ -24,27 +29,28 @@ import {
   type WishSort,
 } from "../lib/wishlist-filters";
 
-export type PublicGift = Pick<
-  Gift,
-  | "list_id"
-  | "reserved"
-  | "surprise_hidden"
-  | "id"
-  | "url"
-  | "title"
-  | "description"
-  | "image"
-  | "target"
-  | "quantity"
-  | "currency"
-  | "category_id"
-  | "category"
-  | "priority"
-  | "purchased"
-  | "closed"
-  | "funded"
-  | "unknown_gross"
->;
+export type PublicGift = WishDetails &
+  Pick<
+    Gift,
+    | "list_id"
+    | "reserved"
+    | "surprise_hidden"
+    | "id"
+    | "url"
+    | "title"
+    | "description"
+    | "image"
+    | "target"
+    | "quantity"
+    | "currency"
+    | "category_id"
+    | "category"
+    | "priority"
+    | "purchased"
+    | "closed"
+    | "funded"
+    | "unknown_gross"
+  >;
 export function GiftArt({ gift }: { gift: Pick<Gift, "image" | "title"> }) {
   return (
     <div className="gift-art">
@@ -62,10 +68,21 @@ export function Progress({
   gift,
   compact = false,
 }: {
-  gift: Pick<Gift, "funded" | "target" | "currency" | "unknown_gross">;
+  gift: WishDetails &
+    Pick<Gift, "funded" | "target" | "currency" | "unknown_gross">;
   compact?: boolean;
 }) {
   const { t, money } = useI18n();
+  if (!hasBudget(gift))
+    return (
+      <p className="fine-print">
+        {t(
+          gift.budget_mode === "free"
+            ? "Sans dépense nécessaire"
+            : "Budget non précisé",
+        )}
+      </p>
+    );
   const percent = Math.min(100, Math.floor((gift.funded / gift.target) * 100));
   return (
     <div className="funding">
@@ -166,7 +183,7 @@ export function PublicWishlist({
   const countLabel = (count: number) =>
     count === 1 ? t("1 envie") : t("{0} envies", count);
   const completed = (gift: PublicGift) =>
-    !!gift.purchased || gift.funded >= gift.target;
+    !!gift.purchased || (hasBudget(gift) && gift.funded >= gift.target);
   const inList = (gift: PublicGift) =>
     !selectedList || gift.list_id === selectedList;
   const active = (
@@ -686,7 +703,7 @@ export function PublicWishlist({
                       <span className="card-status">{t("Déjà acheté")}</span>
                     ) : gift.closed ? (
                       <span className="card-status">{t("En pause")}</span>
-                    ) : gift.funded >= gift.target ? (
+                    ) : hasBudget(gift) && gift.funded >= gift.target ? (
                       <span className="card-status">
                         {t("Objectif atteint")}
                       </span>
@@ -699,14 +716,27 @@ export function PublicWishlist({
                     <h2>
                       <Link href={`/cadeaux/${gift.id}`}>{gift.title}</Link>
                     </h2>
+                    {variantSummary(gift) && (
+                      <p className="fine-print">{variantSummary(gift)}</p>
+                    )}
                     {gift.description && (
                       <p className="gift-description">{gift.description}</p>
                     )}
                     <div className="gift-price">
-                      <strong>{money(gift.target, gift.currency)}</strong>
-                      <span>{t("Objectif à financer")}</span>
+                      <strong>
+                        {hasBudget(gift)
+                          ? money(gift.target, gift.currency)
+                          : t(
+                              gift.budget_mode === "free"
+                                ? "Sans dépense nécessaire"
+                                : "Budget non précisé",
+                            )}
+                      </strong>
+                      {hasBudget(gift) && (
+                        <span>{t("Objectif à financer")}</span>
+                      )}
                     </div>
-                    {gift.quantity > 1 && (
+                    {gift.quantity > 1 && hasBudget(gift) && (
                       <p className="fine-print">
                         {t(
                           "Quantité : {0} × {1}",
@@ -765,7 +795,7 @@ export function PublicWishlist({
                         {gift.surprise_hidden ||
                         gift.closed ||
                         gift.purchased ||
-                        gift.funded >= gift.target
+                        (hasBudget(gift) && gift.funded >= gift.target)
                           ? t("Voir cette envie")
                           : t("Participer")}
                         <Icon name="arrow" size={17} />

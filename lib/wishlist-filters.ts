@@ -1,3 +1,4 @@
+import { hasBudget, variantSummary, type WishDetails } from "./wish-details";
 import type { Gift } from "./gifts";
 
 export type BudgetBasis = "unit" | "total" | "remaining";
@@ -10,19 +11,20 @@ export type WishSort =
   | "remaining"
   | "progress"
   | "title";
-type FilterableGift = Pick<
-  Gift,
-  | "title"
-  | "description"
-  | "currency"
-  | "target"
-  | "quantity"
-  | "funded"
-  | "reserved"
-  | "purchased"
-  | "closed"
-  | "priority"
-> & { visibility?: string; surprise_hidden?: boolean };
+type FilterableGift = WishDetails &
+  Pick<
+    Gift,
+    | "title"
+    | "description"
+    | "currency"
+    | "target"
+    | "quantity"
+    | "funded"
+    | "reserved"
+    | "purchased"
+    | "closed"
+    | "priority"
+  > & { visibility?: string; surprise_hidden?: boolean };
 
 // Empty and invalid inputs stay distinct; amounts use integer minor units.
 export function parseBudget(value: string): number | null | undefined {
@@ -48,7 +50,7 @@ export function availableToGive(gift: FilterableGift, basis: BudgetBasis) {
     gift.visibility !== "archived" &&
     !gift.closed &&
     !gift.purchased &&
-    gift.funded < gift.target &&
+    (!hasBudget(gift) || gift.funded < gift.target) &&
     (basis === "remaining"
       ? gift.reserved === 0
       : gift.reserved < gift.quantity)
@@ -89,9 +91,15 @@ export function filterWishlist<T extends FilterableGift>(
       const amount = giftBudgetAmount(gift, filters.basis);
       return (
         (!filters.currency || gift.currency === filters.currency) &&
-        normalize(`${gift.title} ${gift.description}`).includes(search) &&
-        (filters.minimum === null || amount >= filters.minimum) &&
-        (filters.maximum === null || amount <= filters.maximum) &&
+        normalize(
+          `${gift.title} ${gift.description} ${variantSummary(gift)} ${gift.time_hint || ""}`,
+        ).includes(search) &&
+        (filters.minimum === null ||
+          ((hasBudget(gift) || gift.budget_mode === "free") &&
+            amount >= filters.minimum)) &&
+        (filters.maximum === null ||
+          ((hasBudget(gift) || gift.budget_mode === "free") &&
+            amount <= filters.maximum)) &&
         (!filters.availableOnly || availableToGive(gift, filters.basis))
       );
     })
@@ -107,7 +115,9 @@ export function filterWishlist<T extends FilterableGift>(
           numeric: true,
         });
       if (filters.sort === "progress")
-        return b.funded / b.target - a.funded / a.target;
+        return (
+          b.funded / Math.max(1, b.target) - a.funded / Math.max(1, a.target)
+        );
       // With no currency filter, monetary sorts group by currency first.
       if (a.currency !== b.currency)
         return a.currency.localeCompare(b.currency);
@@ -116,6 +126,11 @@ export function filterWishlist<T extends FilterableGift>(
         : filters.sort === "remaining"
           ? "remaining"
           : "total";
+      if (a.budget_mode === "unknown" || b.budget_mode === "unknown")
+        return (
+          Number(a.budget_mode === "unknown") -
+          Number(b.budget_mode === "unknown")
+        );
       const difference =
         giftBudgetAmount(a, basis) - giftBudgetAmount(b, basis);
       return filters.sort.endsWith("-desc") ? -difference : difference;

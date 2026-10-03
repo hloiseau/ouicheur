@@ -1,4 +1,6 @@
 "use client";
+import type { WishDetails } from "../lib/wish-details";
+import { WishDetailsFields, WishKindField } from "./wish-details";
 import { priorityLabel, type GiftPriority } from "../lib/priority-labels";
 import { PrioritiesEditor } from "./priorities";
 import { useI18n } from "./language";
@@ -16,7 +18,7 @@ import { CategoryEditor, type Category } from "./categories";
 import { ProductRefresh } from "./product-refresh";
 import type { Wishlist } from "../lib/lists";
 
-export type GiftDraft = {
+export type GiftDraft = WishDetails & {
   list_id?: string;
   url: string;
   title: string;
@@ -31,6 +33,9 @@ export type GiftDraft = {
   closed: boolean;
 };
 export const blankGift = (): GiftDraft => ({
+  kind: "product",
+  budget_mode: "fixed",
+  offers: [],
   url: "",
   title: "",
   description: "",
@@ -45,11 +50,24 @@ export const blankGift = (): GiftDraft => ({
 });
 export function giftDraft(gift: Gift): GiftDraft {
   return {
+    kind: gift.kind || "product",
+    budget_mode: gift.budget_mode || "fixed",
+    size: gift.size,
+    color: gift.color,
+    model: gift.model,
+    variant_note: gift.variant_note,
+    variant_policy: gift.variant_policy,
+    time_hint: gift.time_hint,
+    original_url: gift.original_url,
+    offers: gift.offers || [],
     list_id: gift.list_id,
     url: gift.url,
     title: gift.title,
     description: gift.description,
-    target: decimal(gift.target / gift.quantity),
+    target:
+      gift.budget_mode && gift.budget_mode !== "fixed"
+        ? ""
+        : decimal(gift.target / gift.quantity),
     quantity: gift.quantity,
     allow_duplicate: false,
     image: gift.image,
@@ -105,9 +123,10 @@ export function GiftFields({
     <>
       {!simple && (
         <>
+          <WishKindField value={value} onChange={onChange} />
           <Field label={t("Lien du produit")}>
             <input
-              required
+              required={!value.kind || value.kind === "product"}
               type="url"
               value={value.url}
               onChange={(e) => set("url", e.target.value)}
@@ -126,6 +145,11 @@ export function GiftFields({
           maxLength={160}
         />
       </Field>
+      <WishDetailsFields
+        value={value}
+        onChange={onChange}
+        currency={currency}
+      />
       <div className="form-grid">
         <Field
           label={t("Objectif ({0})", currency)}
@@ -134,8 +158,9 @@ export function GiftFields({
           )}
         >
           <input
-            required
+            required={!value.budget_mode || value.budget_mode === "fixed"}
             inputMode="decimal"
+            disabled={!!value.budget_mode && value.budget_mode !== "fixed"}
             value={value.target}
             onChange={(e) => set("target", e.target.value)}
           />
@@ -358,6 +383,7 @@ export function GiftEditor({
       setValue((v) => ({
         ...v,
         url: m.url,
+        original_url: initial.original_url || url,
         title:
           !initial.title.trim() && v.title === initial.title
             ? m.title || v.title
@@ -440,6 +466,7 @@ export function GiftEditor({
                     : `${apiPrefix}/gifts`,
                 {
                   ...value,
+                  original_url: value.original_url || value.url,
                   ...suggestion,
                 },
               );
@@ -451,19 +478,24 @@ export function GiftEditor({
             }
           }}
         >
+          <WishKindField value={value} onChange={setValue} />
           <div className="extract-box inline-input">
             <Field label={t("Lien du produit")}>
               <input
                 ref={urlRef}
                 aria-describedby={urlHintId}
                 type="url"
-                required
+                required={!value.kind || value.kind === "product"}
                 autoFocus
                 maxLength={2048}
                 readOnly={busy}
                 value={value.url}
                 onChange={(e) => {
-                  setValue((v) => ({ ...v, url: e.target.value }));
+                  setValue((v) => ({
+                    ...v,
+                    url: e.target.value,
+                    original_url: e.target.value,
+                  }));
                   setExtractionError("");
                   setNotice("");
                   setSuggestion({
@@ -491,7 +523,7 @@ export function GiftEditor({
               "La récupération est facultative. Seuls les champs vides sont complétés.",
             )}
           </p>
-          {gift && apiPrefix === "admin" && (
+          {gift && gift.url && apiPrefix === "admin" && (
             <ProductRefresh
               id={gift.id}
               currency={gift.currency}

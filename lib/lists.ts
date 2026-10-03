@@ -1,3 +1,4 @@
+import { secretCoordinator } from "./secret-suggestions.ts";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
@@ -15,6 +16,7 @@ export type Wishlist = {
   shared: number;
   surprise_mode: number;
   suggestions_enabled: number;
+  secret_suggestions_available?: boolean;
 };
 export type Access = {
   owner: boolean;
@@ -78,7 +80,10 @@ export function listLists(db: DatabaseSync, access: Access = publicAccess) {
         "SELECT id,name,description,visibility,archived,event_date,surprise_mode,suggestions_enabled,CASE WHEN share_hash IS NULL THEN 0 ELSE 1 END shared FROM lists ORDER BY created_at,id",
       )
       .all()
-      .map((row) => ({ ...row })) as Wishlist[]
+      .map((row) => ({
+        ...row,
+        secret_suggestions_available: !!secretCoordinator(db, String(row.id)),
+      })) as Wishlist[]
   ).filter(
     (l) =>
       access.owner ||

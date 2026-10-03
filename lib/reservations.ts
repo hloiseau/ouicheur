@@ -1,3 +1,7 @@
+import {
+  captureReservationDetails,
+  reservationDetails,
+} from "./reservation-details.ts";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
@@ -20,6 +24,7 @@ export function createReservation(
   const v = z
     .object({
       gift_id: text(64).min(1),
+      offer_id: z.uuid().nullable().default(null),
       quantity: z.number().int().min(1).max(999),
     })
     .parse(input);
@@ -56,7 +61,7 @@ export function createReservation(
     const token = randomBytes(32).toString("hex");
     const id = randomUUID();
     db.prepare(
-      "INSERT INTO reservations(id,token_hash,gift_id,quantity,created_at,expires_at) VALUES (?,?,?,?,?,?)",
+      "INSERT INTO reservations(id,token_hash,gift_id,quantity,created_at,expires_at,details_snapshot) VALUES (?,?,?,?,?,?,?)",
     ).run(
       id,
       hashToken(token),
@@ -64,6 +69,7 @@ export function createReservation(
       v.quantity,
       dateNow(),
       new Date(Date.now() + 14 * 86400000).toISOString(),
+      JSON.stringify(captureReservationDetails(db, v.gift_id, v.offer_id)),
     );
     audit(db, "reservation.create", id, {
       gift_id: v.gift_id,
@@ -81,11 +87,21 @@ export function reservationStatus(db: DatabaseSync, token: string) {
   ).run(dateNow());
   const row = db
     .prepare(
-      "SELECT id,quantity,state,expires_at FROM reservations WHERE token_hash=?",
+      "SELECT id,gift_id,details_snapshot,quantity,state,expires_at FROM reservations WHERE token_hash=?",
     )
     .get(hashToken(token));
   if (!row) throw new AppError("Réservation introuvable.", 404);
-  return row;
+  return {
+    id: String(row.id),
+    quantity: Number(row.quantity),
+    state: String(row.state),
+    expires_at: String(row.expires_at),
+    ...reservationDetails(
+      db,
+      String(row.gift_id),
+      String(row.details_snapshot),
+    ),
+  };
 }
 export function updateReservation(
   db: DatabaseSync,

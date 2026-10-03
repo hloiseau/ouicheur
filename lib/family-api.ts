@@ -1,3 +1,4 @@
+import { secretInbox, reviewSecretSuggestion } from "./secret-suggestions.ts";
 import type { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
 import { rateLimit } from "./auth.ts";
@@ -17,6 +18,7 @@ const json = (value: unknown) =>
   Response.json(value, { headers: { "Cache-Control": "no-store" } });
 export function teamGet(db: DatabaseSync, token: string, path: string) {
   requireMember(db, token);
+  if (path === "team/secrets") return json(secretInbox(db, token));
   if (path === "team") return json(memberSummary(db, token));
   if (path === "team/lists") {
     const access = memberAccess(db, token);
@@ -33,6 +35,10 @@ export async function teamPost(
   input: unknown,
 ) {
   const account = requireMember(db, token);
+  if (path === "team/secrets") {
+    reviewSecretSuggestion(db, token, input);
+    return json({ ok: true });
+  }
   if (path === "team/gifts")
     return json({ id: saveMemberGift(db, token, input) });
   const parts = path.split("/");

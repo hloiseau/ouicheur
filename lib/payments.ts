@@ -56,6 +56,7 @@ export function createIntent(
     )
       throw new AppError("Cadeau introuvable.", 404);
     if (
+      gift.budget_mode !== "fixed" ||
       gift.closed ||
       gift.purchased ||
       Number(gift.funded) >= Number(gift.target)
