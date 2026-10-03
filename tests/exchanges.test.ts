@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { backupInstance, restoreInstance } from "../lib/backup";
 import test from "node:test";
@@ -292,6 +292,7 @@ test("exchange reminders require per-exchange consent and an enabled channel, st
 
 test("restoring a snapshot cancels old exchanges instead of silently replaying a draw", async () => {
   const f = await fixture(),
+    mkdirSync(resolve(".local"), { recursive: true });
     folder = mkdtempSync(resolve(".local/exchange-restore-"));
   try {
     const id = create(f);
