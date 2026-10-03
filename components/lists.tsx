@@ -1,4 +1,5 @@
 "use client";
+import { ListTools } from "./list-tools";
 import { useRef, useState } from "react";
 import QRCode from "qrcode";
 import type { Wishlist } from "../lib/lists";
@@ -337,6 +338,13 @@ export function ListsEditor({
           </>
         )}
         {share && <ShareLink key={share} value={share} />}
+        {value.id && lists.find((l) => l.id === value.id) && (
+          <ListTools
+            key={value.id}
+            list={lists.find((l) => l.id === value.id)!}
+            owner
+          />
+        )}
         {error && <Notice error>{error}</Notice>}
       </section>
     </div>

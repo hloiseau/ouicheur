@@ -34,6 +34,32 @@ export function WishKindField({
     </Field>
   );
 }
+export function WishBudgetField({
+  value,
+  onChange,
+}: {
+  value: GiftDraft;
+  onChange: (v: GiftDraft) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <Field label={t("Budget")}>
+      <select
+        value={value.budget_mode || "fixed"}
+        onChange={(e) =>
+          onChange({
+            ...value,
+            budget_mode: e.target.value as GiftDraft["budget_mode"],
+          })
+        }
+      >
+        <option value="fixed">{t("Montant précisé")}</option>
+        <option value="unknown">{t("Budget non précisé")}</option>
+        <option value="free">{t("Sans dépense nécessaire")}</option>
+      </select>
+    </Field>
+  );
+}
 function OfferMoney({
   label,
   value,
@@ -89,18 +115,6 @@ export function WishDetailsFields({
     );
   return (
     <>
-      <Field label={t("Budget")}>
-        <select
-          value={value.budget_mode || "fixed"}
-          onChange={(e) =>
-            change("budget_mode", e.target.value as GiftDraft["budget_mode"])
-          }
-        >
-          <option value="fixed">{t("Montant précisé")}</option>
-          <option value="unknown">{t("Budget non précisé")}</option>
-          <option value="free">{t("Sans dépense nécessaire")}</option>
-        </select>
-      </Field>
       <details className="advanced-fields">
         <summary>{t("Taille, couleur et modèle")}</summary>
         <div className="stack">

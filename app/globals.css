@@ -123,11 +123,13 @@ textarea {
   position: fixed;
   left: 16px;
   top: -100px;
+  clip-path: inset(50%);
   padding: 12px 20px;
   background: var(--surface);
   z-index: 100;
 }
 .skip-link:focus {
+  clip-path: none;
   top: 10px;
 }
 .site-header {
@@ -3082,4 +3084,72 @@ textarea::placeholder {
 }
 .card-badge svg {
   flex-shrink: 0;
+}
+
+.bulk-picker {
+  max-height: 24rem;
+  overflow: auto;
+}
+.bulk-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.bulk-row .checkbox {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.print-list {
+  padding-block: 2rem;
+}
+.print-gifts article {
+  display: flex;
+  gap: 1.5rem;
+  padding-block: 1.5rem;
+  border-bottom: 1px solid #aaa;
+  break-inside: avoid;
+}
+.print-gifts img {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+}
+.print-gifts article > div {
+  min-width: 0;
+}
+.print-qr {
+  margin-block: 1rem;
+}
+@media print {
+  body:has(.print-list) {
+    background: white;
+    color: black;
+  }
+  .print-list {
+    max-width: none;
+    padding: 0;
+    font-size: 11pt;
+  }
+  .print-controls,
+  body:has(.print-list) .skip-link {
+    display: none !important;
+  }
+  .print-list h1,
+  .print-list h2,
+  .print-list h3,
+  .print-list p {
+    color: black;
+  }
+  .print-gifts h2 {
+    font-size: 15pt;
+  }
+  .print-gifts article {
+    gap: 1rem;
+  }
+  .print-gifts a {
+    color: black;
+  }
 }

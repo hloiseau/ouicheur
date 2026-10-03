@@ -1,4 +1,6 @@
 "use client";
+import { ListTools } from "./list-tools";
+import { BulkOrganizer } from "./bulk-organizer";
 import {
   hasBudget,
   variantSummary,
@@ -32,6 +34,7 @@ import {
 export type PublicGift = WishDetails &
   Pick<
     Gift,
+    | "position"
     | "list_id"
     | "reserved"
     | "surprise_hidden"
@@ -355,6 +358,11 @@ export function PublicWishlist({
             <section className="list-intro stack">
               <h2>{currentList.name}</h2>
               {currentList.description && <p>{currentList.description}</p>}
+              <ListTools
+                key={currentList.id}
+                list={currentList}
+                owner={!!owner}
+              />
               {currentList.event_date && (
                 <p>{date(currentList.event_date, true)}</p>
               )}
@@ -368,6 +376,9 @@ export function PublicWishlist({
                 )}
             </section>
           )}
+          <a className="text-link" href="/help">
+            {t("Aide et ajout depuis un navigateur")}
+          </a>
           {!owner && (
             <SuggestGift
               lists={lists.filter(
@@ -502,6 +513,7 @@ export function PublicWishlist({
                       setShown(24);
                     }}
                   >
+                    <option value="manual">{t("Ordre manuel")}</option>
                     <option value="priority">{t("Priorité")}</option>
                     <option value="price">{t("Objectif croissant")}</option>
                     <option value="price-desc">
@@ -670,6 +682,16 @@ export function PublicWishlist({
                   </p>
                 )}
             </>
+          )}
+          {owner && (
+            <BulkOrganizer
+              key={selectedList}
+              gifts={visible}
+              listId={selectedList}
+              lists={lists}
+              categories={categories}
+              onChange={refresh}
+            />
           )}
           {visible.length ? (
             <div className="gift-grid">

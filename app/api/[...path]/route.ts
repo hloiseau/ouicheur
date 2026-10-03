@@ -1,3 +1,9 @@
+import { exportResponse } from "../../../lib/list-export";
+import {
+  readPreferences,
+  savePreferences,
+  sharedPreferences,
+} from "../../../lib/preferences";
 import { setSuggestionCoordinator } from "../../../lib/secret-suggestions";
 import { listPriorities, savePriorities } from "../../../lib/priorities";
 import {
@@ -222,11 +228,46 @@ async function handle(
         db.prepare("DELETE FROM sessions WHERE hash=?").run(hashToken(token));
       return authCookie(request, response({ ok: true }), "", 0);
     }
+    if (
+      request.method === "GET" &&
+      segments[0] === "lists" &&
+      segments.length === 3 &&
+      segments[2] === "preferences"
+    )
+      return response(
+        sharedPreferences(
+          db,
+          text(64).parse(segments[1]),
+          accessFromCookies(db, request.cookies),
+        ),
+      );
+    if (
+      request.method === "GET" &&
+      segments[0] === "lists" &&
+      segments.length === 3 &&
+      segments[2] === "export"
+    )
+      return exportResponse(
+        db,
+        text(64).parse(segments[1]),
+        request.nextUrl.searchParams.get("format"),
+        accessFromCookies(db, request.cookies),
+      );
     if (segments[0] === "account" || segments[0] === "team") {
       if (!sessionAccount(db, token))
         throw new AppError("Votre session a expiré. Reconnectez-vous.", 401);
       touchSession(db, token!);
       if (request.method === "GET") {
+        if (path === "account/preferences")
+          return response(
+            readPreferences(
+              db,
+              text(64)
+                .min(1)
+                .parse(request.nextUrl.searchParams.get("list_id")),
+              accessFromCookies(db, request.cookies),
+            ),
+          );
         if (path === "account/sessions")
           return response(listSessions(db, token!));
         if (segments[0] === "team") return teamGet(db, token!, path);
@@ -236,6 +277,10 @@ async function handle(
           request,
           path === "team/images" ? 7 * 1024 * 1024 : 32 * 1024,
         );
+        if (path === "account/preferences") {
+          savePreferences(db, input, accessFromCookies(db, request.cookies));
+          return response({ ok: true });
+        }
         if (path === "account/sessions/revoke") {
           const v = z
             .object({

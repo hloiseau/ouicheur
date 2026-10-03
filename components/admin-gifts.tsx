@@ -1,6 +1,11 @@
 "use client";
 import type { WishDetails } from "../lib/wish-details";
-import { WishDetailsFields, WishKindField } from "./wish-details";
+import { hasBudget } from "../lib/wish-details";
+import {
+  WishDetailsFields,
+  WishKindField,
+  WishBudgetField,
+} from "./wish-details";
 import { priorityLabel, type GiftPriority } from "../lib/priority-labels";
 import { PrioritiesEditor } from "./priorities";
 import { useI18n } from "./language";
@@ -124,7 +129,13 @@ export function GiftFields({
       {!simple && (
         <>
           <WishKindField value={value} onChange={onChange} />
-          <Field label={t("Lien du produit")}>
+          <Field
+            label={t(
+              !value.kind || value.kind === "product"
+                ? "Lien du produit"
+                : "Lien (facultatif)",
+            )}
+          >
             <input
               required={!value.kind || value.kind === "product"}
               type="url"
@@ -145,26 +156,24 @@ export function GiftFields({
           maxLength={160}
         />
       </Field>
-      <WishDetailsFields
-        value={value}
-        onChange={onChange}
-        currency={currency}
-      />
+      <WishBudgetField value={value} onChange={onChange} />
       <div className="form-grid">
-        <Field
-          label={t("Objectif ({0})", currency)}
-          hint={t(
-            "Montant pour un exemplaire, livraison comprise. Le total est multiplié par la quantité.",
-          )}
-        >
-          <input
-            required={!value.budget_mode || value.budget_mode === "fixed"}
-            inputMode="decimal"
-            disabled={!!value.budget_mode && value.budget_mode !== "fixed"}
-            value={value.target}
-            onChange={(e) => set("target", e.target.value)}
-          />
-        </Field>
+        {hasBudget(value) && (
+          <Field
+            label={t("Objectif ({0})", currency)}
+            hint={t(
+              "Montant pour un exemplaire, livraison comprise. Le total est multiplié par la quantité.",
+            )}
+          >
+            <input
+              required={!value.budget_mode || value.budget_mode === "fixed"}
+              inputMode="decimal"
+              disabled={!!value.budget_mode && value.budget_mode !== "fixed"}
+              value={value.target}
+              onChange={(e) => set("target", e.target.value)}
+            />
+          </Field>
+        )}
         <Field label={t("Quantité")}>
           <input
             type="number"
@@ -201,12 +210,14 @@ export function GiftFields({
           )}
         </div>
       </div>
-      <p className="fine-print" aria-live="polite">
-        {t(
-          "Objectif total : {0}",
-          total === undefined ? "—" : money(total, currency),
-        )}
-      </p>
+      {hasBudget(value) && (
+        <p className="fine-print" aria-live="polite">
+          {t(
+            "Objectif total : {0}",
+            total === undefined ? "—" : money(total, currency),
+          )}
+        </p>
+      )}
       {showDuplicate && (
         <label className="checkbox">
           <input
@@ -225,6 +236,11 @@ export function GiftFields({
         onBusyChange={onImageBusy}
       />
 
+      <WishDetailsFields
+        value={value}
+        onChange={onChange}
+        currency={currency}
+      />
       <Options className="gift-options">
         {simple && <summary>{t("Plus d’options")}</summary>}
         <div className="stack">
@@ -296,6 +312,7 @@ export function GiftEditor({
   categoryId = null,
   listId = "default",
   initialUrl = "",
+  initialTitle = "",
   suggestion: proposed,
   onCategoriesChanged,
   apiPrefix = "admin",
@@ -309,6 +326,7 @@ export function GiftEditor({
   categoryId?: string | null;
   listId?: string;
   initialUrl?: string;
+  initialTitle?: string;
   suggestion?: { id: string; title: string };
   onCategoriesChanged?: () => void;
   apiPrefix?: "admin" | "team";
@@ -322,7 +340,7 @@ export function GiftEditor({
           category_id: categoryId,
           list_id: listId,
           url: initialUrl,
-          title: proposed?.title || "",
+          title: proposed?.title || initialTitle,
         },
   );
   const [priorityEditor, setPriorityEditor] = useState(false);
@@ -480,7 +498,13 @@ export function GiftEditor({
         >
           <WishKindField value={value} onChange={setValue} />
           <div className="extract-box inline-input">
-            <Field label={t("Lien du produit")}>
+            <Field
+              label={t(
+                !value.kind || value.kind === "product"
+                  ? "Lien du produit"
+                  : "Lien (facultatif)",
+              )}
+            >
               <input
                 ref={urlRef}
                 aria-describedby={urlHintId}

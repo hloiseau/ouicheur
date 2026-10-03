@@ -16,6 +16,8 @@ export default async function Page({
   searchParams: Promise<{ url?: string; text?: string; title?: string }>;
 }) {
   const values = await searchParams;
+  const title =
+    typeof values.title === "string" ? values.title.slice(0, 160) : "";
   const candidate = (
     values.url ||
     values.text?.match(/https?:\/\/[^\s<>]+/)?.[0] ||
@@ -28,12 +30,14 @@ export default async function Page({
   if (
     !authorized(database(), (await cookies()).get("wishlister_session")?.value)
   )
-    redirect(`/admin?add=${encodeURIComponent(url)}`);
+    redirect(
+      `/admin?add=${encodeURIComponent(url)}&add_title=${encodeURIComponent(title)}`,
+    );
   return (
     <>
       <PageHeader />
       <main id="main" className="container status-page">
-        <QuickAdd url={url} />
+        <QuickAdd url={url} title={title} />
       </main>
     </>
   );

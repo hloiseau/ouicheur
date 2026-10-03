@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { GiftEditor } from "./admin-gifts";
 import { api, Notice } from "./ui";
 import { useI18n } from "./language";
-export function QuickAdd({ url }: { url: string }) {
+export function QuickAdd({ url, title = "" }: { url: string; title?: string }) {
   const { t } = useI18n();
   const [data, setData] = useState<{
     profile: { currency: string };
@@ -30,6 +30,7 @@ export function QuickAdd({ url }: { url: string }) {
         <GiftEditor
           gift={null}
           initialUrl={url}
+          initialTitle={title}
           priorities={data.priorities}
           categories={data.categories}
           currency={data.profile.currency}

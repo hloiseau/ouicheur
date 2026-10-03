@@ -1,3 +1,4 @@
+import { bulkGifts, reorderGift, duplicateList } from "./organization";
 import type { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -110,6 +111,13 @@ export async function productPost(
   data: unknown,
   access: Access = { owner: true, lists: [] },
 ): Promise<Response | undefined> {
+  if (path === "admin/gifts/bulk") return json(bulkGifts(db, data, access));
+  if (path === "admin/gifts/order") {
+    reorderGift(db, data, access);
+    return json({ ok: true });
+  }
+  if (path === "admin/lists/duplicate")
+    return json(duplicateList(db, data, access));
   if (path === "admin/settings") return json(saveSettings(db, data));
   if (path === "admin/backups") {
     rateLimit(db, "backup-create", 5, 3600000);

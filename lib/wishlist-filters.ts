@@ -3,6 +3,7 @@ import type { Gift } from "./gifts";
 
 export type BudgetBasis = "unit" | "total" | "remaining";
 export type WishSort =
+  | "manual"
   | "priority"
   | "price"
   | "price-desc"
@@ -24,7 +25,12 @@ type FilterableGift = WishDetails &
     | "purchased"
     | "closed"
     | "priority"
-  > & { visibility?: string; surprise_hidden?: boolean };
+  > & {
+    visibility?: string;
+    surprise_hidden?: boolean;
+    position?: number;
+    id?: string;
+  };
 
 // Empty and invalid inputs stay distinct; amounts use integer minor units.
 export function parseBudget(value: string): number | null | undefined {
@@ -104,6 +110,11 @@ export function filterWishlist<T extends FilterableGift>(
       );
     })
     .sort((a, b) => {
+      if (filters.sort === "manual")
+        return (
+          (a.position || 0) - (b.position || 0) ||
+          (a.id || "").localeCompare(b.id || "")
+        );
       if (filters.sort === "priority")
         return filters.priorityOrder
           ? (filters.priorityOrder[a.priority] ?? 999) -
