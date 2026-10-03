@@ -7,6 +7,7 @@ import { SurpriseNotice } from "./surprise-notice";
 import { ListsEditor } from "./lists";
 import { SuggestionsInbox } from "./suggestions";
 import { Operations } from "./operations";
+import { SupportPanel } from "./support-panel";
 import { AccountSecurity } from "./account-security";
 import { Family } from "./family";
 import { History } from "./history";
@@ -417,10 +418,14 @@ export function Admin() {
             refresh={refresh}
           />
         )}
-        {page === "operations" &&
-          (!data.surprises_enabled || data.surprises_revealed) && (
-            <Operations />
-          )}
+        {page === "operations" && (
+          <div className="stack">
+            <SupportPanel />
+            {(!data.surprises_enabled || data.surprises_revealed) && (
+              <Operations />
+            )}
+          </div>
+        )}
         {page === "history" && (
           <History key={String(data.surprises_revealed)} onChange={refresh} />
         )}

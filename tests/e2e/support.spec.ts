@@ -21,7 +21,8 @@ test("technical report is previewed, copied explicitly and does not transmit pri
     if (new URL(r.url()).origin !== origin) external.push(r.url());
   });
   await page.goto("/admin?tab=operations#support");
-  const preview = page.getByLabel("Aperçu des informations techniques", {
+  const preview = page.getByRole("textbox", {
+    name: "Aperçu des informations techniques",
     exact: true,
   });
   await expect(preview).toHaveValue(/Ouicheur: 1\.2\.0/);

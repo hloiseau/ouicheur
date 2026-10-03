@@ -85,6 +85,16 @@ test("surprise mode keeps owner payloads hidden while donors coordinate and the 
       });
     }
     expect(data.audit).toEqual([]);
+    await page.goto("/admin?tab=operations#support");
+    await expect(
+      page.getByRole("textbox", {
+        name: "Aperçu des informations techniques",
+        exact: true,
+      }),
+    ).toHaveValue(/Ouicheur: 1\.2\.0/);
+    await expect(
+      page.getByRole("heading", { name: "Santé de l’instance", exact: true }),
+    ).toHaveCount(0);
     expect(
       (
         await context.request.post(`/api/admin/gifts/${gift}/purchased`, {

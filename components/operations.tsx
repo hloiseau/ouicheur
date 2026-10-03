@@ -1,6 +1,5 @@
 "use client";
 import { NotificationPreferencesPanel } from "./notification-preferences";
-import { SupportPanel } from "./support-panel";
 import { useEffect, useState } from "react";
 import { api, Field, Notice } from "./ui";
 import { useI18n } from "./language";
@@ -67,7 +66,6 @@ export function Operations() {
     <div className="stack">
       {error && <Notice error>{error}</Notice>}
       {notice && <Notice>{notice}</Notice>}
-      <SupportPanel />
       {data && settings && (
         <>
           <div className="operations-grid">
