@@ -225,6 +225,9 @@ export function NotificationPreferencesPanel() {
                     onChange={(e) =>
                       updateRule(i, {
                         kind: e.target.value as NotificationRule["kind"],
+                        ...(e.target.value === "exchange_reminder"
+                          ? { list_id: "" }
+                          : {}),
                       })
                     }
                   >
@@ -247,6 +250,7 @@ export function NotificationPreferencesPanel() {
                 </Field>
                 <Field label={t("Liste du rappel {0}", i + 1)}>
                   <select
+                    disabled={r.kind === "exchange_reminder"}
                     value={r.list_id}
                     onChange={(e) => updateRule(i, { list_id: e.target.value })}
                   >
@@ -287,7 +291,7 @@ export function NotificationPreferencesPanel() {
                     <option value="daily">{t("Résumé quotidien")}</option>
                   </select>
                 </Field>
-                {r.kind === "event_reminder" && (
+                {["event_reminder", "exchange_reminder"].includes(r.kind) && (
                   <Field label={t("Jours avant l’occasion {0}", i + 1)}>
                     <input
                       type="number"

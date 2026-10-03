@@ -341,6 +341,9 @@ export function PersonalGifts() {
   const current = view === "donor" ? donor : received;
   return (
     <div className="stack personal-gifts">
+      <a className="text-link" href="/exchanges">
+        {t("Échanges de cadeaux en famille")}
+      </a>
       <nav className="form-actions" aria-label={t("Mon suivi cadeaux")}>
         <button
           className="button secondary"

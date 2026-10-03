@@ -6,6 +6,7 @@ export const notificationKinds = {
   event_reminder: "Occasion à venir",
   reservation_expiring: "Réservation bientôt expirée",
   offer_changed: "Baisse de prix ou disponibilité",
+  exchange_reminder: "Échange de cadeaux à venir",
   backup_failed: "Échec de sauvegarde",
 } as const;
 export type NotificationKind = keyof typeof notificationKinds;
