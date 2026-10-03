@@ -1,4 +1,4 @@
-FROM node:24.21.0-bookworm-slim AS build
+FROM node:26.10.0-bookworm-slim AS build
 ARG BUILD_REVISION=local
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1 NEXT_PUBLIC_BUILD_REVISION=$BUILD_REVISION
@@ -11,7 +11,7 @@ RUN npm run build \
     && npm prune --omit=dev --no-fund \
     && node scripts/licenses.mjs
 
-FROM node:24.21.0-bookworm-slim AS runtime
+FROM node:26.10.0-bookworm-slim AS runtime
 ARG BUILD_REVISION=local
 WORKDIR /app
 ENV NEXT_PUBLIC_BUILD_REVISION=$BUILD_REVISION
