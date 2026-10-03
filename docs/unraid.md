@@ -2,13 +2,16 @@
 
 Le [modèle Docker XML](../templates/ouicheur.xml) est une **proposition bêta**.
 Sa présence dans GitHub ne signifie pas qu'il est accepté dans Community
-Applications. L'installation et la mise à jour sur un vrai Unraid restent à tester.
+Applications. Les premiers essais sur Unraid ont reçu un retour positif. La
+recette complète de l’image 1.2.0 finale reste à consigner, notamment sa mise à
+jour et sa restauration.
 
-Le modèle épingle une image Linux **amd64** existante, testée par la CI amont :
-`ghcr.io/hloiseau/ouicheur:sha-285b41eca5adb181a9a340dea10a636d12865969`.
-Elle ne contient pas encore les corrections de distribution de cette proposition.
-Remplacer cette référence par la future version numérotée et testée avant la
-soumission finale. Il n'existe actuellement aucun tag `latest` garanti.
+Le modèle épingle une image 1.2.0 existante, testée par la CI en Linux
+**amd64 et arm64** (Unraid utilise amd64) :
+`ghcr.io/hloiseau/ouicheur:sha-35e849507983f3e5139b7b4f34f13899214a8f46`.
+Elle comprend la licence MIT, les notices et les inventaires de dépendances.
+Avant la soumission au catalogue, choisir la version stable réellement publiée
+et consigner son digest. Aucun tag `latest` n’est utilisé.
 
 ## Installation de test
 
@@ -45,6 +48,10 @@ node scripts/manage.ts backup /app/backups/avant-mise-a-jour
 
 Exporter ce dossier hors du NAS. Changer ensuite l'image en conservant les deux
 montages. Vérifier la connexion, les images, les contributions et les imports.
+Tester aussi un compte proche et ses droits, la révocation d’une session et le
+mode surprise. Utiliser le [formulaire NAS](https://github.com/hloiseau/ouicheur/issues/new?template=nas.yml)
+pour conserver la version d’Unraid, l’image et le résultat.
+
 La restauration doit cibler un dossier de données vide, application arrêtée ;
 voir le [README](../README.md#sauvegarder-et-restaurer). Une ancienne image ne
 constitue pas à elle seule un retour arrière sûr après migration de base.

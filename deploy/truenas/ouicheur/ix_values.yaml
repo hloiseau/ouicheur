@@ -1,7 +1,7 @@
 images:
   image:
     repository: ghcr.io/hloiseau/ouicheur
-    tag: sha-285b41eca5adb181a9a340dea10a636d12865969
+    tag: sha-35e849507983f3e5139b7b4f34f13899214a8f46
   container_utils_image:
     repository: ixsystems/container-utils
     tag: 1.0.2
