@@ -1,0 +1,21 @@
+name: Suggestion / Feature idea
+description: Une amélioration de l’édition libre auto-hébergée.
+title: "[Idée] "
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: Quel problème rencontrez-vous ? / What problem do you have?
+      description: Décrire une situation et sa fréquence plutôt qu’une solution uniquement.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Résultat souhaité et solutions déjà essayées / Desired outcome and workarounds
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version et environnement / Version and environment

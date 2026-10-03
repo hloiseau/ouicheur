@@ -1,6 +1,20 @@
 # Changelog
 
-## Unreleased — 1.2 development
+## 1.2.0 — finalisation du socle libre
+
+Le code est préparé pour 1.2.0 ; voir les [notes de version](docs/releases/1.2.0.md)
+pour distinguer la fusion dans `main` de la publication du tag stable.
+
+- Coordination secrète, variantes/offres alternatives, expériences/services/fait main.
+- Outils de listes, préférences choisies, exports/impression, ajout depuis le navigateur.
+- Calendriers récurrents et privés, notifications opt-in, courriel vérifié, alertes de prix bornées.
+- Suivi personnel des cadeaux, journal reçu/remerciements, modèles privés d’occasions.
+- Échanges familiaux avec exclusions, consentement et questions facultatives contrôlées.
+- Pagination, images responsives, quotas de travail, diagnostic par commit et formulaires de retours.
+- Migrations 016 à 023 ; restauration testée depuis chaque schéma historique.
+- Inventaires npm et image finale, notices, maintenance des dépendances par PR.
+
+Les fonctionnalités ci-dessous, développées avant la finalisation, font aussi partie de 1.2.0.
 
 - Comptes coorganisateurs par invitation à usage unique et droits par liste,
   profils familiaux avec destinataire lié au mode surprise, espace de préparation

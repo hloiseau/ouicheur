@@ -1,5 +1,38 @@
 # Vérifications de livraison
 
+## Finalisation du 3 octobre 2026
+
+Les contrôles reproductibles actuels sont définis dans `.github/workflows/ci.yml`.
+Ils couvrent Linux AMD64/ARM64, TypeScript/format/build, tests métier, transport
+Chromium, scénarios Playwright ordinateur et Pixel 7 émulé, axe et Docker avec
+redémarrage, sauvegarde/restauration et UID personnalisé. La CI de la PR et du
+commit final fait foi ; les résultats historiques ci-dessous ne la remplacent pas.
+
+Le test `release-readiness.test.ts` reconstruit chacun des 23 schémas historiques,
+les migre, vérifie l’intégrité et le registre financier puis restaure une sauvegarde
+sur une copie isolée. Les tests des fonctions concernées couvrent aussi les nouveaux
+comptes, sessions, préférences, réservations, notifications et échanges.
+
+`wishlist-query.test.ts` mesure 10 000 envies synthétiques : 24 cartes par réponse,
+17 Ko environ, 180–300 ms observés dans les environnements de développement/CI.
+Voir [les limites de cette mesure](performance.md). Les tests navigateur vérifient
+la dernière page, la concurrence, les catégories ciblées et les images révoquées.
+
+| Environnement                          | Validation réellement disponible                                                                         |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Chromium Linux ordinateur/mobile émulé | CI des PR, captures synthétiques inspectées                                                              |
+| Docker AMD64 et ARM64                  | CI native, worker et conteneur                                                                           |
+| TrueNAS 25.04                          | Retour positif du propriétaire sur une image antérieure aux derniers ajouts ; référence finale à relever |
+| Unraid                                 | Retour positif des proches avant les derniers ajouts ; version/digest et recette finale à relever        |
+| Safari / iPhone / iPad réels           | Non testés pendant cette finalisation                                                                    |
+| SMTP et paiements réels                | Aucun envoi ni paiement réel pendant les tests                                                           |
+
+Les durées sont visibles par étape dans chaque run ; un passage navigateur dure
+environ 4–6 minutes dans les derniers runs. Les caches npm et Docker sont déjà actifs.
+Les vérifications réseau marchands réels restent distinctes des fixtures CI.
+
+## Historique conservé
+
 ## Évolution produit 1.1.0 — 28 septembre 2026
 
 Les résultats associés au commit final sont accessibles depuis la

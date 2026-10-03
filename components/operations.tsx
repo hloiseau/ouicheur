@@ -1,5 +1,6 @@
 "use client";
 import { NotificationPreferencesPanel } from "./notification-preferences";
+import { SupportPanel } from "./support-panel";
 import { useEffect, useState } from "react";
 import { api, Field, Notice } from "./ui";
 import { useI18n } from "./language";
@@ -14,6 +15,7 @@ type OperationsData = {
   settings: Settings;
   diagnostics: {
     version: string;
+    revision: string;
     node: string;
     architecture: string;
     chromium: boolean;
@@ -65,6 +67,7 @@ export function Operations() {
     <div className="stack">
       {error && <Notice error>{error}</Notice>}
       {notice && <Notice>{notice}</Notice>}
+      <SupportPanel />
       {data && settings && (
         <>
           <div className="operations-grid">
@@ -75,7 +78,19 @@ export function Operations() {
                 {data.diagnostics.architecture} · Node {data.diagnostics.node}
               </p>
               <p>
-                Chromium :{" "}
+                {t("Révision")} :{" "}
+                {data.diagnostics.revision === "local" ? (
+                  t("Construction locale sans commit intégré")
+                ) : (
+                  <a
+                    href={`https://github.com/hloiseau/ouicheur/commit/${data.diagnostics.revision}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {data.diagnostics.revision.slice(0, 12)}
+                  </a>
+                )}{" "}
+                · Chromium :{" "}
                 {t(data.diagnostics.chromium ? "Disponible" : "À vérifier")}
               </p>
               <p>

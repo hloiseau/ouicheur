@@ -1,8 +1,10 @@
 # Security
 
-Ouicheur is actively developed. Before reporting a problem, record the image tag
-or commit and check whether a newer version already addresses it. There is no
-published long-term support policy yet.
+Ouicheur supports the latest published stable version. Security fixes are made
+on `main` and released as a new patch of the current stable line where applicable.
+Older stable lines and untagged development commits have no backport guarantee;
+there is no LTS or response-time commitment. Record the image digest/commit and
+check whether a newer version already addresses the problem.
 
 For a suspected vulnerability, use **Security → Report a vulnerability** on
 GitHub if private reporting is available. If it is unavailable, open an issue

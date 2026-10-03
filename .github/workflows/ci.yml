@@ -31,6 +31,7 @@ jobs:
       packages: write
     env:
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.local/pw-browsers
+      NEXT_PUBLIC_BUILD_REVISION: ${{ github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -63,6 +64,8 @@ jobs:
           context: .
           load: true
           tags: ouicheur:local
+          build-args: |
+            BUILD_REVISION=${{ github.sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -70,6 +73,18 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
       - run: npm run test:docker
+      - name: Export the tested image inventories and notices
+        run: |
+          container=$(docker create ouicheur:local)
+          mkdir -p release-inventory-${{ matrix.arch }}
+          docker cp "$container:/app/third-party-licenses/." release-inventory-${{ matrix.arch }}/
+          docker rm "$container"
+          docker image inspect ouicheur:local --format '{{.Id}} {{.Os}}/{{.Architecture}} {{.Size}}' > release-inventory-${{ matrix.arch }}/image.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-inventory-${{ matrix.arch }}
+          path: release-inventory-${{ matrix.arch }}/
+          retention-days: 30
       - name: Measure image footprint
         run: |
           docker image inspect ouicheur:local --format '{{.Size}}' > image-size-${{ matrix.arch }}.txt
@@ -122,6 +137,7 @@ jobs:
             test-results/template-*.png
             test-results/exchange-*.png
             test-results/pagination-*.png
+            test-results/support-*.png
           retention-days: 7
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -172,4 +188,8 @@ jobs:
           image="ghcr.io/${REPOSITORY,,}"
           release="${GITHUB_REF_NAME#v}"
           if [ "$GITHUB_REF" = "refs/heads/main" ]; then release=main; fi
+          if [ "$release" != main ] && docker buildx imagetools inspect "$image:$release" >/dev/null 2>&1; then
+            echo "Refusing to overwrite an existing numbered release. Publish a new version." >&2
+            exit 1
+          fi
           docker buildx imagetools create --tag "$image:sha-$REVISION" --tag "$image:$release" "$image:sha-$REVISION-amd64" "$image:sha-$REVISION-arm64"

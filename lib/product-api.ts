@@ -1,4 +1,5 @@
 import { createTemplateList } from "./list-templates";
+import { supportInfo } from "./support";
 import {
   readPriceHistory,
   savePriceWatch,
@@ -34,6 +35,7 @@ export async function productGet(
   url: URL,
   access: Access = { owner: true, lists: [] },
 ): Promise<Response | undefined> {
+  if (path === "admin/support") return json(supportInfo(db));
   if (
     ["admin/operations", "admin/diagnostics"].includes(path) ||
     path.startsWith("admin/backups/")

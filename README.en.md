@@ -77,3 +77,17 @@ See [contributing](CONTRIBUTING.md), [security](SECURITY.md),
 [the changelog](CHANGELOG.md), [MIT license](LICENSE) and
 [third-party notices](THIRD_PARTY_NOTICES.md). Merchant images and user content
 retain their original rights.
+
+## Open-source 1.2 foundation
+
+The [1.2.0 release notes](docs/releases/1.2.0.md) describe the complete self-hosted
+feature set and upgrade/rollback procedure. Individual family accounts, scoped
+coorganizers, sessions, secret suggestions, wish variants and alternative shops,
+experiences, list tools, optional reminders, price history, personal gift tracking
+and family exchanges remain part of the MIT-licensed edition.
+
+Find the exact build commit under **My instance**. The support panel previews a
+small technical report before you choose to copy it or open a GitHub issue.
+`main` is the development channel; use a verified numbered image or digest for a
+stable installation. NAS catalog submissions remain separate from manual Docker
+installation and do not imply catalog acceptance.

@@ -1,7 +1,7 @@
 "use client";
 import type { GiftPriority } from "../lib/priority-labels";
 import type { WishlistPage } from "../lib/wishlist-query";
-import packageInfo from "../package.json";
+import { buildInfo } from "../lib/build-info";
 import { PageHeader } from "./page-header";
 import { SurpriseNotice } from "./surprise-notice";
 import { ListsEditor } from "./lists";
@@ -460,7 +460,12 @@ export function Admin() {
             {t("Journal")}
           </button>
           {t("Vos données, chez vous.")}{" "}
-          <span>Ouicheur · {packageInfo.version}</span>
+          <span>
+            Ouicheur · {buildInfo.version} ·{" "}
+            {buildInfo.revision === "local"
+              ? t("Construction locale")
+              : buildInfo.revision.slice(0, 12)}
+          </span>
         </footer>
       </main>
     </div>
