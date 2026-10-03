@@ -1,4 +1,11 @@
 import {
+  donorReservations,
+  saveDonorReservation,
+  changeDonorReservation,
+  receivedGifts,
+  saveReceivedGift,
+} from "../../../lib/personal-gifts";
+import {
   readNotificationPreferences,
   saveNotificationPreferences,
   requestAccountEmail,
@@ -298,6 +305,23 @@ async function handle(
         throw new AppError("Votre session a expiré. Reconnectez-vous.", 401);
       touchSession(db, token!);
       if (request.method === "GET") {
+        if (path === "account/donor")
+          return response(
+            donorReservations(
+              db,
+              token!,
+              Number(request.nextUrl.searchParams.get("page") || 0),
+            ),
+          );
+        if (path === "account/received")
+          return response(
+            receivedGifts(
+              db,
+              token!,
+              Number(request.nextUrl.searchParams.get("page") || 0),
+              request.nextUrl.searchParams.get("q") || "",
+            ),
+          );
         if (path === "account/notifications")
           return response(
             readNotificationPreferences(
@@ -324,6 +348,19 @@ async function handle(
           request,
           path === "team/images" ? 7 * 1024 * 1024 : 32 * 1024,
         );
+        if (path === "account/donor/save") {
+          rateLimit(db, `donor:${hashToken(token!)}`, 30, 60000);
+          saveDonorReservation(db, token!, input);
+          return response({ ok: true });
+        }
+        if (path === "account/donor/change") {
+          changeDonorReservation(db, token!, input);
+          return response({ ok: true });
+        }
+        if (path === "account/received") {
+          saveReceivedGift(db, token!, input);
+          return response({ ok: true });
+        }
         if (path === "account/notifications")
           return response(
             saveNotificationPreferences(

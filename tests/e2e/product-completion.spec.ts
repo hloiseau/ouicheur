@@ -117,6 +117,7 @@ test("private sharing, image authorization, revocation and reservation managemen
     await denied.close();
     expect((await guest.request.get(`/s/${token}`)).status()).toBe(404);
     // Revoking a list never prevents a donor from releasing their own reservation.
+    visitor.once("dialog", (dialog) => dialog.accept());
     await visitor
       .getByRole("button", { name: "Annuler la réservation" })
       .click();

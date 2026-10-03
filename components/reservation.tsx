@@ -1,4 +1,5 @@
 "use client";
+import { SaveReservation } from "./personal-gifts";
 import type { GiftOffer, WishKind } from "../lib/wish-details";
 import { variantSummary, offerConditions } from "../lib/wish-details";
 import type { ReservedDetails } from "../lib/reservation-details";
@@ -207,23 +208,29 @@ export function ReservationStatus({ token }: { token: string }) {
             </p>
           )}
           {data.state === "purchased" && (
-            <Notice>
-              {t(
-                "L’achat est confirmé. Si vous devez revenir sur ce choix, contactez le propriétaire de la liste.",
-              )}
-            </Notice>
+            <Notice>{t("Acheté ou prêt, déclaré par vous")}</Notice>
           )}
           {["cancelled", "expired"].includes(data.state) && (
             <Notice>{t("Cette réservation ne bloque plus le cadeau.")}</Notice>
           )}
-          {data.state === "reserved" && (
+          {["reserved", "purchased"].includes(data.state) && (
             <div className="form-actions">
-              {["purchased", "cancelled"].map((state) => (
+              {(data.state === "reserved"
+                ? ["purchased", "cancelled"]
+                : ["cancelled"]
+              ).map((state) => (
                 <button
                   key={state}
                   className="button secondary"
                   disabled={busy}
                   onClick={async () => {
+                    if (
+                      state === "cancelled" &&
+                      !window.confirm(
+                        t("Annuler cet engagement et libérer le cadeau ?"),
+                      )
+                    )
+                      return;
                     setBusy(true);
                     setError("");
                     try {
@@ -246,6 +253,12 @@ export function ReservationStatus({ token }: { token: string }) {
             </div>
           )}
         </>
+      )}
+      {data && (
+        <details>
+          <summary>{t("Retrouver cette réservation dans mon compte")}</summary>
+          <SaveReservation token={token} />
+        </details>
       )}
       {error && <Notice error>{error}</Notice>}
     </section>

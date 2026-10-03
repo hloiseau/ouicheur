@@ -256,6 +256,9 @@ export function Admin() {
       <header className="owner-topbar container">
         <Brand />
         <div className="header-actions">
+          <a className="text-link" href="/my-gifts">
+            {t("Mon suivi cadeaux")}
+          </a>
           <a className="text-link" href="/?preview=1">
             {t("Ma Ouichlist publique ↗")}
           </a>

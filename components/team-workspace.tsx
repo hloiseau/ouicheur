@@ -63,6 +63,7 @@ export function TeamWorkspace() {
   return (
     <>
       <PageHeader>
+        <a href="/my-gifts">{t("Mon suivi cadeaux")}</a>
         <a href="/">{t("Voir la Ouichlist ↗")}</a>
       </PageHeader>
       <main id="main" className="container owner-main team-workspace">

@@ -1,3 +1,4 @@
+import { createTemplateList } from "./list-templates";
 import {
   readPriceHistory,
   savePriceWatch,
@@ -134,6 +135,10 @@ export async function productPost(
   data: unknown,
   access: Access = { owner: true, lists: [] },
 ): Promise<Response | undefined> {
+  if (path === "admin/lists/template") {
+    rateLimit(db, "template", 20, 3600000);
+    return json(createTemplateList(db, data));
+  }
   if (path === "admin/price-watch") {
     savePriceWatch(db, data);
     return json({ ok: true });

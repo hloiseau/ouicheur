@@ -1,4 +1,5 @@
 "use client";
+import { ListTemplates } from "./list-templates";
 import { ListTools } from "./list-tools";
 import { useRef, useState } from "react";
 import QRCode from "qrcode";
@@ -120,6 +121,7 @@ export function ListsEditor({
     <div className="operations-grid">
       <section className="panel stack">
         <h2>{t("Mes listes et événements")}</h2>
+        <ListTemplates refresh={refresh} />
         {lists.map((l) => (
           <button
             key={l.id}
