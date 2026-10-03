@@ -739,6 +739,7 @@ export function PublicWishlist({
           )}
           {owner && (
             <BulkOrganizer
+              loading={remote.loading}
               key={selectedList}
               gifts={visible}
               listId={selectedList}
