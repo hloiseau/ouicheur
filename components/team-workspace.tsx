@@ -1,4 +1,7 @@
 "use client";
+import type { WishlistPage } from "../lib/wishlist-query";
+import { useWishlistPage } from "./wishlist-loader";
+import { imageSrcSet } from "../lib/image-srcset";
 import { PreferenceEditor } from "./list-tools";
 import { hasBudget } from "../lib/wish-details";
 import { SecretSuggestions } from "./secret-suggestions";
@@ -13,6 +16,7 @@ import { useI18n } from "./language";
 import { api, ApiError, Field, Notice } from "./ui";
 
 type TeamData = {
+  wishlist: WishlistPage;
   account: { name: string; login: string };
   lists: Wishlist[];
   gifts: Gift[];
@@ -23,16 +27,27 @@ type TeamData = {
   surprises_revealed: boolean;
 };
 export function TeamWorkspace() {
-  const { t, money } = useI18n();
+  const { t, money, locale } = useI18n();
   const [data, setData] = useState<TeamData | null>(null);
   const [listId, setListId] = useState("");
+  const [search, setSearch] = useState("");
+  const [archived, setArchived] = useState(false);
+  const remote = useWishlistPage(data?.wishlist, {
+    mode: "team",
+    list: listId,
+    search,
+    locale,
+    view: archived ? "archived" : "all",
+  });
   const [security, setSecurity] = useState(false);
   const [editing, setEditing] = useState<Gift | "new" | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const refresh = async () => {
     try {
-      const next = await api<TeamData>("team");
+      const next = await api<TeamData>(
+        `team?summary=1&list=${encodeURIComponent(listId)}`,
+      );
       setData(next);
       setListId((id) =>
         next.lists.some((l) => l.id === id) ? id : next.lists[0]?.id || "",
@@ -172,7 +187,10 @@ export function TeamWorkspace() {
                     <Field label={t("Liste à préparer")}>
                       <select
                         value={listId}
-                        onChange={(e) => setListId(e.target.value)}
+                        onChange={(e) => {
+                          setListId(e.target.value);
+                          setSearch("");
+                        }}
                       >
                         {data.lists.map((l) => (
                           <option key={l.id} value={l.id}>
@@ -198,11 +216,27 @@ export function TeamWorkspace() {
                   {!!selectedList?.archived && (
                     <Notice>{t("Cette liste est archivée.")}</Notice>
                   )}
+                  <Field label={t("Rechercher une envie")}>
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </Field>
+                  <label className="check-label">
+                    <input
+                      type="checkbox"
+                      checked={archived}
+                      onChange={(e) => setArchived(e.target.checked)}
+                    />
+                    {t("Archivées")}
+                  </label>
+                  {remote.error && <Notice error>{remote.error}</Notice>}
+                  {remote.loading && <p role="status">{t("Chargement…")}</p>}
                   <section
                     className="team-gift-grid"
                     aria-label={t("Envies de cette liste")}
                   >
-                    {data.gifts
+                    {(remote.page?.items || data.gifts)
                       .filter((g) => g.list_id === listId)
                       .map((g) => (
                         <article className="panel stack team-gift" key={g.id}>
@@ -210,6 +244,10 @@ export function TeamWorkspace() {
                             <img
                               className="team-gift-image"
                               src={g.image}
+                              srcSet={imageSrcSet(g.image)}
+                              sizes="160px"
+                              loading="lazy"
+                              decoding="async"
                               alt=""
                             />
                           )}
@@ -263,9 +301,21 @@ export function TeamWorkspace() {
                         </article>
                       ))}
                   </section>
-                  {!data.gifts.some((g) => g.list_id === listId) && (
-                    <p>{t("Cette liste ne contient pas encore d’envie.")}</p>
+                  {remote.page?.next && (
+                    <button
+                      className="button secondary"
+                      disabled={remote.loading}
+                      onClick={() => void remote.more()}
+                    >
+                      {t("Afficher plus")}
+                    </button>
                   )}
+                  {!remote.loading &&
+                    !(remote.page?.items || data.gifts).some(
+                      (g) => g.list_id === listId,
+                    ) && (
+                      <p>{t("Cette liste ne contient pas encore d’envie.")}</p>
+                    )}
                 </>
               )}
             </div>
@@ -276,7 +326,7 @@ export function TeamWorkspace() {
           apiPrefix="team"
           gift={editing === "new" ? null : editing}
           priorities={data.priorities}
-          categories={data.categories}
+          categories={remote.page?.categories || data.categories}
           currency={data.currency}
           listId={listId}
           onDone={() => setEditing(null)}

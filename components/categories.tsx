@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { imageSrcSet } from "../lib/image-srcset";
 import { ImagePicker } from "./image-picker";
 import { useI18n } from "./language";
 import { Modal } from "./modal";
@@ -15,6 +16,8 @@ export function Categories({
   onSelect,
   editable = false,
   onSaved,
+  counts,
+  total,
 }: {
   categories: Category[];
   gifts: { category_id: string | null; image: string }[];
@@ -22,6 +25,8 @@ export function Categories({
   onSelect: (id: string) => void;
   editable?: boolean;
   onSaved: () => void;
+  counts?: { id: string; count: number; preview_image: string }[];
+  total?: number;
 }) {
   const { t } = useI18n();
   const [editor, setEditor] = useState<Category | "new" | null>(null);
@@ -40,16 +45,20 @@ export function Categories({
           </span>
           <span>
             <strong>{t("Tout")}</strong>
-            <small>{count(gifts.length)}</small>
+            <small>{count(total ?? gifts.length)}</small>
           </span>
         </button>
         {categories.map((category) => {
           const items = gifts.filter(
             (gift) => gift.category_id === category.id,
           );
-          if (!editable && !items.length) return null;
+          const info = counts?.find((c) => c.id === category.id);
+          const size = info?.count ?? items.length;
+          if (!size && !(editable && selected === category.id)) return null;
           const image =
-            category.image || items.find((gift) => gift.image)?.image;
+            category.image ||
+            info?.preview_image ||
+            items.find((gift) => gift.image)?.image;
           return (
             <div className="collection-item" key={category.id}>
               <button
@@ -60,14 +69,23 @@ export function Categories({
               >
                 <span className="collection-art">
                   {image ? (
-                    <img src={image} alt="" loading="lazy" />
+                    <img
+                      src={image}
+                      srcSet={imageSrcSet(image)}
+                      sizes="80px"
+                      width={160}
+                      height={160}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
                   ) : (
                     <Icon name="gift" size={28} />
                   )}
                 </span>
                 <span>
                   <strong>{category.name}</strong>
-                  <small>{count(items.length)}</small>
+                  <small>{count(size)}</small>
                 </span>
               </button>
               {editable && (

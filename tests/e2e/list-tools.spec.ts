@@ -123,6 +123,7 @@ test("list preferences, bulk organization and portable print views respect priva
         exact: true,
       }),
     ).toBeVisible();
+    await view.emulateMedia({ media: "print" });
     await view.screenshot({
       path: `test-results/list-print-${info.project.name}.png`,
       fullPage: true,

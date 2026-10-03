@@ -396,13 +396,16 @@ export function PersonalGifts() {
                   {t("Expiration")} : {date(row.expires_at)}
                 </p>
               )}
-              {row.details && (
-                <p>
-                  {[row.details.size, row.details.color, row.details.model]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-              )}
+              {row.details &&
+                [row.details.size, row.details.color, row.details.model].some(
+                  Boolean,
+                ) && (
+                  <p>
+                    {[row.details.size, row.details.color, row.details.model]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                )}
               <div className="form-actions">
                 {row.state === "reserved" && (
                   <button

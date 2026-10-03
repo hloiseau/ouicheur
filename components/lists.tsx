@@ -285,7 +285,7 @@ export function ListsEditor({
           </Field>
           <p className="fine-print">
             {t(
-              "Publique : visible par tous. Non répertoriée : accessible avec un lien privé. Privée : réservée au propriétaire. Le profil est commun à vos listes.",
+              "Publique : visible par tous. Non répertoriée : accessible avec un lien privé. Privée : accessible au propriétaire et aux comptes autorisés. Le profil est commun à vos listes.",
             )}
           </p>
           <label>

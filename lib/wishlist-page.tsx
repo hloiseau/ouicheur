@@ -1,8 +1,8 @@
-import { listPriorities } from "./priorities";
+import { queryWishlist } from "./wishlist-query";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { database } from "./db";
-import { listGifts, publicProfile } from "./gifts";
+import { publicProfile } from "./gifts";
 import { accessFromCookies, listLists } from "./lists";
 import { PublicWishlist } from "../components/public-wishlist";
 import { getI18n } from "./i18n-server";
@@ -25,13 +25,17 @@ export async function renderWishlist(listId?: string, preview = false) {
       </main>
     );
   }
-  const gifts = listGifts(db, access.owner, access).filter(
-    (g) => !listId || g.list_id === listId,
+  const { locale } = await getI18n();
+  const page = queryWishlist(
+    db,
+    { mode: access.owner ? "owner" : "public", list: listId || "", locale },
+    access,
   );
+  const gifts = page.items;
   const categories = db
     .prepare("SELECT * FROM categories ORDER BY name")
     .all()
-    .filter((c) => access.owner || gifts.some((g) => g.category_id === c.id))
+    .filter((c) => access.owner || page.categories.some((g) => g.id === c.id))
     .map((c) => ({
       id: String(c.id),
       name: String(c.name),
@@ -41,9 +45,8 @@ export async function renderWishlist(listId?: string, preview = false) {
     <PublicWishlist
       profile={profile}
       gifts={gifts}
-      priorities={listPriorities(db).filter(
-        (p) => access.owner || gifts.some((g) => g.priority === p.id),
-      )}
+      initialPage={page}
+      priorities={page.priorities}
       categories={categories}
       lists={listId ? lists.filter((l) => l.id === listId) : lists}
       initialList={listId || ""}

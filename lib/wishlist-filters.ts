@@ -1,4 +1,4 @@
-import { hasBudget, variantSummary, type WishDetails } from "./wish-details";
+import { hasBudget, variantSummary, type WishDetails } from "./wish-details.ts";
 import type { Gift } from "./gifts";
 
 export type BudgetBasis = "unit" | "total" | "remaining";
@@ -83,6 +83,10 @@ export function filterWishlist<T extends FilterableGift>(
       .replace(/\p{M}/gu, "")
       .toLocaleLowerCase(filters.locale);
   const search = normalize(filters.search.trim());
+  const titleOrder = new Intl.Collator(filters.locale, {
+    sensitivity: "base",
+    numeric: true,
+  });
   // A numeric budget without a currency would compare unrelated amounts.
   if (
     (!filters.currency &&
@@ -97,9 +101,10 @@ export function filterWishlist<T extends FilterableGift>(
       const amount = giftBudgetAmount(gift, filters.basis);
       return (
         (!filters.currency || gift.currency === filters.currency) &&
-        normalize(
-          `${gift.title} ${gift.description} ${variantSummary(gift)} ${gift.time_hint || ""}`,
-        ).includes(search) &&
+        (!search ||
+          normalize(
+            `${gift.title} ${gift.description} ${variantSummary(gift)} ${gift.time_hint || ""}`,
+          ).includes(search)) &&
         (filters.minimum === null ||
           ((hasBudget(gift) || gift.budget_mode === "free") &&
             amount >= filters.minimum)) &&
@@ -120,11 +125,7 @@ export function filterWishlist<T extends FilterableGift>(
           ? (filters.priorityOrder[a.priority] ?? 999) -
               (filters.priorityOrder[b.priority] ?? 999)
           : b.priority - a.priority;
-      if (filters.sort === "title")
-        return a.title.localeCompare(b.title, filters.locale, {
-          sensitivity: "base",
-          numeric: true,
-        });
+      if (filters.sort === "title") return titleOrder.compare(a.title, b.title);
       if (filters.sort === "progress")
         return (
           b.funded / Math.max(1, b.target) - a.funded / Math.max(1, a.target)

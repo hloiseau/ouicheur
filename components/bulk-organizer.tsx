@@ -10,12 +10,14 @@ export function BulkOrganizer({
   lists,
   categories,
   onChange,
+  loading = false,
 }: {
   gifts: Pick<Gift, "id" | "list_id" | "title">[];
   listId: string;
   lists: Wishlist[];
   categories: { id: string; name: string }[];
   onChange: () => void;
+  loading?: boolean;
 }) {
   const { t } = useI18n();
   const [ids, setIds] = useState<string[]>([]),
@@ -59,6 +61,7 @@ export function BulkOrganizer({
             <button
               type="button"
               className="button secondary"
+              disabled={busy || loading || !rows.length}
               onClick={() => setIds(rows.map((g) => g.id))}
             >
               {t("Tout sélectionner")}
@@ -77,6 +80,7 @@ export function BulkOrganizer({
                 <label className="checkbox">
                   <input
                     type="checkbox"
+                    disabled={busy || loading}
                     checked={selected.includes(g.id)}
                     onChange={(e) =>
                       setIds(
@@ -92,7 +96,7 @@ export function BulkOrganizer({
                   <button
                     type="button"
                     className="button secondary"
-                    disabled={busy}
+                    disabled={busy || loading}
                     aria-label={t("Monter {0}", g.title)}
                     onClick={() => void order(g.id, "up")}
                   >
@@ -101,7 +105,7 @@ export function BulkOrganizer({
                   <button
                     type="button"
                     className="button secondary"
-                    disabled={busy}
+                    disabled={busy || loading}
                     aria-label={t("Descendre {0}", g.title)}
                     onClick={() => void order(g.id, "down")}
                   >
@@ -115,6 +119,7 @@ export function BulkOrganizer({
             className="stack"
             onSubmit={async (e) => {
               e.preventDefault();
+              if (busy || loading) return;
               if (
                 !selected.length ||
                 !window.confirm(
@@ -196,7 +201,7 @@ export function BulkOrganizer({
             )}
             <button
               className="button secondary"
-              disabled={busy || !selected.length}
+              disabled={busy || loading || !selected.length}
             >
               {t("Appliquer à la sélection")}
             </button>

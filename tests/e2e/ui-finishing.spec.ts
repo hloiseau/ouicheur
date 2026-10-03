@@ -219,7 +219,7 @@ test("an unavailable owner API offers retry without a misleading sign-in form", 
     headers,
     data: { password: "test-only-password-2026" },
   });
-  await page.route("**/api/admin", (route) =>
+  await page.route("**/api/admin?summary=1", (route) =>
     route.fulfill({
       status: 503,
       contentType: "text/plain",
@@ -236,7 +236,7 @@ test("an unavailable owner API offers retry without a misleading sign-in form", 
     fullPage: true,
     scale: "css",
   });
-  await page.unroute("**/api/admin");
+  await page.unroute("**/api/admin?summary=1");
   await page.getByRole("button", { name: "Réessayer", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Mes envies", exact: true }),
