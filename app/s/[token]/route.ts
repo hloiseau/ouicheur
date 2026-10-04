@@ -9,7 +9,10 @@ export async function GET(
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { t } = createI18n(
-    resolveLocale(request.cookies.get(localeCookie)?.value),
+    resolveLocale(
+      request.cookies.get(localeCookie)?.value,
+      request.headers.get("accept-language"),
+    ),
   );
   const { token } = await params;
   const list = resolveShare(database(), token);

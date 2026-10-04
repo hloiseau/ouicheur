@@ -7,6 +7,8 @@ and events and can invite coorganizers with access to selected lists; visitors c
 through PayPal, report a bank transfer, or pledge an amount for later. Bank transfer declarations and pledges work without PayPal configured. The interface supports English and French.
 Ouicheur never holds money or automatically buys products.
 
+On the first visit, the interface follows the browser's preferred supported language, including regional French and English variants. A manual choice in **English / Français** takes priority and is remembered for one year. Unsupported browser languages fall back to English; no location permission is needed.
+
 ![Ouicheur with fictional demonstration data](docs/screenshots/wishlist-desktop.png)
 
 [Mobile view](docs/screenshots/wishlist-mobile.png) ·

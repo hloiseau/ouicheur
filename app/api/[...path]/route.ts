@@ -169,8 +169,11 @@ async function handle(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
 ) {
-  const { t } = createI18n(
-    resolveLocale(request.cookies.get(localeCookie)?.value),
+  const { t, locale } = createI18n(
+    resolveLocale(
+      request.cookies.get(localeCookie)?.value,
+      request.headers.get("accept-language"),
+    ),
   );
   try {
     const segments = (await context.params).path;
@@ -384,9 +387,7 @@ async function handle(
             request.nextUrl.searchParams.get("summary") === "1"
               ? {
                   list: request.nextUrl.searchParams.get("list") || "",
-                  locale: resolveLocale(
-                    request.cookies.get(localeCookie)?.value,
-                  ),
+                  locale,
                 }
               : undefined,
           );
@@ -644,7 +645,7 @@ async function handle(
               db,
               {
                 mode: "owner",
-                locale: resolveLocale(request.cookies.get(localeCookie)?.value),
+                locale,
               },
               access,
             )

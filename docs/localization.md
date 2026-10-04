@@ -1,6 +1,8 @@
 # Ouicheur: language and upgrade notes
 
-Ouicheur opens in **English** by default. Choose **Français** in the language selector to use the French interface. The preference is stored in the `ouicheur_locale` cookie for one year and applies to this browser, not to other visitors. Switching languages preserves unsaved form input.
+Ouicheur uses the browser's preferred supported language on the first visit, before rendering the page. French variants such as `fr-FR`, `fr-CA` and `fr-BE` select **Français**; English variants select **English**. Preferences are ranked by their `Accept-Language` quality weights, preserving their order for ties. Unsupported, zero-weight and malformed entries are ignored; when no supported preference remains, English is the fallback. No IP lookup, location permission or external service is used.
+
+A manual choice in the **English / Français** selector overrides browser detection. Only this explicit choice is stored in the `ouicheur_locale` cookie for one year and applies to this browser, not to other visitors. An existing valid preference is preserved during upgrades; an invalid cookie falls back to browser detection. Switching languages preserves unsaved form input.
 
 The setup wizard, public Ouichlist, gift and contribution pages, administration, errors and page titles are translated. Money and dates use the selected locale; timestamps include UTC to avoid differences between the server and browser. Gift names, descriptions, categories, profiles and personal messages remain exactly as their authors entered them. The Japan search prompt follows the selected language too.
 
@@ -18,7 +20,7 @@ Exports now download as `ouicheur-export.json`. Their data format and backup com
 
 ## Maintaining translations
 
-`lib/messages.ts` maps the existing French source messages to English. `lib/i18n.ts` handles numbered placeholders and regional formats without an extra dependency. Use `useI18n()` in client components and `await getI18n()` on the server. The server reads the same language cookie as the browser; it never uses a global mutable language setting.
+`lib/messages.ts` maps the existing French source messages to English. `lib/i18n.ts` handles language negotiation, numbered placeholders and regional formats without an extra dependency. Use `useI18n()` in client components and `await getI18n()` on the server. Route handlers pass both the language cookie and the `Accept-Language` header to `resolveLocale`. Metadata, HTML, client components, API errors and shared-link errors use the same resolution; there is no global mutable language setting.
 
 Add every new UI label and application error to the catalog, keeping the same `{0}`, `{1}`, etc. placeholders in both languages. Translate complete sentences around variable values. Do not translate user content or internal identifiers. Imports store message keys and arguments so errors from previous jobs can follow the viewer’s language.
 
