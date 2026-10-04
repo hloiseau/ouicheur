@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.1 — la langue du navigateur dès la première visite
+
+- Détection du français et de l’anglais à partir des préférences du navigateur, variantes régionales et ordre de préférence inclus.
+- Choix manuel existant conservé et prioritaire ; repli en anglais si aucune langue prise en charge n’est indiquée.
+- Même langue dès le rendu serveur, dans les titres, formulaires, erreurs API et liens de partage.
+- Aucune géolocalisation, aucun service externe ni migration de données.
+
+Voir les [notes de mise à jour](docs/releases/1.3.1.md). La publication stable suit les contrôles CI.
+
 ## 1.3.0 — participer sans PayPal
 
 - Déclaration d’un virement déjà effectué, sans compte visiteur ni PayPal configuré.

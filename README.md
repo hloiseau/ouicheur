@@ -2,9 +2,9 @@
 
 [English quick start](README.en.md) · [Nouvelles fonctionnalités et mise à jour](docs/product-features.md) · [Changelog](CHANGELOG.md) · [Version 1.2.0](docs/releases/1.2.0.md)
 
-Une Ouichlist personnelle et familiale libre et auto-hébergeable, en anglais par défaut avec une interface française au choix. Un propriétaire peut confier certaines listes à des coorganisateurs avec leur propre compte. Des cadeaux ajoutés par liens, des contributions sans compte visiteur via **PayPal, déclaration de virement ou promesse de participation**. PayPal est facultatif.
+Une Ouichlist personnelle et familiale libre et auto-hébergeable, en français ou en anglais selon la langue du navigateur dès la première visite. Un propriétaire peut confier certaines listes à des coorganisateurs avec leur propre compte. Des cadeaux ajoutés par liens, des contributions sans compte visiteur via **PayPal, déclaration de virement ou promesse de participation**. PayPal est facultatif.
 
-Le sélecteur **English / Français** est disponible sur toutes les pages, y compris l’installation. Le choix reste mémorisé dans ce navigateur pendant un an. Textes, erreurs, titres, dates et montants suivent cette préférence ; les contenus personnels ne sont pas traduits. Le changement de langue conserve les formulaires en cours. [Localization and upgrade notes](docs/localization.md).
+Le sélecteur **English / Français** est disponible sur toutes les pages, y compris l’installation. Un choix manuel reste prioritaire et mémorisé dans ce navigateur pendant un an. Sans choix, la première langue prise en charge dans les préférences du navigateur est utilisée, avec un repli en anglais si aucune ne convient. Aucune géolocalisation n’est demandée. Textes, erreurs, titres, dates et montants suivent cette préférence ; les contenus personnels ne sont pas traduits. Le changement de langue conserve les formulaires en cours. [Localization and upgrade notes](docs/localization.md).
 
 **Par défaut, les participations comptent dès l’envoi déclaré.** Le mode strict optionnel attend la validation du propriétaire. Le propriétaire peut ensuite les valider ou les refuser en un clic. L’application ne commande aucun produit, ne détient pas l’argent et n’ajoute aucune commission. Elle ne promet pas l’absence de frais PayPal.
 

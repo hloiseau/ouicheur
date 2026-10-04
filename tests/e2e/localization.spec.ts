@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 
-test("English by default, French preference, localized errors and preserved input", async ({
+test("English browser, French preference, localized errors and preserved input", async ({
   page,
   context,
 }, info) => {

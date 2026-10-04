@@ -4,8 +4,30 @@ import { formatMoney } from "./format.ts";
 
 export type Locale = "en" | "fr";
 export const localeCookie = "ouicheur_locale";
-export const resolveLocale = (value?: string): Locale =>
-  value === "fr" ? "fr" : "en";
+export function resolveLocale(
+  preference?: string,
+  acceptLanguage?: string | null,
+): Locale {
+  // Only an explicit choice is persisted. Otherwise follow this request's
+  // browser preferences, including regional variants and quality weights.
+  if (preference === "fr" || preference === "en") return preference;
+  const candidates = (acceptLanguage || "")
+    .split(",")
+    .flatMap((entry) => {
+      const match = entry
+        .trim()
+        .match(
+          /^(fr|en)(?:-[a-z0-9]{1,8})*(?:\s*;\s*q\s*=\s*(0(?:\.\d{0,3})?|1(?:\.0{0,3})?))?$/i,
+        );
+      if (!match) return [];
+      const quality = match[2] === undefined ? 1 : Number(match[2]);
+      return quality > 0
+        ? [{ locale: match[1].toLowerCase() as Locale, quality }]
+        : [];
+    })
+    .sort((a, b) => b.quality - a.quality);
+  return candidates[0]?.locale || "en";
+}
 export function interpolate(
   message: string,
   values: readonly (string | number)[],
