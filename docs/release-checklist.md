@@ -11,10 +11,10 @@ Cette checklist distingue préparation du code, publication d’une image et rec
 
 ## Version stable
 
-1. Créer `vX.Y.Z` sur le commit validé, jamais sur une branche supposée inchangée. Ne jamais déplacer un tag publié ; une correction reçoit un nouveau numéro. Le tag historique 1.1 ne doit pas désigner le code 1.2.
-2. Attendre la CI du tag : elle refuse une divergence avec `package.json`, teste les deux architectures et publie le manifeste numéroté. La publication refuse de remplacer une version numérotée déjà présente. Aucun tag `latest` n’est publié.
-3. Vérifier anonymement le téléchargement GHCR, les deux architectures, la révision OCI, la version/révision de l’interface et le digest. Épingler le digest pour une référence immuable ; `main` est volontairement mobile et les références par commit ne remplacent pas le digest.
-4. Télécharger `release-inventory-amd64` et `release-inventory-arm64` du même run. Joindre les archives à la GitHub Release avec notes, commit, digest, résultats et limites. Les artefacts Actions expirent après 30 jours : leur copie dans la release permet de les conserver.
+1. Dans une PR, renseigner `release-request.json` avec la version stable de `package.json` et préparer ses notes. La fusion autorise la publication automatique après réussite de la CI de ce commit sur `main`. Une demande qui ne correspond pas à la version courante reste inactive. Une version déjà publiée reste inchangée.
+2. Attendre le job `publish-release`, après les tests des deux architectures, le contrôle requis `verify` et `publish-manifest`. Il vérifie les révisions OCI, l’accès GHCR anonyme et les inventaires du même run, puis donne le numéro stable au manifeste déjà testé, sans reconstruction et avec le même digest. Il refuse tout tag ou image numérotée désignant une autre référence. Aucun tag `latest` n’est publié.
+3. Le job crée `vX.Y.Z` sur le commit testé, prépare une GitHub Release brouillon, joint les deux inventaires, `release-proof.json` et `SHA256SUMS`, puis la publie. La CI de `main` porte cette validation : le tag créé avec `GITHUB_TOKEN` ne déclenche pas un second workflow. Les artefacts Actions expirent après 30 jours ; leurs copies dans la release sont conservées. Une reprise d’un brouillon doit utiliser le run d’origine.
+4. Vérifier la Release publiée, ses pièces jointes, son digest et la version/révision affichée à l’installation. Épingler le digest pour une référence immuable ; `main` reste mobile. Ne jamais déplacer un tag publié ; une correction reçoit un nouveau numéro. Le déclenchement manuel de cette même CI sur `main` permet aussi la publication d’une demande, avec tous les contrôles.
 5. Préserver MIT et les notices embarquées. Le SBOM npm n’inventorie pas Debian/Chromium ; l’inventaire final complète ce périmètre. Examiner les obligations des composants natifs lors de leur mise à jour.
 
 ## Canaux, sauvegarde et entretien
