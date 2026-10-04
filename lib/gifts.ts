@@ -17,6 +17,7 @@ export type Gift = WishDetails & {
   reserved: number | null;
   surprise_hidden?: boolean;
   declared: number;
+  promised: number;
   url: string;
   title: string;
   description: string;
@@ -45,12 +46,13 @@ export type PublicProfile = Appearance & {
   socials: string;
   currency: string;
   payments_enabled: number;
+  paypal_enabled?: number;
   strict_contributions?: number;
 };
 export function publicProfile(db: DatabaseSync) {
   const row = db
     .prepare(
-      "SELECT strict_contributions,name,bio,avatar,banner,socials,currency,background,accent,banner_position,layout,CASE WHEN paypal<>'' THEN 1 ELSE 0 END payments_enabled FROM owner WHERE id=1",
+      "SELECT strict_contributions,name,bio,avatar,banner,socials,currency,background,accent,banner_position,layout,1 payments_enabled,CASE WHEN paypal<>'' THEN 1 ELSE 0 END paypal_enabled FROM owner WHERE id=1",
     )
     .get();
   return row ? ({ ...row } as PublicProfile) : undefined;
@@ -81,6 +83,7 @@ export function listGifts(
       `SELECT g.*,c.name category,COALESCE(f.funded,0) funded,
     COALESCE((SELECT SUM(quantity) FROM reservations r WHERE r.gift_id=g.id AND (r.state='purchased' OR (r.state='reserved' AND r.expires_at>?))),0) reserved,
     COALESCE((SELECT SUM(amount) FROM contributions c WHERE c.gift_id=g.id AND c.state='declared' AND c.approved=0 AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.contribution_id=c.id)),0) declared,
+    COALESCE((SELECT SUM(amount) FROM contributions c WHERE c.gift_id=g.id AND c.method='pledge' AND c.state='intent' AND c.approved=0 AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.contribution_id=c.id)),0) promised,
     COALESCE((SELECT SUM(p.net-p.net_reversed) FROM payments p JOIN contributions n ON n.id=p.contribution_id WHERE n.gift_id=g.id AND p.net IS NOT NULL),0) confirmed,
     COALESCE((SELECT SUM(p.gross-MAX(p.refunded,p.net_reversed)) FROM payments p JOIN contributions n ON n.id=p.contribution_id WHERE n.gift_id=g.id AND p.net IS NULL),0) unknown_gross
     FROM gifts g LEFT JOIN categories c ON c.id=g.category_id

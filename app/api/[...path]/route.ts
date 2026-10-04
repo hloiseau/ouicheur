@@ -91,6 +91,7 @@ import {
 import { completeWebSetup } from "../../../lib/setup";
 import {
   confirmManual,
+  cancelPledge,
   contributionStatus,
   correctPayment,
   createIntent,
@@ -529,6 +530,15 @@ async function handle(
         return response(contributionStatus(db, segments[1]));
       if (
         segments.length === 3 &&
+        segments[2] === "cancel" &&
+        request.method === "POST"
+      ) {
+        rateLimit(db, `declare:${ip}`, 60, 60 * 60000);
+        cancelPledge(db, segments[1]);
+        return response({ ok: true });
+      }
+      if (
+        segments.length === 3 &&
         segments[2] === "declare" &&
         request.method === "POST"
       ) {
@@ -652,7 +662,7 @@ async function handle(
         pending_contributions: Number(
           db
             .prepare(
-              "SELECT COUNT(*) n FROM contributions c WHERE c.approved=0 AND c.state IN ('declared','detected') AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.contribution_id=c.id)",
+              "SELECT COUNT(*) n FROM contributions c WHERE c.approved=0 AND (c.state IN ('declared','detected') OR (c.method='pledge' AND c.state='intent')) AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.contribution_id=c.id)",
             )
             .get()!.n,
         ),

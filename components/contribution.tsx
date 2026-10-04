@@ -3,21 +3,24 @@ import { useI18n } from "./language";
 
 import { useEffect, useId, useState } from "react";
 import { api, Field, Icon, Notice } from "./ui";
-import { stateLabel } from "../lib/format";
+import {
+  contributionLabel,
+  type ContributionMethod,
+} from "../lib/contribution-labels";
 
 export function ContributionForm({
   giftId,
   currency,
   remaining,
   closed,
-  enabled,
+  paypalEnabled,
   strict = false,
 }: {
   giftId: string;
   currency: string;
   remaining: number;
   closed: boolean;
-  enabled: boolean;
+  paypalEnabled: boolean;
   strict?: boolean;
 }) {
   const { t, money } = useI18n();
@@ -27,6 +30,9 @@ export function ContributionForm({
   const [message, setMessage] = useState("");
   const [publicName, setPublicName] = useState(false);
   const [publicMessage, setPublicMessage] = useState(false);
+  const [method, setMethod] = useState<ContributionMethod>(
+    paypalEnabled ? "paypal" : "pledge",
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const numericAmount = Number(amount.replace(",", "."));
@@ -42,14 +48,6 @@ export function ContributionForm({
         )}{" "}
       </Notice>
     );
-  if (!enabled)
-    return (
-      <Notice>
-        {t(
-          "Le propriétaire prépare encore la réception des contributions. Revenez bientôt.",
-        )}{" "}
-      </Notice>
-    );
   return (
     <form
       className="contribution-form"
@@ -59,21 +57,23 @@ export function ContributionForm({
         setBusy(true);
         setError("");
         // Open during the click so browsers allow the PayPal tab.
-        const paypalTab = window.open("about:blank", "_blank");
+        const paypalTab =
+          method === "paypal" ? window.open("about:blank", "_blank") : null;
         if (paypalTab) paypalTab.opener = null;
         try {
-          const result = await api<{ id: string; paypal_url: string }>(
+          const result = await api<{ id: string; paypal_url: string | null }>(
             "contributions",
             {
               gift_id: giftId,
               amount,
+              method,
               nickname,
               message,
               public_name: publicName,
               public_message: publicMessage,
             },
           );
-          if (paypalTab && !paypalTab.closed)
+          if (paypalTab && !paypalTab.closed && result.paypal_url)
             paypalTab.location.replace(result.paypal_url);
           location.assign(`/contribution/${result.id}`);
         } catch (e) {
@@ -86,6 +86,33 @@ export function ContributionForm({
       }}
     >
       <h2>{t("Un petit coup de pouce ?")}</h2>
+      <Field label={t("Comment souhaitez-vous participer ?")}>
+        <select
+          value={method}
+          disabled={busy}
+          onChange={(e) => setMethod(e.target.value as ContributionMethod)}
+        >
+          {paypalEnabled && (
+            <option value="paypal">{t("Envoyer avec PayPal")}</option>
+          )}
+          <option value="bank_transfer">{t("J’ai fait un virement")}</option>
+          <option value="pledge">{t("Je participerai plus tard")}</option>
+        </select>
+      </Field>
+      {method === "bank_transfer" && (
+        <p className="fine-print">
+          {t(
+            "Déclarez uniquement un virement déjà effectué. Les coordonnées bancaires sont à demander directement au bénéficiaire ; Ouicheur n’effectue aucun virement.",
+          )}
+        </p>
+      )}
+      {method === "pledge" && (
+        <p className="fine-print">
+          {t(
+            "Annoncez le montant que vous prévoyez de donner. Votre promesse reste séparée des versements et ne remplit pas l’objectif.",
+          )}
+        </p>
+      )}
       <div
         className="amount-options"
         style={{
@@ -168,21 +195,31 @@ export function ContributionForm({
         />
         {t("Afficher mon message sur la Ouichlist après confirmation")}{" "}
       </label>
-      <p className="fine-print">
-        {t(
-          "Vos choix concernent uniquement cette Ouichlist. PayPal et l’autre partie peuvent voir les informations liées au paiement. Choisissez le type de transfert adapté à votre situation ; des frais peuvent s’appliquer.",
-        )}{" "}
-      </p>
+      {method === "paypal" && (
+        <p className="fine-print">
+          {t(
+            "Vos choix concernent uniquement cette Ouichlist. PayPal et l’autre partie peuvent voir les informations liées au paiement. Choisissez le type de transfert adapté à votre situation ; des frais peuvent s’appliquer.",
+          )}{" "}
+        </p>
+      )}
       {error && <Notice error>{error}</Notice>}
       <button className="button primary wide" disabled={busy || overLimit}>
-        {busy ? t("Ouverture de PayPal…") : t("Continuer vers PayPal")}
+        {busy
+          ? t("Enregistrement…")
+          : method === "paypal"
+            ? t("Continuer vers PayPal")
+            : method === "bank_transfer"
+              ? t("Déclarer mon virement")
+              : t("Enregistrer ma promesse")}
         <Icon name="arrow" size={18} />
       </button>
       <p className="form-footnote">
         <Icon name="lock" size={13} />
-        {strict
-          ? t("Sans compte · Participation soumise à validation")
-          : t("Sans compte · Participation comptée dès l’envoi déclaré")}{" "}
+        {method === "pledge"
+          ? t("Sans compte · Aucun paiement à cette étape")
+          : strict
+            ? t("Sans compte · Participation soumise à validation")
+            : t("Sans compte · Participation comptée dès l’envoi déclaré")}{" "}
       </p>
     </form>
   );
@@ -195,6 +232,7 @@ type Status = {
   currency: string;
   state: string;
   approved: number;
+  method: ContributionMethod;
   paypal_url: string | null;
   payment: null | {
     gross: number;
@@ -265,7 +303,7 @@ export function ContributionStatus({ id }: { id: string }) {
                 ? t("Confirmé par le propriétaire")
                 : counted
                   ? t("Participation comptabilisée")
-                  : t(stateLabel[status.state])}
+                  : t(contributionLabel(status.method, status.state))}
           </p>
           {status.payment ? (
             <>
@@ -299,6 +337,59 @@ export function ContributionStatus({ id }: { id: string }) {
                 "Votre participation est déjà incluse dans la progression du cadeau. Merci !",
               )}
             </p>
+          ) : status.method === "pledge" && status.state === "intent" ? (
+            <>
+              <p role="status">
+                {t(
+                  "Votre promesse est enregistrée. Aucun argent n’a été envoyé et ce montant n’est pas encore inclus dans la progression du cadeau.",
+                )}
+              </p>
+              <p>
+                {t(
+                  "Convenez du mode de versement directement avec le bénéficiaire. Conservez cette page pour déclarer votre versement plus tard ou annuler votre promesse.",
+                )}
+              </p>
+              <button
+                className="button primary wide"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    await api(`contributions/${id}/declare`, {});
+                    await load();
+                  } catch (e) {
+                    setError((e as Error).message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                {t("J’ai versé ma participation")}
+              </button>
+              <button
+                className="text-link"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    await api(`contributions/${id}/cancel`, {});
+                    await load();
+                  } catch (e) {
+                    setError((e as Error).message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                {t("Annuler ma promesse")}
+              </button>
+            </>
+          ) : status.method === "pledge" && status.state === "expired" ? (
+            <p role="status">
+              {t(
+                "Votre promesse a été annulée. Aucun versement n’a été enregistré.",
+              )}
+            </p>
           ) : status.state === "declared" && status.strict_contributions ? (
             <p role="status">
               {t("Votre déclaration attend la validation du propriétaire.")}
@@ -309,7 +400,7 @@ export function ContributionStatus({ id }: { id: string }) {
             <>
               <p>
                 {t(
-                  "Une fois le paiement envoyé sur PayPal, indiquez-le ici pour compter votre participation.",
+                  "Une fois le versement effectué, indiquez-le ici pour compter votre participation.",
                 )}{" "}
               </p>
               {["intent", "expired"].includes(status.state) && (
@@ -361,7 +452,7 @@ export function ContributionStatus({ id }: { id: string }) {
             <code>{id}</code>
             <p>
               {t(
-                "Conservez cette page. Vous pouvez communiquer cette référence au propriétaire pour l’aider à retrouver votre intention ; elle ne vaut pas preuve de paiement et n’est pas transmise automatiquement à PayPal.",
+                "Conservez cette page pour suivre votre participation. Ce lien est privé : il permet de gérer votre déclaration et ne vaut pas preuve de paiement.",
               )}{" "}
             </p>
           </details>

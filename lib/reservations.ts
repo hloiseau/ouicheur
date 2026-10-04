@@ -45,7 +45,7 @@ export function createReservation(
     if (
       db
         .prepare(
-          "SELECT 1 FROM contributions c LEFT JOIN payments p ON p.contribution_id=c.id WHERE c.gift_id=? AND (p.id IS NOT NULL OR c.state IN ('declared','detected') OR (c.state='intent' AND c.expires_at>?))",
+          "SELECT 1 FROM contributions c LEFT JOIN payments p ON p.contribution_id=c.id WHERE c.gift_id=? AND (p.id IS NOT NULL OR c.state IN ('declared','detected') OR (c.state='intent' AND (c.method='pledge' OR c.expires_at>?)))",
         )
         .get(v.gift_id, dateNow())
     )

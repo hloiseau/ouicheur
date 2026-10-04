@@ -7,6 +7,53 @@ import { accountEnglish } from "./account-messages.ts";
 import { familyEnglish } from "./family-messages.ts";
 // French source messages and their English translations. Keep placeholders in both.
 export const english: Record<string, string> = {
+  PayPal: "PayPal",
+  "Virement bancaire": "Bank transfer",
+  "Participation promise": "Pledged contribution",
+  "Promesse annulée": "Pledge cancelled",
+  "Comment souhaitez-vous participer ?": "How would you like to contribute?",
+  "Envoyer avec PayPal": "Send with PayPal",
+  "J’ai fait un virement": "I have made a bank transfer",
+  "Je participerai plus tard": "I will contribute later",
+  "Déclarer mon virement": "Report my bank transfer",
+  "Enregistrer ma promesse": "Save my pledge",
+  "Déclarez uniquement un virement déjà effectué. Les coordonnées bancaires sont à demander directement au bénéficiaire ; Ouicheur n’effectue aucun virement.":
+    "Only report a bank transfer you have already made. Ask the recipient directly for their bank details; Ouicheur does not transfer money.",
+  "Annoncez le montant que vous prévoyez de donner. Votre promesse reste séparée des versements et ne remplit pas l’objectif.":
+    "Enter the amount you plan to give. Your pledge stays separate from payments and does not fund the goal.",
+  "Sans compte · Aucun paiement à cette étape":
+    "No account · No payment at this stage",
+  "Votre promesse est enregistrée. Aucun argent n’a été envoyé et ce montant n’est pas encore inclus dans la progression du cadeau.":
+    "Your pledge has been saved. No money has been sent and this amount is not yet included in the gift’s funding progress.",
+  "Convenez du mode de versement directement avec le bénéficiaire. Conservez cette page pour déclarer votre versement plus tard ou annuler votre promesse.":
+    "Arrange payment directly with the recipient. Keep this page to report your payment later or cancel your pledge.",
+  "J’ai versé ma participation": "I have sent my contribution",
+  "Annuler ma promesse": "Cancel my pledge",
+  "Votre promesse a été annulée. Aucun versement n’a été enregistré.":
+    "Your pledge has been cancelled. No payment has been recorded.",
+  "Une fois le versement effectué, indiquez-le ici pour compter votre participation.":
+    "Once you have made your payment, report it here to count your contribution.",
+  "Conservez cette page pour suivre votre participation. Ce lien est privé : il permet de gérer votre déclaration et ne vaut pas preuve de paiement.":
+    "Keep this page to track your contribution. This link is private: it lets you manage your declaration and is not proof of payment.",
+  "Vous pouvez utiliser PayPal, déclarer un virement déjà effectué ou promettre une participation pour plus tard. Une promesse ne compte pas comme de l’argent versé.":
+    "You can use PayPal, report a bank transfer you have already made, or pledge a contribution for later. A pledge does not count as money sent.",
+  "{0} promis en plus, pas encore versés":
+    "{0} additionally pledged, not yet paid",
+  "Choisissez une envie et votre montant. Un versement déclaré compte dans la progression ; une promesse reste séparée jusqu’à son versement. Le propriétaire achète lui-même le cadeau.":
+    "Choose a wish and an amount. Reported payments count toward progress; pledges stay separate until paid. The owner buys the gift.",
+  "Ouicheur n’ajoute aucune commission. Les frais éventuels dépendent du moyen de paiement choisi. L’argent reçu reste chez le propriétaire même si l’objectif n’est pas atteint. Commande, expédition et remboursement ne sont pas automatiques.":
+    "Ouicheur adds no commission. Any fees depend on your payment method. The owner keeps funds received even if the goal is not reached. Orders, shipping and refunds are not automatic.",
+  "Les virements déclarés et les promesses sont disponibles sans PayPal. Communiquez vos coordonnées bancaires directement à vos proches si nécessaire.":
+    "Bank transfer declarations and pledges are available without PayPal. Share your bank details directly with your friends and family if needed.",
+  "Confirmez uniquement les sommes reçues. Les promesses restent à venir tant qu’aucun versement n’est déclaré ou confirmé.":
+    "Only confirm money you have received. Pledges remain pending until payment is reported or confirmed.",
+  "À suivre": "To follow up",
+  Promesses: "Pledges",
+  "Confirmer la réception": "Confirm receipt",
+  "Cette promesse a été annulée. Créez une nouvelle participation.":
+    "This pledge has been cancelled. Create a new contribution.",
+  "Seule une promesse non versée peut être annulée ici.":
+    "Only an unpaid pledge can be cancelled here.",
   "La liste a changé. Actualisez les résultats pour continuer.":
     "The list changed. Results have been refreshed; continue from the first page.",
   "Le serveur est occupé. Réessayez dans un instant.":

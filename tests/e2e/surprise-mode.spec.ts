@@ -1,5 +1,6 @@
 import { test, expect } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
+import { buildInfo } from "../../lib/build-info";
 
 test("surprise mode keeps owner payloads hidden while donors coordinate and the owner can reveal deliberately", async ({
   page,
@@ -91,7 +92,9 @@ test("surprise mode keeps owner payloads hidden while donors coordinate and the 
         name: "Aperçu des informations techniques",
         exact: true,
       }),
-    ).toHaveValue(/Ouicheur: 1\.2\.0/);
+    ).toHaveValue(
+      new RegExp(`^Ouicheur: ${buildInfo.version.replaceAll(".", "\\.")}\n`),
+    );
     await expect(
       page.getByRole("heading", { name: "Santé de l’instance", exact: true }),
     ).toHaveCount(0);

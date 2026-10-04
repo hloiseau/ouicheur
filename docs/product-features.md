@@ -55,7 +55,16 @@ pour exclure les déclarations non approuvées du financement et de la fermeture
 l’objectif. Les déclarations restent visibles comme telles. Valider une déclaration
 ne crée aucune fausse référence PayPal. Si un paiement détaillé est ensuite saisi,
 il remplace la déclaration ; les frais et remboursements continuent à s’appliquer.
-Il n’y a pas de vérification automatique de réception PayPal.
+Il n’y a pas de vérification automatique de réception des versements.
+
+Depuis 1.3.0, le formulaire propose aussi **J’ai fait un virement** et **Je participerai plus tard**,
+même sans PayPal configuré. Un virement déjà effectué suit le même mode normal/strict.
+Une promesse reste affichée séparément, sans remplir l’objectif ; le lien privé permet
+de déclarer ensuite le versement ou d’annuler. Les promesses actives n’expirent pas,
+résistent au nettoyage et empêchent une réservation pour achat direct jusqu’à résolution.
+Le propriétaire peut filtrer les **Promesses** dans **Contributions** et ne confirme
+que les sommes réellement reçues. Les coordonnées bancaires se demandent directement
+au bénéficiaire : aucun transfert ni partage d’IBAN n’est réalisé par Ouicheur.
 
 ## Ajout mobile et actualisation
 

@@ -217,7 +217,10 @@ export default async function GiftPage({
                 offers={gift.offers}
                 available={Math.max(0, gift.quantity - (gift.reserved ?? 0))}
                 closed={
-                  reservationClosed || gift.funded > 0 || gift.declared > 0
+                  reservationClosed ||
+                  gift.funded > 0 ||
+                  gift.declared > 0 ||
+                  gift.promised > 0
                 }
               />
               {hasBudget(gift) && (
@@ -226,7 +229,7 @@ export default async function GiftPage({
                   currency={gift.currency}
                   remaining={Math.max(0, gift.target - gift.funded)}
                   closed={closed || (gift.reserved ?? 0) > 0}
-                  enabled={!!profile.payments_enabled}
+                  paypalEnabled={!!profile.paypal_enabled}
                   strict={!!profile.strict_contributions}
                 />
               )}
@@ -236,6 +239,11 @@ export default async function GiftPage({
         {hasBudget(gift) && (
           <section className="detail-explanation">
             <h2>{t("Votre geste, en toute clarté.")}</h2>
+            <p>
+              {t(
+                "Vous pouvez utiliser PayPal, déclarer un virement déjà effectué ou promettre une participation pour plus tard. Une promesse ne compte pas comme de l’argent versé.",
+              )}
+            </p>
             <p>
               {t(
                 "Votre contribution va directement à {0}, qui achètera ensuite le cadeau. Les sommes reçues restent chez le bénéficiaire même si l’objectif n’est pas atteint. Atteindre l’objectif ne déclenche aucun achat automatique.",

@@ -334,7 +334,8 @@ export function Admin() {
             embedded
             profile={{
               ...data.profile,
-              payments_enabled: Number(!!data.profile.paypal),
+              payments_enabled: 1,
+              paypal_enabled: Number(!!data.profile.paypal),
             }}
             gifts={data.gifts}
             initialPage={data.wishlist}
@@ -647,6 +648,11 @@ function ProfileEditor({
             {t("Restaurer le style Ouicheur")}
           </button>
           <h3>{t("Recevoir les contributions")}</h3>
+          <p className="fine-print">
+            {t(
+              "Les virements déclarés et les promesses sont disponibles sans PayPal. Communiquez vos coordonnées bancaires directement à vos proches si nécessaire.",
+            )}
+          </p>
           <Field
             label={t("Votre lien PayPal.Me personnel")}
             hint={t(

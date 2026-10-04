@@ -5,6 +5,7 @@ import { mkdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { openDatabase } from "../lib/db";
 import { initializeOwner } from "../lib/auth";
+import { buildInfo } from "../lib/build-info";
 import { saveGift } from "../lib/gifts";
 import { confirmManual, createIntent } from "../lib/payments";
 
@@ -108,7 +109,7 @@ async function check(cookie: string) {
   });
   assert.equal(support.status, 200);
   const report = await support.json();
-  assert.equal(report.version, "1.2.0");
+  assert.equal(report.version, buildInfo.version);
   assert.equal(report.revision, process.env.GITHUB_SHA || "local");
   assert.doesNotMatch(
     JSON.stringify(report),
