@@ -324,6 +324,7 @@ test("une intention ne dépasse ni le prix du cadeau ni le reste à financer", a
       0,
     );
     const full = createIntent(db, { gift_id: a, amount: "7,95" });
+    assert.ok(full.paypal_url);
     assert.match(full.paypal_url, /\/7\.95EUR$/);
     const first = createIntent(db, { gift_id: a, amount: "5" });
     const payment = confirmManual(db, {
@@ -336,6 +337,7 @@ test("une intention ne dépasse ni le prix du cadeau ni le reste à financer", a
       /montant restant à financer/,
     );
     const rest = createIntent(db, { gift_id: a, amount: "3.45" });
+    assert.ok(rest.paypal_url);
     assert.match(rest.paypal_url, /\/3\.45EUR$/);
     confirmManual(db, {
       ...confirm(rest.id, "TEST-REMAINING"),
@@ -372,7 +374,7 @@ test("une intention ne dépasse ni le prix du cadeau ni le reste à financer", a
       /montant restant à financer/,
     );
     assert.match(
-      createIntent(db, { gift_id: a, amount: "1" }).paypal_url,
+      String(createIntent(db, { gift_id: a, amount: "1" }).paypal_url),
       /\/1\.00EUR$/,
     );
   } finally {

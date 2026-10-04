@@ -77,7 +77,7 @@ export function cleanupPreview(db: DatabaseSync, folder = dataDir()) {
     .map((r) => r.id);
   const intentIds = db
     .prepare(
-      "SELECT id FROM contributions c WHERE state IN ('intent','expired') AND expires_at<? AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.contribution_id=c.id) ORDER BY id",
+      "SELECT id FROM contributions c WHERE state IN ('intent','expired') AND NOT (method='pledge' AND state='intent') AND expires_at<? AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.contribution_id=c.id) ORDER BY id",
     )
     .all(before)
     .map((r) => r.id);
@@ -118,7 +118,7 @@ export function cleanup(
       "DELETE FROM imports WHERE state IN ('done','failed') AND created_at<?",
     ).run(plan.before);
     db.prepare(
-      "DELETE FROM contributions WHERE state IN ('intent','expired') AND expires_at<? AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.contribution_id=contributions.id)",
+      "DELETE FROM contributions WHERE state IN ('intent','expired') AND NOT (method='pledge' AND state='intent') AND expires_at<? AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.contribution_id=contributions.id)",
     ).run(plan.before);
     db.prepare("DELETE FROM rate_limits WHERE until<?").run(Date.now());
     db.prepare("DELETE FROM sessions WHERE expires<?").run(Date.now());

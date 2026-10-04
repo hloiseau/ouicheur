@@ -85,7 +85,9 @@ export function Progress({
   compact = false,
 }: {
   gift: WishDetails &
-    Pick<Gift, "funded" | "target" | "currency" | "unknown_gross">;
+    Pick<Gift, "funded" | "target" | "currency" | "unknown_gross"> & {
+      promised?: number;
+    };
   compact?: boolean;
 }) {
   const { t, money } = useI18n();
@@ -127,6 +129,14 @@ export function Progress({
         <small className="unknown">
           {t("dont")} {money(gift.unknown_gross, gift.currency)}{" "}
           {t("bruts reçus, frais à préciser")}{" "}
+        </small>
+      )}
+      {(gift.promised ?? 0) > 0 && (
+        <small className="unknown">
+          {t(
+            "{0} promis en plus, pas encore versés",
+            money(gift.promised!, gift.currency),
+          )}
         </small>
       )}
     </div>
@@ -970,12 +980,12 @@ export function PublicWishlist({
                     "Seules les contributions validées par le propriétaire comptent dans l’objectif.",
                   )
                 : t(
-                    "Choisissez une envie et votre montant, puis envoyez votre participation via PayPal. Elle compte dès que vous indiquez l’avoir envoyée. Le propriétaire achète lui-même le cadeau.",
+                    "Choisissez une envie et votre montant. Un versement déclaré compte dans la progression ; une promesse reste séparée jusqu’à son versement. Le propriétaire achète lui-même le cadeau.",
                   )}{" "}
             </p>
             <p>
               {t(
-                "Ouicheur n’ajoute aucune commission. Des frais PayPal peuvent s’appliquer. L’argent reçu reste chez le propriétaire même si l’objectif n’est pas atteint. Commande, expédition et remboursement ne sont pas automatiques.",
+                "Ouicheur n’ajoute aucune commission. Les frais éventuels dépendent du moyen de paiement choisi. L’argent reçu reste chez le propriétaire même si l’objectif n’est pas atteint. Commande, expédition et remboursement ne sont pas automatiques.",
               )}{" "}
             </p>
           </details>

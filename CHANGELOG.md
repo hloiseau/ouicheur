@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.0 — participer sans PayPal
+
+- Déclaration d’un virement déjà effectué, sans compte visiteur ni PayPal configuré.
+- Promesses de participation d’un montant choisi, affichées séparément du financement.
+- Lien privé pour déclarer ensuite le versement ou annuler la promesse.
+- Confirmation de réception et filtre des promesses dans l’administration ; aucun double comptage.
+- Modes normal/strict, centimes, plafonds, accès privés et réservations préservés.
+- Migration additive 024 : les contributions existantes conservent leur parcours PayPal.
+- Promesses actives préservées par l’expiration et le nettoyage ; interface française et anglaise.
+
+Voir les [notes de mise à jour](docs/releases/1.3.0.md). La publication stable suit les contrôles CI.
+
 ## 1.2.0 — finalisation du socle libre
 
 Le code est préparé pour 1.2.0 ; voir les [notes de version](docs/releases/1.2.0.md)

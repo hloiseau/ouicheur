@@ -2,10 +2,16 @@
 import { useI18n } from "./language";
 
 import { useState } from "react";
-import { decimal, stateLabel } from "../lib/format";
+import { decimal } from "../lib/format";
+import {
+  contributionLabel,
+  contributionMethods,
+  type ContributionMethod,
+} from "../lib/contribution-labels";
 import { api, Field, Notice } from "./ui";
 
 export type Contribution = {
+  method: ContributionMethod;
   paypal_recipient: string;
   id: string;
   gift_id: string;
@@ -178,11 +184,17 @@ export function Payments({
       filter === "all" ||
       (filter === "confirmed"
         ? !!c.payment_id || !!c.approved
-        : filter === "rejected"
-          ? !c.payment_id && c.state === "rejected"
-          : !c.payment_id &&
+        : filter === "promised"
+          ? !c.payment_id &&
             !c.approved &&
-            ["declared", "detected"].includes(c.state)),
+            c.method === "pledge" &&
+            c.state === "intent"
+          : filter === "rejected"
+            ? !c.payment_id && c.state === "rejected"
+            : !c.payment_id &&
+              !c.approved &&
+              (["declared", "detected"].includes(c.state) ||
+                (c.method === "pledge" && c.state === "intent"))),
   );
   return (
     <section>
@@ -190,13 +202,16 @@ export function Payments({
         <div>
           <h2>{t("Les attentions reçues")}</h2>
           <p className="muted">
-            {t("Validez les participations reçues ou refusez-les.")}{" "}
+            {t(
+              "Confirmez uniquement les sommes reçues. Les promesses restent à venir tant qu’aucun versement n’est déclaré ou confirmé.",
+            )}{" "}
           </p>
         </div>
         <label className="field">
           {t("Afficher")}{" "}
           <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="pending">{t("À valider")}</option>
+            <option value="pending">{t("À suivre")}</option>
+            <option value="promised">{t("Promesses")}</option>
             <option value="confirmed">{t("Validées")}</option>
             <option value="rejected">{t("Refusées")}</option>
             <option value="all">{t("Toutes les intentions")}</option>
@@ -224,13 +239,14 @@ export function Payments({
                   {money(c.amount, c.currency)} {t("annoncés ·")}{" "}
                   {date(c.created_at)}
                 </p>
+                <p className="fine-print">{t(contributionMethods[c.method])}</p>
               </div>
               <span
                 className={`badge ${c.payment_id || c.approved ? "green" : "amber"}`}
               >
                 {c.payment_id || c.approved
                   ? t("Validée")
-                  : t(stateLabel[c.state])}
+                  : t(contributionLabel(c.method, c.state))}
               </span>
             </div>
             {c.message && (
@@ -243,10 +259,12 @@ export function Payments({
               <code className="wrap-code">
                 {t("Intention :")} {c.id}
               </code>
-              <p>
-                {t("Destinataire prévu : PayPal.Me/")}
-                {c.paypal_recipient}
-              </p>
+              {c.method === "paypal" && (
+                <p>
+                  {t("Destinataire prévu : PayPal.Me/")}
+                  {c.paypal_recipient}
+                </p>
+              )}
               {c.transaction_ref && (
                 <p>
                   {t("Transaction :")} {c.transaction_ref}
@@ -281,7 +299,9 @@ export function Payments({
                     disabled={!!busy}
                     onClick={() => void review(c.id, true)}
                   >
-                    {t("Valider")}
+                    {c.method === "paypal"
+                      ? t("Valider")
+                      : t("Confirmer la réception")}
                   </button>
                 )}
                 {c.state !== "rejected" && (

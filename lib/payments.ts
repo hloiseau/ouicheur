@@ -20,6 +20,7 @@ import {
 const intentSchema = z.object({
   gift_id: text(64).min(1),
   amount: amountSchema,
+  method: z.enum(["paypal", "bank_transfer", "pledge"]).default("paypal"),
   nickname: text(60).default(""),
   message: text(1000).default(""),
   public_name: z.boolean().default(false),
@@ -74,14 +75,13 @@ export function createIntent(
         "Ce cadeau utilise une ancienne devise. Les nouvelles contributions sont fermées.",
         409,
       );
-    const link = paypalLink(
-      String(owner.paypal),
-      value.amount,
-      String(gift.currency),
-    );
+    const link =
+      value.method === "paypal"
+        ? paypalLink(String(owner.paypal), value.amount, String(gift.currency))
+        : null;
     const id = randomBytes(32).toString("hex");
     db.prepare(
-      "INSERT INTO contributions(id,gift_id,amount,currency,nickname,message,public_name,public_message,state,created_at,expires_at,paypal_recipient) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO contributions(id,gift_id,amount,currency,nickname,message,public_name,public_message,state,created_at,expires_at,paypal_recipient,method) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
     ).run(
       id,
       value.gift_id,
@@ -91,24 +91,32 @@ export function createIntent(
       value.message,
       Number(value.public_name),
       Number(value.public_message),
-      "intent",
+      value.method === "bank_transfer" ? "declared" : "intent",
       dateNow(),
       new Date(Date.now() + 7 * 86400000).toISOString(),
-      owner.paypal,
+      value.method === "paypal" ? owner.paypal : "",
+      value.method,
     );
+    if (value.method === "bank_transfer")
+      enqueueNotification(db, "declaration", id);
     return { id, paypal_url: link };
   });
 }
 export function expireIntents(db: DatabaseSync) {
   db.prepare(
-    "UPDATE contributions SET state='expired' WHERE state='intent' AND expires_at<?",
+    "UPDATE contributions SET state='expired' WHERE state='intent' AND method<>'pledge' AND expires_at<?",
   ).run(dateNow());
 }
 export function declareIntent(db: DatabaseSync, id: string) {
   return atomic(db, () => {
     const c = db
-      .prepare("SELECT gift_id,state FROM contributions WHERE id=?")
+      .prepare("SELECT gift_id,state,method FROM contributions WHERE id=?")
       .get(id);
+    if (c?.method === "pledge" && c.state === "expired")
+      throw new AppError(
+        "Cette promesse a été annulée. Créez une nouvelle participation.",
+        409,
+      );
     if (
       c &&
       ["intent", "expired"].includes(String(c.state)) &&
@@ -126,6 +134,30 @@ export function declareIntent(db: DatabaseSync, id: string) {
       !db.prepare("SELECT 1 FROM contributions WHERE id=?").get(id)
     )
       throw new AppError("Contribution introuvable.", 404);
+  });
+}
+
+export function cancelPledge(db: DatabaseSync, id: string) {
+  return atomic(db, () => {
+    const c = db
+      .prepare("SELECT method,state,approved FROM contributions WHERE id=?")
+      .get(id);
+    if (!c) throw new AppError("Contribution introuvable.", 404);
+    if (
+      c.method !== "pledge" ||
+      c.approved ||
+      db.prepare("SELECT 1 FROM payments WHERE contribution_id=?").get(id) ||
+      !["intent", "expired"].includes(String(c.state))
+    )
+      throw new AppError(
+        "Seule une promesse non versée peut être annulée ici.",
+        409,
+      );
+    if (c.state === "expired") return;
+    db.prepare(
+      "UPDATE contributions SET state='expired',expires_at=? WHERE id=?",
+    ).run(dateNow(), id);
+    audit(db, "contribution.cancel_pledge", id);
   });
 }
 
@@ -328,7 +360,7 @@ export function contributionStatus(db: DatabaseSync, id: string) {
   expireIntents(db);
   const c = db
     .prepare(
-      "SELECT id,gift_id,amount,currency,state,approved,expires_at FROM contributions WHERE id=?",
+      "SELECT id,gift_id,amount,currency,state,approved,expires_at,method FROM contributions WHERE id=?",
     )
     .get(id);
   if (!c) throw new AppError("Contribution introuvable.", 404);
@@ -342,6 +374,7 @@ export function contributionStatus(db: DatabaseSync, id: string) {
     .get(id)!;
   return {
     ...c,
+    method: String(c.method),
     strict_contributions: Number(
       db.prepare("SELECT strict_contributions FROM owner WHERE id=1").get()!
         .strict_contributions,
@@ -350,7 +383,7 @@ export function contributionStatus(db: DatabaseSync, id: string) {
     approved: Number(c.approved),
     payment: payment || null,
     paypal_url:
-      !payment && c.state === "intent"
+      !payment && c.state === "intent" && c.method === "paypal"
         ? paypalLink(
             String(recipient.paypal_recipient),
             Number(c.amount),
