@@ -4,7 +4,7 @@
 
 Ouicheur is a self-hosted, MIT-licensed personal and family Ouichlist. One owner manages gifts
 and events and can invite coorganizers with access to selected lists; visitors can reserve a gift without an account or contribute directly
-through the owner's PayPal.Me link. The interface supports English and French.
+through PayPal, report a bank transfer, or pledge an amount for later. Bank transfer declarations and pledges work without PayPal configured. The interface supports English and French.
 Ouicheur never holds money or automatically buys products.
 
 ![Ouicheur with fictional demonstration data](docs/screenshots/wishlist-desktop.png)
@@ -41,7 +41,7 @@ product update is validated. Existing image tags do not include an unmerged PR.
 - Owners can mark a gift as bought with a reversible switch on its card or detail page. **Pause this wish** blocks new contributions and reservations while keeping existing records.
 - Public, unlisted and private lists; revocable private links and local QR codes. Private lists are visible to the owner and explicitly assigned coorganizers.
 - Anonymous gift reservations with a personal management link and 14-day expiration.
-- Direct PayPal.Me contributions, optional approval before counting, auditable payment corrections.
+- Direct PayPal.Me contributions, bank transfer declarations and pledges, optional approval before counting, auditable payment corrections.
 - Product metadata extraction, dated price/availability refresh with explicit goal confirmation.
 - Amazon, Throne, CSV and JSON imports with editable previews and duplicate controls.
 - Mobile quick add and an authenticated PWA share target on compatible browsers.
@@ -52,8 +52,14 @@ product update is validated. Existing image tags do not include an unmerged PR.
 Private links are bearer credentials: anyone receiving a link can pass it on.
 Revocation blocks future requests but cannot erase downloaded copies. The owner
 profile is shared across accessible lists. Payment declarations are not automatic
-proof that PayPal received money. Enable strict contribution mode when approval
+proof that money was received. Enable strict contribution mode when approval
 should precede counting a declaration.
+
+Pledges appear separately from funding and never imply that money has been sent.
+Their private tracking link lets the donor report a later payment or cancel the
+pledge. Active pledges do not expire and are excluded from cleanup. Ask the
+recipient directly for bank details; Ouicheur does not collect or publish an IBAN
+and does not initiate bank transfers. Owners should only confirm actual receipts.
 
 PWA installation and share-target support depend on the browser and OS. HTTPS is
 required outside localhost; the normal `/add` page is always available. Private

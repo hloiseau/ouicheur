@@ -1,5 +1,6 @@
 import { test, expect } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
+import { buildInfo } from "../../lib/build-info";
 const origin = "http://localhost:3211",
   headers = { origin };
 
@@ -25,7 +26,9 @@ test("technical report is previewed, copied explicitly and does not transmit pri
     name: "Aperçu des informations techniques",
     exact: true,
   });
-  await expect(preview).toHaveValue(/Ouicheur: 1\.2\.0/);
+  await expect(preview).toHaveValue(
+    new RegExp(`^Ouicheur: ${buildInfo.version.replaceAll(".", "\\.")}\n`),
+  );
   const value = await preview.inputValue();
   expect(value).toMatch(/Commit: (?:local|[a-f0-9]{40})/);
   expect(value).not.toMatch(/Camille|password|token|paypal|https?:\/\//i);
