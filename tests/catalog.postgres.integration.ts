@@ -176,9 +176,23 @@ test("PostgreSQL: runtime RLS, foreign keys and transaction context prevent cros
     /row-level security/,
   );
   const gift = randomUUID();
-  await admin.query("INSERT INTO ouicheur.session_reveals VALUES ($1,'session-b',1)", [b]);
-  await service(a).saveList({id:list,name:"Tenant A",visibility:"private",surprise_mode:true},catalogOwner);
-  assert.equal((await admin.query("SELECT surprises_revealed FROM ouicheur.session_reveals WHERE tenant_id=$1",[b])).rows[0].surprises_revealed,1);
+  await admin.query(
+    "INSERT INTO ouicheur.session_reveals VALUES ($1,'session-b',1)",
+    [b],
+  );
+  await service(a).saveList(
+    { id: list, name: "Tenant A", visibility: "private", surprise_mode: true },
+    catalogOwner,
+  );
+  assert.equal(
+    (
+      await admin.query(
+        "SELECT surprises_revealed FROM ouicheur.session_reveals WHERE tenant_id=$1",
+        [b],
+      )
+    ).rows[0].surprises_revealed,
+    1,
+  );
   await admin.query("INSERT INTO ouicheur.gifts VALUES ($1,$2,$3,0,now())", [
     a,
     gift,
@@ -197,7 +211,13 @@ test("PostgreSQL: runtime RLS, foreign keys and transaction context prevent cros
     /foreign key/,
   );
   // max=1 guarantees that the following calls reuse a pooled connection.
-  await assert.rejects(runtime.query("INSERT INTO ouicheur.lists(tenant_id,id,name,visibility,created_at) VALUES ($1,$2,'No context','private',now())",[a,randomUUID()]),/row-level security/);
+  await assert.rejects(
+    runtime.query(
+      "INSERT INTO ouicheur.lists(tenant_id,id,name,visibility,created_at) VALUES ($1,$2,'No context','private',now())",
+      [a, randomUUID()],
+    ),
+    /row-level security/,
+  );
   assert.equal(
     (await runtime.query("SELECT id FROM ouicheur.lists")).rowCount,
     0,
