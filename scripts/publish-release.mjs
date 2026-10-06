@@ -121,6 +121,7 @@ export async function publish() {
   for (const name of [
     "verify (ubuntu-24.04, amd64)",
     "verify (ubuntu-24.04-arm, arm64)",
+    "PostgreSQL catalog contracts",
     "verify",
     "publish-manifest",
   ]) {
