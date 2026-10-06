@@ -12,7 +12,9 @@ permissions:
 
 concurrency:
   group: ouicheur-${{ github.ref }}
-  cancel-in-progress: false
+  # Superseded PR commits cannot be merged or released. Keep main/tag
+  # publication runs serialized and complete, but validate only the latest PR.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   postgres:
