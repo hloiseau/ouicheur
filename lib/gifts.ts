@@ -1,14 +1,15 @@
+import { purchaseCommandSchema, requireCatalogOwner } from "./catalog.ts";
+import { SqliteCatalogStore } from "./catalog-sqlite.ts";
 import { variantKey } from "./wish-details.ts";
 import type { WishDetails, GiftOffer } from "./wish-details.ts";
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import { z } from "zod";
 import { atomic, audit } from "./db.ts";
 import { AppError, dateNow, giftSchema, webUrl } from "./validation.ts";
 import { listLists, publicAccess, type Access } from "./lists.ts";
 import { reservedQuantity } from "./reservations.ts";
 import type { Appearance } from "./appearance.ts";
-import { hiddenSurpriseLists, requireSurpriseReveal } from "./surprise.ts";
+import { hiddenSurpriseLists } from "./surprise.ts";
 
 export type Gift = WishDetails & {
   position?: number;
@@ -151,31 +152,9 @@ export function setGiftPurchased(
   input: unknown,
   access: Access,
 ) {
-  if (!access.owner)
-    throw new AppError("Connexion administrateur requise.", 401);
-  const { purchased } = z
-    .object({ purchased: z.boolean() })
-    .strict()
-    .parse(input);
-  return atomic(db, () => {
-    const gift = db
-      .prepare("SELECT list_id,purchased FROM gifts WHERE id=?")
-      .get(id);
-    if (!gift) throw new AppError("Cadeau introuvable.", 404);
-    requireSurpriseReveal(db, access, String(gift.list_id));
-    if (!!gift.purchased !== purchased) {
-      db.prepare("UPDATE gifts SET purchased=?,updated_at=? WHERE id=?").run(
-        Number(purchased),
-        dateNow(),
-        id,
-      );
-      audit(db, "gift.purchase", id, {
-        before: !!gift.purchased,
-        after: purchased,
-      });
-    }
-    return { purchased };
-  });
+  requireCatalogOwner(access);
+  const { purchased } = purchaseCommandSchema.parse(input);
+  return new SqliteCatalogStore(db).setGiftPurchasedSync(id, purchased, access);
 }
 // Called inside an existing transaction by import commit too.
 export function saveGiftInTransaction(

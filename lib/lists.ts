@@ -1,11 +1,11 @@
-import { validTimezone } from "./event-dates.ts";
+import { listCommandSchema } from "./catalog.ts";
+import { SqliteCatalogStore } from "./catalog-sqlite.ts";
 import { secretCoordinator } from "./secret-suggestions.ts";
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import { z } from "zod";
 import { sessionAccount, hashToken } from "./auth.ts";
 import { atomic, audit } from "./db.ts";
-import { AppError, dateNow, text } from "./validation.ts";
+import { AppError } from "./validation.ts";
 
 export type Wishlist = {
   id: string;
@@ -120,71 +120,9 @@ export function assertGiftAccess(
     throw new AppError("Cadeau introuvable.", 404);
 }
 export function saveList(db: DatabaseSync, input: unknown) {
-  const value = z
-    .object({
-      id: text(64).optional(),
-      name: text(80).min(1),
-      description: text(1000).default(""),
-      visibility: z.enum(["public", "unlisted", "private"]),
-      archived: z.boolean().default(false),
-      surprise_mode: z.boolean().optional(),
-      suggestions_enabled: z.boolean().optional(),
-      event_annual: z.boolean().optional(),
-      event_timezone: text(80)
-        .refine(validTimezone, "Fuseau horaire invalide.")
-        .optional(),
-      leap_day: z.enum(["feb28", "skip"]).optional(),
-      confirm_reveal: z.boolean().default(false),
-      event_date: z.union([z.literal(""), z.iso.date()]).default(""),
-    })
-    .parse(input);
-  return atomic(db, () => {
-    const id = value.id || randomUUID();
-    const existing = db
-      .prepare(
-        "SELECT surprise_mode,suggestions_enabled,event_annual,event_timezone,leap_day FROM lists WHERE id=?",
-      )
-      .get(id);
-    if (value.id && !existing) throw new AppError("Liste introuvable.", 404);
-    const surprise = value.surprise_mode ?? !!existing?.surprise_mode;
-    if (existing?.surprise_mode && !surprise && !value.confirm_reveal)
-      throw new AppError("Confirmez la désactivation du mode surprise.", 409);
-    db.prepare(
-      `INSERT INTO lists(id,name,description,visibility,archived,event_date,created_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,description=excluded.description,visibility=excluded.visibility,archived=excluded.archived,event_date=excluded.event_date,share_hash=CASE WHEN lists.visibility<>excluded.visibility OR excluded.archived=1 THEN NULL ELSE lists.share_hash END`,
-    ).run(
-      id,
-      value.name,
-      value.description,
-      value.visibility,
-      Number(value.archived),
-      value.event_date,
-      dateNow(),
-    );
-    db.prepare("UPDATE lists SET surprise_mode=? WHERE id=?").run(
-      Number(surprise),
-      id,
-    );
-    db.prepare("UPDATE lists SET suggestions_enabled=? WHERE id=?").run(
-      Number(value.suggestions_enabled ?? !!existing?.suggestions_enabled),
-      id,
-    );
-    db.prepare(
-      "UPDATE lists SET event_annual=?,event_timezone=?,leap_day=? WHERE id=?",
-    ).run(
-      Number(value.event_annual ?? !!existing?.event_annual),
-      value.event_timezone ?? existing?.event_timezone ?? "Europe/Paris",
-      value.leap_day ?? existing?.leap_day ?? "feb28",
-      id,
-    );
-    if (surprise && !existing?.surprise_mode)
-      db.exec("UPDATE sessions SET surprises_revealed=0");
-    audit(db, "list.save", id, {
-      visibility: value.visibility,
-      archived: value.archived,
-      surprise_mode: surprise,
-    });
-    return id;
-  });
+  return new SqliteCatalogStore(db).saveListSync(
+    listCommandSchema.parse(input),
+  );
 }
 export function rotateShare(db: DatabaseSync, id: string, revoke = false) {
   return atomic(db, () => {

@@ -15,6 +15,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  postgres:
+    name: PostgreSQL catalog contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: ouicheur_test_catalog
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test-only-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          cache: npm
+      - run: npm ci --no-fund
+      - run: npm run test:postgres
+        env:
+          POSTGRES_TEST_URL: postgresql://postgres:test-only-postgres-password@127.0.0.1:5432/ouicheur_test_catalog
   verify:
     strategy:
       fail-fast: false
@@ -152,7 +182,7 @@ jobs:
   # Branch protection requires this exact name; matrix checks have suffixes.
   verify-required:
     name: verify
-    needs: verify
+    needs: [verify, postgres]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -160,9 +190,10 @@ jobs:
       - name: Require both architectures to pass
         env:
           VERIFY_RESULT: ${{ needs.verify.result }}
+          POSTGRES_RESULT: ${{ needs.postgres.result }}
         run: |
-          if [ "$VERIFY_RESULT" != "success" ]; then
-            echo "Architecture verification did not succeed: $VERIFY_RESULT" >&2
+          if [ "$VERIFY_RESULT" != "success" ] || [ "$POSTGRES_RESULT" != "success" ]; then
+            echo "Required verification did not succeed: architectures=$VERIFY_RESULT postgres=$POSTGRES_RESULT" >&2
             exit 1
           fi
 

@@ -57,12 +57,7 @@ import {
   acceptSuggestion,
   reviewSuggestion,
 } from "../../../lib/suggestions";
-import {
-  accessFromCookies,
-  listLists,
-  saveList,
-  rotateShare,
-} from "../../../lib/lists";
+import { accessFromCookies, listLists, rotateShare } from "../../../lib/lists";
 import {
   createReservation,
   reservationStatus,
@@ -81,7 +76,9 @@ import {
   requireOrigin,
   sessionAccount,
 } from "../../../lib/auth";
-import { listGifts, saveGift, setGiftPurchased } from "../../../lib/gifts";
+import { listGifts, saveGift } from "../../../lib/gifts";
+import { catalogService } from "../../../lib/catalog.ts";
+import { SqliteCatalogStore } from "../../../lib/catalog-sqlite.ts";
 import { queryWishlist } from "../../../lib/wishlist-query";
 import {
   hiddenSurpriseLists,
@@ -796,7 +793,13 @@ async function handle(
     }
     const productReply = await productPost(db, path, data, access);
     if (productReply) return productReply;
-    if (path === "admin/lists") return response({ id: saveList(db, data) });
+    if (path === "admin/lists")
+      return response({
+        id: await catalogService(new SqliteCatalogStore(db)).saveList(
+          data,
+          access,
+        ),
+      });
     if (path === "admin/lists/share") {
       const v = z
         .object({ id: text(64).min(1), revoke: z.boolean().default(false) })
@@ -905,7 +908,13 @@ async function handle(
       segments.length === 4 &&
       segments[3] === "purchased"
     )
-      return response(setGiftPurchased(db, segments[2], data, access));
+      return response(
+        await catalogService(new SqliteCatalogStore(db)).setGiftPurchased(
+          segments[2],
+          data,
+          access,
+        ),
+      );
     if (
       segments[0] === "admin" &&
       segments[1] === "gifts" &&
