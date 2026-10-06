@@ -76,7 +76,9 @@ import {
   requireOrigin,
   sessionAccount,
 } from "../../../lib/auth";
-import { listGifts, saveGift } from "../../../lib/gifts";
+import { listGifts } from "../../../lib/gifts";
+import { giftService } from "../../../lib/gift-persistence.ts";
+import { SqliteGiftStore } from "../../../lib/gift-sqlite.ts";
 import { catalogService } from "../../../lib/catalog.ts";
 import { SqliteCatalogStore } from "../../../lib/catalog-sqlite.ts";
 import { queryWishlist } from "../../../lib/wishlist-query";
@@ -901,7 +903,10 @@ async function handle(
       });
       return response({ ok: true });
     }
-    if (path === "admin/gifts") return response({ id: saveGift(db, data) });
+    if (path === "admin/gifts")
+      return response({
+        id: await giftService(new SqliteGiftStore(db)).saveGift(data, access),
+      });
     if (
       segments[0] === "admin" &&
       segments[1] === "gifts" &&
@@ -922,7 +927,13 @@ async function handle(
     ) {
       if (!db.prepare("SELECT 1 FROM gifts WHERE id=?").get(segments[2]))
         throw new AppError("Cadeau introuvable.", 404);
-      return response({ id: saveGift(db, data, segments[2]) });
+      return response({
+        id: await giftService(new SqliteGiftStore(db)).saveGift(
+          data,
+          access,
+          segments[2],
+        ),
+      });
     }
     if (path === "admin/confirm")
       return response({ id: confirmManual(db, data) });

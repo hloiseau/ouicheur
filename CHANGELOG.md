@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.3 — persistance commune des cadeaux
+
+- Création, lecture et modification des cadeaux avec budget, quantités, variantes et offres alternatives dans un contrat partagé SQLite/PostgreSQL.
+- Mêmes validations, protections des surprises, réservations actives, historique de contributions et audit atomique ; importateurs SQLite conservés.
+- Migration PostgreSQL additive depuis le schéma expérimental précédent, isolation des références par tenant et protection des écritures concurrentes.
+- Le mode auto-hébergé reste SQLite ; aucun transfert de données ni runtime web PostgreSQL complet.
+
+Voir les [notes de version et limites](docs/releases/1.3.3.md). La publication stable suit les contrôles CI.
+
 ## 1.3.2 — contrat de persistance commun
 
 - Règles de création/modification des listes et d’état d’achat partagées par les adaptateurs SQLite et PostgreSQL.

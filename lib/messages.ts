@@ -775,6 +775,8 @@ export const english: Record<string, string> = {
   "Doublon : « {0} ». Choisissez explicitement de remplacer ou décochez cet élément.":
     "Duplicate: “{0}”. Choose to replace it or deselect this item.",
   "Cadeau introuvable.": "Gift not found.",
+  "Les détails de ce cadeau doivent être complétés.":
+    "This gift's details must be completed.",
   "Le financement de ce cadeau est terminé.":
     "Funding for this gift has closed.",
   "Ce cadeau utilise une ancienne devise. Les nouvelles contributions sont fermées.":
