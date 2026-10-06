@@ -1,6 +1,7 @@
 import { randomUUID, createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { z } from "zod";
+import { currencySchema } from "./validation.ts";
 import {
   listDecision,
   purchaseDecision,
@@ -64,6 +65,14 @@ export async function tenantTransaction<T>(
   } finally {
     client.release(broken);
   }
+}
+
+// Serializes duplicate/offer/position decisions within a household, including
+// purchase-state writes; independent households use independent lock keys.
+export async function lockGiftWrites(client: PgConnection, tenant: string) {
+  await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+    `ouicheur:gift-write:${tenant}`,
+  ]);
 }
 
 export class PostgresCatalogStore implements CatalogStore {
@@ -133,6 +142,7 @@ export class PostgresCatalogStore implements CatalogStore {
   }
   async setGiftPurchased(id: string, purchased: boolean, access: Access) {
     return tenantTransaction(this.pool, this.tenantId, async (client) => {
+      await lockGiftWrites(client, this.tenantId);
       const gift = (
         await client.query(
           "SELECT g.list_id,g.purchased,l.surprise_mode FROM ouicheur.gifts g JOIN ouicheur.lists l ON l.tenant_id=g.tenant_id AND l.id=g.list_id WHERE g.tenant_id=$1 AND g.id=$2 FOR UPDATE OF g,l",
@@ -182,22 +192,49 @@ export async function migrateCatalog(pool: PgPool) {
     await client.query(
       "CREATE SCHEMA IF NOT EXISTS ouicheur; CREATE TABLE IF NOT EXISTS ouicheur.catalog_migrations(name text PRIMARY KEY,sha256 text NOT NULL)",
     );
-    const name = "001-catalog.sql";
-    const sql = readFileSync(
-      new URL(`./postgres/${name}`, import.meta.url),
-      "utf8",
-    );
-    const hash = createHash("sha256").update(sql).digest("hex");
+    const names = ["001-catalog.sql", "002-gift-details.sql"];
+    const migrations = names.map((name) => {
+      const sql = readFileSync(
+        new URL(`./postgres/${name}`, import.meta.url),
+        "utf8",
+      );
+      return {
+        name,
+        sql,
+        hash: createHash("sha256").update(sql).digest("hex"),
+      };
+    });
     const applied = (
-      await client.query("SELECT name,sha256 FROM ouicheur.catalog_migrations")
+      await client.query(
+        "SELECT name,sha256 FROM ouicheur.catalog_migrations ORDER BY name",
+      )
     ).rows;
-    if (applied.some((row) => row.name !== name || row.sha256 !== hash))
+    if (
+      applied.some(
+        (row, index) =>
+          row.name !== migrations[index]?.name ||
+          row.sha256 !== migrations[index]?.hash,
+      )
+    )
       throw new Error("Unknown or modified PostgreSQL catalog migration");
-    if (!applied.length) {
-      await client.query(sql);
+    if (applied.length < migrations.length) {
+      // Backfills must see all tenants even though tables FORCE RLS. Do not
+      // silently migrate only the migration connection's current tenant.
+      const role = (
+        await client.query(
+          "SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user",
+        )
+      ).rows[0];
+      if (!role?.rolsuper && !role?.rolbypassrls)
+        throw new Error(
+          "Catalog backfills require a dedicated migration role with BYPASSRLS",
+        );
+    }
+    for (const migration of migrations.slice(applied.length)) {
+      await client.query(migration.sql);
       await client.query(
         "INSERT INTO ouicheur.catalog_migrations VALUES ($1,$2)",
-        [name, hash],
+        [migration.name, migration.hash],
       );
     }
     await client.query("COMMIT");
@@ -214,7 +251,12 @@ export async function migrateCatalog(pool: PgPool) {
 }
 
 // Administrative provisioning, never available from the runtime service.
-export async function provisionCatalogTenant(pool: PgPool, tenantId: string) {
+export async function provisionCatalogTenant(
+  pool: PgPool,
+  tenantId: string,
+  currency = "EUR",
+) {
+  currencySchema.parse(currency);
   tenantSchema.parse(tenantId);
   const client = await pool.connect();
   let broken = false;
@@ -224,7 +266,11 @@ export async function provisionCatalogTenant(pool: PgPool, tenantId: string) {
       tenantId,
     ]);
     await client.query(
-      "INSERT INTO ouicheur.tenants(id) VALUES ($1) ON CONFLICT DO NOTHING",
+      "INSERT INTO ouicheur.tenants(id,currency) VALUES ($1,$2) ON CONFLICT DO NOTHING",
+      [tenantId, currency],
+    );
+    await client.query(
+      "INSERT INTO ouicheur.gift_priorities(tenant_id,id,position,featured) VALUES ($1,0,2,0),($1,1,1,0),($1,2,0,1) ON CONFLICT(tenant_id,id) DO NOTHING",
       [tenantId],
     );
     await client.query("COMMIT");
@@ -254,7 +300,7 @@ export async function grantCatalogRuntime(pool: PgPool, role: string) {
     if (!r || r.rolsuper || r.rolbypassrls)
       throw new Error("Invalid PostgreSQL runtime role");
     await client.query(
-      `GRANT USAGE ON SCHEMA ouicheur TO "${role}"; GRANT SELECT,INSERT,UPDATE ON ouicheur.lists TO "${role}"; GRANT SELECT,UPDATE ON ouicheur.gifts,ouicheur.session_reveals TO "${role}"; GRANT SELECT,INSERT ON ouicheur.audit TO "${role}"`,
+      `GRANT USAGE ON SCHEMA ouicheur TO "${role}"; GRANT SELECT,INSERT,UPDATE ON ouicheur.lists TO "${role}"; GRANT SELECT,INSERT,UPDATE ON ouicheur.gifts TO "${role}"; GRANT SELECT,UPDATE ON ouicheur.session_reveals TO "${role}"; GRANT SELECT ON ouicheur.tenants,ouicheur.categories,ouicheur.gift_priorities,ouicheur.reservations,ouicheur.contributions TO "${role}"; GRANT SELECT,INSERT,UPDATE,DELETE ON ouicheur.gift_offers TO "${role}"; GRANT SELECT,INSERT ON ouicheur.audit TO "${role}"`,
     );
   } finally {
     client.release();
