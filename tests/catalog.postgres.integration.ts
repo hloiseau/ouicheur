@@ -332,6 +332,9 @@ test("PostgreSQL: schema ownership is rejected and migration checksums fail clos
     await admin.query(
       `ALTER TABLE ouicheur.lists OWNER TO "${String(owner).replaceAll('"', '""')}"`,
     );
+    // Moving ownership back removes the former owner's explicit ACL entry.
+    // Restore the runtime fixture before the following contract cases.
+    await grantCatalogRuntime(admin, role);
   }
   const original = (
     await admin.query(
