@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomBytes } from "node:crypto";
 import { test } from "node:test";
 import type { giftService } from "../lib/gift-persistence.ts";
 import { catalogOwner } from "./catalog-contract.ts";
@@ -147,6 +147,27 @@ export function giftContract(name: string, create: () => Promise<GiftFixture>) {
         // SQLite NOCASE is ASCII-only; both adapters must preserve that behavior.
         await f.service.saveGift({ ...input, size: "É" }, catalogOwner);
         await f.service.saveGift({ ...input, size: "é" }, catalogOwner);
+        // Valid long UTF-8 variants must not exceed a PostgreSQL btree entry.
+        const unicode = (n: number) =>
+          Array.from(randomBytes(n), (v) =>
+            String.fromCharCode(0x4e00 + v),
+          ).join("");
+        const long = {
+          ...input,
+          url: `https://example.org/${randomBytes(1450).toString("base64url")}`,
+          size: unicode(100),
+          color: unicode(100),
+          model: unicode(160),
+        };
+        const longId = await f.service.saveGift(long, catalogOwner);
+        assert.equal(
+          (await f.service.getGift(longId, catalogOwner))?.model,
+          long.model,
+        );
+        await assert.rejects(
+          f.service.saveGift(long, catalogOwner),
+          /existe déjà/,
+        );
       },
     ],
     [

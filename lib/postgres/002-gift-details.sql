@@ -46,7 +46,9 @@ ALTER TABLE ouicheur.gifts
   ADD FOREIGN KEY(tenant_id,category_id) REFERENCES ouicheur.categories(tenant_id,id),
   ADD FOREIGN KEY(tenant_id,priority_id) REFERENCES ouicheur.gift_priorities(tenant_id,id),
   ADD UNIQUE(tenant_id,source,source_id);
-CREATE INDEX gifts_duplicate ON ouicheur.gifts(tenant_id,duplicate_key);
+-- Index a bounded fingerprint; queries also compare the full key so hash
+-- collisions never change duplicate semantics or reject a different variant.
+CREATE INDEX gifts_duplicate ON ouicheur.gifts(tenant_id,md5(duplicate_key));
 CREATE INDEX gifts_position ON ouicheur.gifts(tenant_id,list_id,position,id);
 CREATE TABLE ouicheur.gift_offers (
   tenant_id uuid NOT NULL, id uuid NOT NULL, gift_id text NOT NULL,

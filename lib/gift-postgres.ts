@@ -98,7 +98,7 @@ export class PostgresGiftStore implements GiftStore {
       ).rows[0]?.currency as string | undefined;
       const refs = (
         await client.query(
-          "SELECT EXISTS(SELECT 1 FROM ouicheur.categories WHERE tenant_id=$1 AND id=$2) AS category, EXISTS(SELECT 1 FROM ouicheur.gift_priorities WHERE tenant_id=$1 AND id=$3) AS priority, EXISTS(SELECT 1 FROM ouicheur.contributions WHERE tenant_id=$1 AND gift_id=$4) AS contributed, (SELECT COALESCE(sum(quantity),0)::int FROM ouicheur.reservations WHERE tenant_id=$1 AND gift_id=$4 AND (state='purchased' OR (state='reserved' AND expires_at>now()))) AS reserved, EXISTS(SELECT 1 FROM ouicheur.gifts WHERE tenant_id=$1 AND duplicate_key=$5 AND id<>$4) AS duplicate",
+          "SELECT EXISTS(SELECT 1 FROM ouicheur.categories WHERE tenant_id=$1 AND id=$2) AS category, EXISTS(SELECT 1 FROM ouicheur.gift_priorities WHERE tenant_id=$1 AND id=$3) AS priority, EXISTS(SELECT 1 FROM ouicheur.contributions WHERE tenant_id=$1 AND gift_id=$4) AS contributed, (SELECT COALESCE(sum(quantity),0)::int FROM ouicheur.reservations WHERE tenant_id=$1 AND gift_id=$4 AND (state='purchased' OR (state='reserved' AND expires_at>now()))) AS reserved, EXISTS(SELECT 1 FROM ouicheur.gifts WHERE tenant_id=$1 AND md5(duplicate_key)=md5($5) AND duplicate_key=$5 AND id<>$4) AS duplicate",
           [
             this.tenant,
             gift.category_id,
