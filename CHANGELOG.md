@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.2 — contrat de persistance commun
+
+- Règles de création/modification des listes et d’état d’achat partagées par les adaptateurs SQLite et PostgreSQL.
+- Service asynchrone utilisé par les routes concernées ; transactions SQLite courtes et synchrones conservées.
+- Adaptateur PostgreSQL expérimental limité à cette tranche : isolation par tenant, migrations contrôlées, audit atomique et confirmations concurrentes sans double effet.
+- Tests contractuels communs et PostgreSQL réel en CI. L’application complète reste en SQLite ; aucune migration des données existantes ni installation PostgreSQL obligatoire.
+
+Voir les [notes de mise à jour et limites](docs/releases/1.3.2.md). La publication stable suit les contrôles CI.
+
 ## 1.3.1 — la langue du navigateur dès la première visite
 
 - Détection du français et de l’anglais à partir des préférences du navigateur, variantes régionales et ordre de préférence inclus.
