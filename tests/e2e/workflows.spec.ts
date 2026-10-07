@@ -30,10 +30,10 @@ test("Ouichlist, contribution privée, administration et erreurs", async ({
   );
   expect(overflow).toBe(false);
   await page
-    .getByRole("textbox", { name: "Rechercher une envie" })
+    .getByRole("searchbox", { name: "Rechercher une envie" })
     .fill("introuvable-test");
   await expect(page.getByText("Aucune envie trouvée")).toBeVisible();
-  await page.getByRole("textbox", { name: "Rechercher une envie" }).fill("");
+  await page.getByRole("searchbox", { name: "Rechercher une envie" }).fill("");
   await page
     .getByRole("link", {
       name: "Une lumière pour les soirs de lecture",

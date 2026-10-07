@@ -157,7 +157,10 @@ test("surprise mode keeps owner payloads hidden while donors coordinate and the 
     await expect(
       page.getByRole("button", { name: /Envies réalisées/ }),
     ).toHaveCount(0);
-    await page.locator(".wishlist-filters summary").click();
+    await page
+      .locator(".wishlist-filters summary")
+      .filter({ visible: true })
+      .click();
     await expect(page.getByLabel("Encore à offrir uniquement")).toBeDisabled();
     const rsc = await context.request.get(`/lists/${list}?_rsc=surprise`, {
       headers: { RSC: "1" },
