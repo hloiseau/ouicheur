@@ -37,25 +37,23 @@ test("list preferences, bulk organization and portable print views respect priva
     ).toBeTruthy();
   }
   await page.goto(`/lists/${list.id}`);
-  await page
-    .locator("summary")
-    .filter({ hasText: "Mes préférences cadeaux" })
-    .click();
-  await page
+  const wishes = page.getByRole("region", { name: "Les envies", exact: true });
+  const prefs = wishes.locator("details").filter({
+    has: page.locator("summary").filter({ hasText: "Mes préférences cadeaux" }),
+  });
+  await prefs.locator("summary").click();
+  await prefs
     .getByLabel("Préférence : Centres d’intérêt", { exact: true })
     .fill("Jardinage");
-  await page
+  await prefs
     .getByRole("combobox", {
       name: "Visibilité : Centres d’intérêt",
       exact: true,
     })
     .selectOption("shared");
-  await page
+  await prefs
     .getByLabel("Préférence : Tailles (facultatif)", { exact: true })
     .fill("PRIVATE_SIZE_CANARY");
-  const prefs = page.locator("details").filter({
-    has: page.locator("summary").filter({ hasText: "Mes préférences cadeaux" }),
-  });
   await prefs.getByRole("button", { name: "Enregistrer", exact: true }).click();
   await expect(
     page.getByText("Préférences enregistrées.", { exact: true }),
@@ -66,7 +64,7 @@ test("list preferences, bulk organization and portable print views respect priva
   });
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await prefs.locator("summary").click();
-  const bulk = page.locator("details").filter({
+  const bulk = wishes.locator("details").filter({
     has: page
       .locator("summary")
       .filter({ hasText: "Organiser plusieurs envies" }),

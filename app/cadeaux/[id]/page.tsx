@@ -182,12 +182,14 @@ export default async function GiftPage({
               details
             />
           )}
-          <div
-            className="detail-progress"
-            data-empty={!gift.funded && !gift.unknown_gross && !gift.promised}
-          >
-            <Progress gift={gift} />
-          </div>
+          {hasBudget(gift) && (
+            <div
+              className="detail-progress"
+              data-empty={!gift.funded && !gift.unknown_gross && !gift.promised}
+            >
+              <Progress gift={gift} />
+            </div>
+          )}
           {!!gift.purchased && (
             <p className="notice">
               {t("Ce cadeau a été acheté par le propriétaire.")}{" "}

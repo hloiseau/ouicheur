@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.0 — une interface plus simple, en clair et en sombre
+
+- Thèmes Appareil, Clair et Sombre disponibles dans les en-têtes, avec préférence mémorisée et application dès le premier affichage.
+- Listes, catégories, recherche et filtres réorganisés ; profil, navigation propriétaire et formulaires plus compacts sur mobile.
+- Cartes centrées sur le produit et son budget, images mieux dimensionnées, descriptions longues repliables et parcours « Offrir ou participer » plus lisible.
+- Pagination avec compteur et reprise après une erreur temporaire, sans perdre les produits déjà chargés ni afficher un faux résultat vide.
+- Imports plus fiables face aux salles d’attente marchandes et aux liens redirigés vers un catalogue ; indication explicite lorsqu’aucun prix n’est récupéré.
+- Revue visuelle sur 47 produits de 16 domaines, dans les deux thèmes et à plusieurs largeurs ; régressions de thème, pagination et accessibilité couvertes.
+- Aucun changement du schéma de données ni nouvelle variable d’environnement.
+
+Voir les [notes de mise à jour et de validation](docs/releases/1.4.0.md).
+
 ## 1.3.3 — persistance commune des cadeaux
 
 - Création, lecture et modification des cadeaux avec budget, quantités, variantes et offres alternatives dans un contrat partagé SQLite/PostgreSQL.

@@ -9,7 +9,7 @@ test("first visit follows the browser without a cookie and keeps a manual choice
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const response = await page.goto("/");
-  expect(await response!.text()).toContain('<html lang="fr">');
+  expect(await response!.text()).toMatch(/<html\b[^>]*\blang="fr"(?:\s|>)/);
   await expect(page).toHaveTitle("Ouicheur · Les petites envies");
   await expect(
     page.getByRole("heading", { name: "La Ouichlist de Camille" }),
