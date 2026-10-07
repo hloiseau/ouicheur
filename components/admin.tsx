@@ -13,6 +13,7 @@ import { Family } from "./family";
 import { History } from "./history";
 import type { Wishlist } from "../lib/lists";
 import { LanguageSwitcher, useI18n } from "./language";
+import { ThemeSwitcher } from "./theme";
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -259,12 +260,15 @@ export function Admin() {
       <header className="owner-topbar container">
         <Brand />
         <div className="header-actions">
-          <a className="text-link" href="/my-gifts">
-            {t("Mon suivi cadeaux")}
-          </a>
-          <a className="text-link" href="/?preview=1">
-            {t("Ma Ouichlist publique ↗")}
-          </a>
+          <div className="owner-shortcuts">
+            <a className="text-link" href="/my-gifts">
+              {t("Mon suivi cadeaux")}
+            </a>
+            <a className="text-link" href="/?preview=1">
+              {t("Ma Ouichlist publique ↗")}
+            </a>
+          </div>
+          <ThemeSwitcher />
           <LanguageSwitcher />
         </div>
       </header>

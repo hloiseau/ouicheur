@@ -77,7 +77,7 @@ test("a guest filters a shared list by per-item budget, remaining funding and av
     const visitor = await guest.newPage();
     await visitor.goto(`/s/${token}`);
     await expect(visitor.locator(".gift-card")).toHaveCount(8);
-    await visitor.getByText("Budget et disponibilité", { exact: true }).click();
+    await visitor.locator(".wishlist-filters summary").click();
     const controls = visitor.locator(".wishlist-filters");
     await controls.getByLabel("Budget maximum", { exact: true }).fill("19,99");
     await expect(controls.getByLabel("Devise du budget")).toHaveValue("EUR");

@@ -23,6 +23,7 @@ export function useWishlistPage(
   const [page, setPage] = useState(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
   const generation = useRef(0),
     first = useRef(true);
   const key = JSON.stringify(query);
@@ -55,7 +56,7 @@ export function useWishlistPage(
       clearTimeout(timer);
       controller.abort();
     };
-  }, [initial, key]);
+  }, [initial, key, retry]);
   const more = async () => {
     if (loading || !page?.next) return;
     const current = generation.current;
@@ -71,7 +72,10 @@ export function useWishlistPage(
     } catch (e) {
       if (current !== generation.current) return;
       setError((e as Error).message);
-      setPage((p) => p && { ...p, items: [], total: 0, next: null });
+      // A transient failure must keep the current cards and continuation link.
+      // Discard them only when the server invalidates the snapshot or access.
+      if (e instanceof ApiError && [401, 403, 404, 409].includes(e.status))
+        setPage((p) => p && { ...p, items: [], total: 0, next: null });
       if (e instanceof ApiError && e.status === 409) {
         try {
           const value = await readPage(query);
@@ -85,5 +89,5 @@ export function useWishlistPage(
       if (current === generation.current) setLoading(false);
     }
   };
-  return { page, loading, error, more };
+  return { page, loading, error, more, retry: () => setRetry((n) => n + 1) };
 }

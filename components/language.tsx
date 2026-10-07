@@ -25,7 +25,7 @@ export function LanguageSwitcher() {
   const { locale, pending, changeLocale } = useContext(LanguageContext);
   const { t } = useI18n();
   return (
-    <label className="language-switcher">
+    <label className="language-switcher" title={t("Langue")}>
       <svg
         width="18"
         height="18"

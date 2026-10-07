@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openDatabase } from "../lib/db";
+import { database, openDatabase } from "../lib/db";
 import { initializeOwner } from "../lib/auth";
 import { publicProfile } from "../lib/gifts";
 import { appearanceStyle, defaultAppearance } from "../lib/appearance";
@@ -73,6 +73,8 @@ test("existing profiles gain appearance defaults; background and preferences sur
     );
   } finally {
     db.close();
+    // storeImage also opens the shared connection; release it before Windows cleanup.
+    database().close();
     if (previousDataDir === undefined) delete process.env.DATA_DIR;
     else process.env.DATA_DIR = previousDataDir;
     rmSync(folder, { recursive: true, force: true });

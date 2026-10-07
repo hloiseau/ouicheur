@@ -46,7 +46,7 @@ export function BulkOrganizer({
     }
   };
   return (
-    <details className="panel stack">
+    <details className="panel stack bulk-organizer">
       <summary>{t("Organiser plusieurs envies")}</summary>
       {!listId ? (
         <p>{t("Choisissez une liste pour organiser ses envies.")}</p>

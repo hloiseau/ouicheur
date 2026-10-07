@@ -7,6 +7,22 @@ import { accountEnglish } from "./account-messages.ts";
 import { familyEnglish } from "./family-messages.ts";
 // French source messages and their English translations. Keep placeholders in both.
 export const english: Record<string, string> = {
+  Filtres: "Filters",
+  "Effacer les filtres": "Clear filters",
+  "Trouver une envie…": "Find a wish…",
+  "Budget estimé": "Estimated budget",
+  "Offrir ou participer": "Gift or contribute",
+  Thème: "Theme",
+  Appareil: "System",
+  Clair: "Light",
+  Sombre: "Dark",
+  "{0} sur {1} envies affichées": "{0} of {1} wishes shown",
+  "Réessayer le chargement": "Retry loading",
+  "Description complète de cette envie": "Full wish description",
+  "Le lien redirige vers une page sans fiche produit identifiable. Vérifiez le lien ou complétez l’envie manuellement.":
+    "The link redirects to a page without an identifiable product. Check the link or fill in the wish manually.",
+  "Le prix n’a pas été trouvé. Saisissez-le ou choisissez « Budget non précisé ».":
+    "The price could not be found. Enter it or choose ‘Budget not specified’.",
   PayPal: "PayPal",
   "Virement bancaire": "Bank transfer",
   "Participation promise": "Pledged contribution",

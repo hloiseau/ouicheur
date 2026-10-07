@@ -288,7 +288,7 @@ function offerPrice(
   }
   return null;
 }
-export function parseMetadata(html: string, url: string) {
+export function parseMetadata(html: string, url: string, requestedUrl = url) {
   const $ = cheerio.load(html);
   const meta = (name: string) =>
     $(`meta[property='${name}'],meta[name='${name}']`)
@@ -343,7 +343,7 @@ export function parseMetadata(html: string, url: string) {
     !product.name &&
     !amazonTitle &&
     (/window\._cf_chl_opt\s*=/.test(html) ||
-      /^(Just a moment\.\.\.|Access denied|Attention Required!|Robot Check|Vercel Security Checkpoint)/i.test(
+      /^(Just a moment\.\.\.|Access denied|Attention Required!|Robot Check|Vercel Security Checkpoint|Hang Tight! Routing to checkout)/i.test(
         title,
       ) ||
       $("form[action*='validateCaptcha'],#captchacharacters").length > 0)
@@ -381,6 +381,22 @@ export function parseMetadata(html: string, url: string) {
     offer?.price ??
     productPrice(
       meta("product:price:amount") || meta("og:price:amount") || amazonPrice,
+    );
+  // Expired product links sometimes redirect to a catalogue that advertises its
+  // cheapest item as a Product/AggregateOffer. Never import that as this gift.
+  if (
+    new URL(requestedUrl).pathname !== new URL(url).pathname &&
+    !image_url &&
+    (price === null ||
+      list(product.offers).some(
+        (value) =>
+          value &&
+          typeof value === "object" &&
+          schemaType(value as JsonObject, "AggregateOffer"),
+      ))
+  )
+    throw new AppError(
+      "Le lien redirige vers une page sans fiche produit identifiable. Vérifiez le lien ou complétez l’envie manuellement.",
     );
   const currency = String(
     offer?.currency ||
@@ -427,5 +443,5 @@ async function extractMetadataNow(url: string) {
     )
   )
     page = await fetchBrowserHtml(page.url, deadline);
-  return parseMetadata(page.body.toString("utf8"), page.url);
+  return parseMetadata(page.body.toString("utf8"), page.url, validatedUrl);
 }

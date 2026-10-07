@@ -13,6 +13,7 @@ import {
 import { priorityLabel, type GiftPriority } from "../lib/priority-labels";
 import { PrioritiesEditor } from "./priorities";
 import { LanguageSwitcher, useI18n } from "./language";
+import { ThemeSwitcher } from "./theme";
 
 import type { Wishlist } from "../lib/lists";
 import { ShareLink } from "./lists";
@@ -58,19 +59,31 @@ export type PublicGift = WishDetails &
     | "funded"
     | "unknown_gross"
   >;
-export function GiftArt({ gift }: { gift: Pick<Gift, "image" | "title"> }) {
+export function GiftArt({
+  gift,
+  detail = false,
+}: {
+  gift: Pick<Gift, "image" | "title">;
+  detail?: boolean;
+}) {
+  const [failedImage, setFailedImage] = useState("");
   return (
     <div className="gift-art">
-      {gift.image ? (
+      {gift.image && failedImage !== gift.image ? (
         <img
           src={gift.image}
           srcSet={imageSrcSet(gift.image)}
-          sizes="(max-width: 700px) 45vw, 320px"
+          sizes={
+            detail
+              ? "(max-width: 800px) 90vw, 550px"
+              : "(max-width: 700px) 45vw, 320px"
+          }
           width={640}
           height={640}
           alt={gift.title}
-          loading="lazy"
+          loading={detail ? "eager" : "lazy"}
           decoding="async"
+          onError={() => setFailedImage(gift.image)}
         />
       ) : (
         <div className="gift-illustration" aria-hidden="true">
@@ -91,6 +104,12 @@ export function Progress({
   compact?: boolean;
 }) {
   const { t, money } = useI18n();
+  if (
+    compact &&
+    (!hasBudget(gift) ||
+      (!gift.funded && !gift.unknown_gross && !gift.promised))
+  )
+    return null;
   if (!hasBudget(gift))
     return (
       <p className="fine-print">
@@ -312,6 +331,7 @@ export function PublicWishlist({
                 {t("Mon espace")} <Icon name="arrow" size={16} />
               </a>
             )}
+            <ThemeSwitcher />
             <LanguageSwitcher />
           </div>
         </header>
@@ -369,41 +389,6 @@ export function PublicWishlist({
               </div>
             </div>
           )}
-          {lists.length > 0 && (
-            <div className="list-toolbar">
-              <label>
-                {t("Liste")}
-                <select
-                  value={selectedList}
-                  onChange={(e) => {
-                    setSelectedList(e.target.value);
-                    setCategory("");
-                    setPriorityFilter("");
-                    setCurrency("");
-                    setShown(24);
-                  }}
-                >
-                  <option value="">{t("Toutes les listes")}</option>
-                  {lists.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                      {l.archived ? ` · ${t("Archivées")}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {selectedList && (
-                <a className="text-link" href={`/lists/${selectedList}`}>
-                  {t("Ouvrir cette liste")}
-                </a>
-              )}
-              {owner && (
-                <a className="text-link" href="/add">
-                  {t("Ajout mobile")}
-                </a>
-              )}
-            </div>
-          )}
           {currentList && (
             <section className="list-intro stack">
               <h2>{currentList.name}</h2>
@@ -431,86 +416,108 @@ export function PublicWishlist({
                 )}
             </section>
           )}
-          <a className="text-link" href="/help">
-            {t("Aide et ajout depuis un navigateur")}
-          </a>
-          {!owner && (
-            <SuggestGift
-              lists={lists.filter(
-                (l) =>
-                  !!l.suggestions_enabled &&
-                  !l.archived &&
-                  l.visibility !== "private" &&
-                  (!selectedList || l.id === selectedList),
-              )}
-              initialList={selectedList}
-            />
-          )}
-          <div
-            className="wishlist-navigation"
-            aria-label={t("Afficher les envies")}
-          >
-            {[
-              {
-                key: "all",
-                label: t("Ma Ouichlist"),
-                count: result?.counts.all ?? active.length,
-                icon: "gift",
-              },
-              {
-                key: "favorites",
-                label:
-                  featured?.name ??
-                  (featured?.id === 2
-                    ? t("Coups de cœur")
-                    : featured
-                      ? priorityLabel(featured, t)
-                      : t("Coups de cœur")),
-                count:
-                  result?.counts.favorites ??
-                  active.filter((g) => g.priority === featured?.id).length,
-                icon: "heart",
-              },
-              {
-                key: "completed",
-                label: t("Envies réalisées"),
-                count:
-                  result?.counts.completed ?? active.filter(completed).length,
-                icon: "check",
-              },
-              ...(owner
-                ? [
-                    {
-                      key: "archived",
-                      label: t("Archivées"),
-                      count: result?.counts.archived ?? archived.length,
-                      icon: "book",
-                    },
-                  ]
-                : []),
-            ]
-              .filter(
-                (item) =>
-                  (!hasHiddenSurprises || item.key !== "completed") &&
-                  (item.key !== "favorites" || !!featured),
-              )
-              .map((item) => (
-                <button
-                  type="button"
-                  key={item.key}
-                  aria-pressed={safeView === item.key}
-                  onClick={() => {
-                    setView(item.key);
-                    setPriorityFilter("");
-                    setCategory("");
-                    setShown(24);
-                  }}
-                >
-                  <Icon name={item.icon} size={17} />
-                  {item.label}
-                  <span>{item.count}</span>
-                </button>
-              ))}
+          <div className="wishlist-scope">
+            <div
+              className="wishlist-navigation"
+              aria-label={t("Afficher les envies")}
+            >
+              {[
+                {
+                  key: "all",
+                  label: t("Ma Ouichlist"),
+                  count: result?.counts.all ?? active.length,
+                  icon: "gift",
+                },
+                {
+                  key: "favorites",
+                  label:
+                    featured?.name ??
+                    (featured?.id === 2
+                      ? t("Coups de cœur")
+                      : featured
+                        ? priorityLabel(featured, t)
+                        : t("Coups de cœur")),
+                  count:
+                    result?.counts.favorites ??
+                    active.filter((g) => g.priority === featured?.id).length,
+                  icon: "heart",
+                },
+                {
+                  key: "completed",
+                  label: t("Envies réalisées"),
+                  count:
+                    result?.counts.completed ?? active.filter(completed).length,
+                  icon: "check",
+                },
+                ...(owner
+                  ? [
+                      {
+                        key: "archived",
+                        label: t("Archivées"),
+                        count: result?.counts.archived ?? archived.length,
+                        icon: "book",
+                      },
+                    ]
+                  : []),
+              ]
+                .filter(
+                  (item) =>
+                    (!hasHiddenSurprises || item.key !== "completed") &&
+                    (item.key !== "favorites" || !!featured),
+                )
+                .map((item) => (
+                  <button
+                    type="button"
+                    key={item.key}
+                    aria-pressed={safeView === item.key}
+                    onClick={() => {
+                      setView(item.key);
+                      setPriorityFilter("");
+                      setCategory("");
+                      setShown(24);
+                    }}
+                  >
+                    <Icon name={item.icon} size={17} />
+                    {item.label}
+                    <span>{item.count}</span>
+                  </button>
+                ))}
+            </div>
+            {lists.length > 0 && (
+              <div className="list-toolbar">
+                <label>
+                  {t("Liste")}
+                  <select
+                    value={selectedList}
+                    onChange={(e) => {
+                      setSelectedList(e.target.value);
+                      setCategory("");
+                      setPriorityFilter("");
+                      setCurrency("");
+                      setShown(24);
+                    }}
+                  >
+                    <option value="">{t("Toutes les listes")}</option>
+                    {lists.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                        {l.archived ? ` · ${t("Archivées")}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {selectedList && (
+                  <a className="text-link" href={`/lists/${selectedList}`}>
+                    {t("Ouvrir cette liste")}
+                  </a>
+                )}
+                {owner && (
+                  <a className="text-link" href="/add">
+                    {t("Ajout mobile")}
+                  </a>
+                )}
+              </div>
+            )}
           </div>
           {(owner || categories.length > 0) && (
             <Categories
@@ -529,7 +536,186 @@ export function PublicWishlist({
           )}
           {(result?.all_total ?? gifts.length) > 0 && (
             <>
-              <div className="wishlist-tools">
+              <div className="wishlist-controls">
+                <div className="wishlist-tools">
+                  <label className="search-box">
+                    <Icon name="search" size={18} />
+                    <input
+                      type="search"
+                      aria-label={t("Rechercher une envie")}
+                      placeholder={t("Trouver une envie…")}
+                      value={search}
+                      onChange={(e) => {
+                        setSearch(e.target.value);
+                        setShown(24);
+                      }}
+                    />
+                  </label>
+                </div>
+                <details className="wishlist-filters">
+                  <summary>
+                    {t("Filtres")}
+                    {(budgetActive || priorityFilter) && (
+                      <span
+                        className="filter-indicator"
+                        aria-label={t("Filtres actifs")}
+                      />
+                    )}
+                  </summary>
+                  <div className="wishlist-filter-fields">
+                    <label className="priority-filter">
+                      {t("Priorité")}
+                      <select
+                        aria-label={t("Filtrer par priorité")}
+                        value={priorityFilter}
+                        onChange={(e) => {
+                          setPriorityFilter(e.target.value);
+                          setShown(24);
+                          if (view === "favorites") setView("all");
+                        }}
+                      >
+                        <option value="">{t("Toutes les priorités")}</option>
+                        {priorities.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {priorityLabel(p, t)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label>
+                      {t("Comparer le budget avec")}
+                      <select
+                        value={basis}
+                        onChange={(e) => {
+                          setBasis(e.target.value as BudgetBasis);
+                          setShown(24);
+                        }}
+                      >
+                        <option value="unit">
+                          {t("Prix d’un exemplaire")}
+                        </option>
+                        <option value="total">{t("Objectif total")}</option>
+                        <option value="remaining">
+                          {t("Reste à financer")}
+                        </option>
+                      </select>
+                    </label>
+                    <label>
+                      {t("Devise du budget")}
+                      <select
+                        value={currency}
+                        onChange={(e) => {
+                          setCurrency(e.target.value);
+                          setShown(24);
+                        }}
+                        aria-describedby="wishlist-budget-help"
+                      >
+                        <option value="">{t("Toutes les devises")}</option>
+                        {currencies.map((code) => (
+                          <option key={code} value={code}>
+                            {code}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      {t("Budget minimum")}
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        maxLength={12}
+                        value={minimum}
+                        placeholder="0"
+                        aria-invalid={!!budgetError}
+                        aria-describedby={
+                          budgetError
+                            ? "wishlist-budget-error"
+                            : "wishlist-budget-help"
+                        }
+                        onChange={(e) => {
+                          setMinimum(e.target.value);
+                          if (e.target.value.trim() && !currency)
+                            setCurrency(defaultCurrency);
+                          setShown(24);
+                        }}
+                      />
+                    </label>
+                    <label>
+                      {t("Budget maximum")}
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        maxLength={12}
+                        value={maximum}
+                        placeholder={t("Sans limite")}
+                        aria-invalid={!!budgetError}
+                        aria-describedby={
+                          budgetError
+                            ? "wishlist-budget-error"
+                            : "wishlist-budget-help"
+                        }
+                        onChange={(e) => {
+                          setMaximum(e.target.value);
+                          if (e.target.value.trim() && !currency)
+                            setCurrency(defaultCurrency);
+                          setShown(24);
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <p id="wishlist-budget-help" className="fine-print">
+                    {t(
+                      "Le budget porte sur le montant choisi, dans la devise sélectionnée. Les devises ne sont pas converties.",
+                    )}
+                  </p>
+                  {budgetError && (
+                    <p
+                      id="wishlist-budget-error"
+                      role="alert"
+                      className="notice error"
+                    >
+                      {budgetError}
+                    </p>
+                  )}
+                  <div className="wishlist-filter-actions">
+                    <label className="check-label">
+                      <input
+                        type="checkbox"
+                        checked={safeAvailableOnly}
+                        disabled={hasHiddenSurprises}
+                        onChange={(e) => {
+                          setAvailableOnly(e.target.checked);
+                          setShown(24);
+                        }}
+                      />
+                      {t("Encore à offrir uniquement")}
+                    </label>
+                    <button
+                      type="button"
+                      className="button secondary"
+                      onClick={resetFilters}
+                    >
+                      {t("Réinitialiser les filtres")}
+                    </button>
+                  </div>
+                  {hasHiddenSurprises && (
+                    <p className="fine-print">
+                      {t(
+                        "Le filtre de disponibilité et les envies réalisées sont masqués pour préserver la surprise.",
+                      )}
+                    </p>
+                  )}
+                  {safeAvailableOnly && basis === "remaining" && (
+                    <p className="fine-print">
+                      {t(
+                        "Les envies réservées sont exclues : elles ne peuvent pas recevoir de nouvelles contributions.",
+                      )}
+                    </p>
+                  )}
+                </details>
+              </div>
+              <div className="wishlist-results">
                 <span className="results-count" role="status">
                   {remote.loading
                     ? t("Chargement…")
@@ -537,37 +723,16 @@ export function PublicWishlist({
                         budgetError ? 0 : (result?.total ?? visible.length),
                       )}
                 </span>
-                <label className="search-box">
-                  <Icon name="search" size={18} />
-                  <input
-                    aria-label={t("Rechercher une envie")}
-                    placeholder={t("Rechercher")}
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setShown(24);
-                    }}
-                  />
-                </label>
-                <label className="sort-label priority-filter">
-                  {t("Priorité")}
-                  <select
-                    aria-label={t("Filtrer par priorité")}
-                    value={priorityFilter}
-                    onChange={(e) => {
-                      setPriorityFilter(e.target.value);
-                      setShown(24);
-                      if (view === "favorites") setView("all");
-                    }}
+
+                {(search || category || priorityFilter || budgetActive) && (
+                  <button
+                    className="text-link"
+                    type="button"
+                    onClick={resetFilters}
                   >
-                    <option value="">{t("Toutes les priorités")}</option>
-                    {priorities.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {priorityLabel(p, t)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    {t("Effacer les filtres")}
+                  </button>
+                )}
                 <label className="sort-label">
                   {t("Trier par")}{" "}
                   <select
@@ -597,139 +762,6 @@ export function PublicWishlist({
                   </select>
                 </label>
               </div>
-              <details className="wishlist-filters">
-                <summary>
-                  {t("Budget et disponibilité")}
-                  {budgetActive && <span>{t("Filtres actifs")}</span>}
-                </summary>
-                <div className="wishlist-filter-fields">
-                  <label>
-                    {t("Comparer le budget avec")}
-                    <select
-                      value={basis}
-                      onChange={(e) => {
-                        setBasis(e.target.value as BudgetBasis);
-                        setShown(24);
-                      }}
-                    >
-                      <option value="unit">{t("Prix d’un exemplaire")}</option>
-                      <option value="total">{t("Objectif total")}</option>
-                      <option value="remaining">{t("Reste à financer")}</option>
-                    </select>
-                  </label>
-                  <label>
-                    {t("Devise du budget")}
-                    <select
-                      value={currency}
-                      onChange={(e) => {
-                        setCurrency(e.target.value);
-                        setShown(24);
-                      }}
-                      aria-describedby="wishlist-budget-help"
-                    >
-                      <option value="">{t("Toutes les devises")}</option>
-                      {currencies.map((code) => (
-                        <option key={code} value={code}>
-                          {code}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    {t("Budget minimum")}
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      maxLength={12}
-                      value={minimum}
-                      placeholder="0"
-                      aria-invalid={!!budgetError}
-                      aria-describedby={
-                        budgetError
-                          ? "wishlist-budget-error"
-                          : "wishlist-budget-help"
-                      }
-                      onChange={(e) => {
-                        setMinimum(e.target.value);
-                        if (e.target.value.trim() && !currency)
-                          setCurrency(defaultCurrency);
-                        setShown(24);
-                      }}
-                    />
-                  </label>
-                  <label>
-                    {t("Budget maximum")}
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      maxLength={12}
-                      value={maximum}
-                      placeholder={t("Sans limite")}
-                      aria-invalid={!!budgetError}
-                      aria-describedby={
-                        budgetError
-                          ? "wishlist-budget-error"
-                          : "wishlist-budget-help"
-                      }
-                      onChange={(e) => {
-                        setMaximum(e.target.value);
-                        if (e.target.value.trim() && !currency)
-                          setCurrency(defaultCurrency);
-                        setShown(24);
-                      }}
-                    />
-                  </label>
-                </div>
-                <p id="wishlist-budget-help" className="fine-print">
-                  {t(
-                    "Le budget porte sur le montant choisi, dans la devise sélectionnée. Les devises ne sont pas converties.",
-                  )}
-                </p>
-                {budgetError && (
-                  <p
-                    id="wishlist-budget-error"
-                    role="alert"
-                    className="notice error"
-                  >
-                    {budgetError}
-                  </p>
-                )}
-                <div className="wishlist-filter-actions">
-                  <label className="check-label">
-                    <input
-                      type="checkbox"
-                      checked={safeAvailableOnly}
-                      disabled={hasHiddenSurprises}
-                      onChange={(e) => {
-                        setAvailableOnly(e.target.checked);
-                        setShown(24);
-                      }}
-                    />
-                    {t("Encore à offrir uniquement")}
-                  </label>
-                  <button
-                    type="button"
-                    className="button secondary"
-                    onClick={resetFilters}
-                  >
-                    {t("Réinitialiser les filtres")}
-                  </button>
-                </div>
-                {hasHiddenSurprises && (
-                  <p className="fine-print">
-                    {t(
-                      "Le filtre de disponibilité et les envies réalisées sont masqués pour préserver la surprise.",
-                    )}
-                  </p>
-                )}
-                {safeAvailableOnly && basis === "remaining" && (
-                  <p className="fine-print">
-                    {t(
-                      "Les envies réservées sont exclues : elles ne peuvent pas recevoir de nouvelles contributions.",
-                    )}
-                  </p>
-                )}
-              </details>
               {currencies.length > 1 &&
                 !currency &&
                 [
@@ -758,7 +790,21 @@ export function PublicWishlist({
               onChange={refresh}
             />
           )}
-          {remote.error && <Notice error>{remote.error}</Notice>}
+          {remote.error && (
+            <Notice error>
+              <p>{remote.error}</p>
+              <button
+                type="button"
+                className="button secondary"
+                disabled={remote.loading}
+                onClick={() =>
+                  result?.next ? void remote.more() : remote.retry()
+                }
+              >
+                {t("Réessayer le chargement")}
+              </button>
+            </Notice>
+          )}
           {remote.loading && !visible.length && (
             <p role="status">{t("Chargement…")}</p>
           )}
@@ -810,10 +856,9 @@ export function PublicWishlist({
                     {variantSummary(gift) && (
                       <p className="fine-print">{variantSummary(gift)}</p>
                     )}
-                    {gift.description && (
-                      <p className="gift-description">{gift.description}</p>
-                    )}
-                    <div className="gift-price">
+                    <div
+                      className={`gift-price${hasBudget(gift) ? "" : " gift-price-unspecified"}`}
+                    >
                       <strong>
                         {hasBudget(gift)
                           ? money(gift.target, gift.currency)
@@ -823,9 +868,7 @@ export function PublicWishlist({
                                 : "Budget non précisé",
                             )}
                       </strong>
-                      {hasBudget(gift) && (
-                        <span>{t("Objectif à financer")}</span>
-                      )}
+                      {hasBudget(gift) && <span>{t("Budget estimé")}</span>}
                     </div>
                     {gift.quantity > 1 && hasBudget(gift) && (
                       <p className="fine-print">
@@ -890,7 +933,7 @@ export function PublicWishlist({
                         gift.purchased ||
                         (hasBudget(gift) && gift.funded >= gift.target)
                           ? t("Voir cette envie")
-                          : t("Participer")}
+                          : t("Offrir ou participer")}
                         <Icon name="arrow" size={17} />
                       </Link>
                     )}
@@ -898,7 +941,7 @@ export function PublicWishlist({
                 </article>
               ))}
             </div>
-          ) : !remote.loading ? (
+          ) : !remote.loading && !remote.error ? (
             <div className="empty-state">
               <h2>
                 {(result?.all_total ?? gifts.length)
@@ -928,18 +971,46 @@ export function PublicWishlist({
               )}
             </div>
           ) : null}
-          {((result && !!result.next) ||
-            (!result && visible.length > shown)) && (
-            <button
-              className="button secondary"
-              disabled={remote.loading}
-              onClick={() =>
-                result ? void remote.more() : setShown((n) => n + 24)
-              }
-            >
-              {t("Afficher plus")}
-            </button>
+          {visible.length > 0 && (
+            <div className="wishlist-pagination">
+              <p className="fine-print" role="status">
+                {t(
+                  "{0} sur {1} envies affichées",
+                  result ? visible.length : Math.min(shown, visible.length),
+                  result?.total ?? visible.length,
+                )}
+              </p>
+              {((result && !!result.next) ||
+                (!result && visible.length > shown)) && (
+                <button
+                  className="button secondary"
+                  disabled={remote.loading}
+                  onClick={() =>
+                    result ? void remote.more() : setShown((n) => n + 24)
+                  }
+                >
+                  {remote.loading ? t("Chargement…") : t("Afficher plus")}
+                </button>
+              )}
+            </div>
           )}
+          <div className="wishlist-secondary-actions">
+            <a className="text-link" href="/help">
+              {t("Aide et ajout depuis un navigateur")}
+            </a>
+            {!owner && (
+              <SuggestGift
+                lists={lists.filter(
+                  (l) =>
+                    !!l.suggestions_enabled &&
+                    !l.archived &&
+                    l.visibility !== "private" &&
+                    (!selectedList || l.id === selectedList),
+                )}
+                initialList={selectedList}
+              />
+            )}
+          </div>
         </section>
       </div>
       {owner && priorityEditor && (

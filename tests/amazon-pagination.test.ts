@@ -9,7 +9,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
-import { openDatabase } from "../lib/db";
+import { database, openDatabase } from "../lib/db";
 import {
   createImport,
   runImport,
@@ -229,6 +229,7 @@ test("Amazon : toutes les pages publiques sont importées, sans boucle ni aperç
     }
   } finally {
     db.close();
+    database().close();
     t.mock.restoreAll();
     syncBuiltinESMExports();
     server.closeAllConnections();

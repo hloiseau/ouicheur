@@ -25,7 +25,7 @@ function luminance(rgb: number[]) {
   }, 0);
 }
 
-// Keep custom colors readable on the dark surfaces, including black/white picks.
+// Keep custom accents readable on both surfaces, including black/white picks.
 export function appearanceStyle(
   appearance: Pick<Appearance, "accent">,
 ): CSSProperties {
@@ -36,9 +36,12 @@ export function appearanceStyle(
   let highlight = [...rgb];
   while (luminance(highlight) < 0.3)
     highlight = highlight.map((channel) => Math.min(255, channel + 12));
+  let lightHighlight = [...rgb];
+  while (luminance(lightHighlight) > 0.13)
+    lightHighlight = lightHighlight.map((channel) => Math.max(0, channel - 12));
   return {
     "--profile-color": color,
     "--profile-ink": luminance(rgb) > 0.179 ? "#000000" : "#ffffff",
-    "--accent": `rgb(${highlight.join(" ")})`,
+    "--accent": `light-dark(rgb(${lightHighlight.join(" ")}), rgb(${highlight.join(" ")}))`,
   } as CSSProperties;
 }

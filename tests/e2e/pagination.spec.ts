@@ -74,8 +74,30 @@ test("server pages search beyond the first page, recover from edits and revoke c
     await view.goto(`/lists/${list.id}`);
     await expect(view.locator(".gift-card")).toHaveCount(24);
     await expect(view.locator(".results-count")).toHaveText("60 envies");
+    await view.route(
+      "**/api/wishes?**",
+      (route) =>
+        route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "Service momentanément indisponible.",
+          }),
+        }),
+      { times: 1 },
+    );
     await view
       .getByRole("button", { name: "Afficher plus", exact: true })
+      .click();
+    await expect(
+      view.getByText("Service momentanément indisponible."),
+    ).toBeVisible();
+    await expect(view.locator(".gift-card")).toHaveCount(24);
+    await expect(
+      view.getByText("Aucune envie trouvée", { exact: true }),
+    ).toHaveCount(0);
+    await view
+      .getByRole("button", { name: "Réessayer le chargement", exact: true })
       .click();
     await expect(view.locator(".gift-card")).toHaveCount(48);
     const titles = await view.locator(".gift-card h2").allTextContents();

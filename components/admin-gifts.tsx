@@ -451,7 +451,13 @@ export function GiftEditor({
                 m.currency,
                 gift?.currency || currency,
               )
-            : t("Le prix est une suggestion, sans garantie de disponibilité."),
+            : m.price === null
+              ? t(
+                  "Le prix n’a pas été trouvé. Saisissez-le ou choisissez « Budget non précisé ».",
+                )
+              : t(
+                  "Le prix est une suggestion, sans garantie de disponibilité.",
+                ),
         ),
       );
     } catch (e) {

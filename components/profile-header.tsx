@@ -22,22 +22,19 @@ export function ProfileHeader({
   const Heading = preview ? "h3" : "h1";
   const socials: string[] = JSON.parse(profile.socials);
   return (
-    <section className="personal-profile">
-      <div className="profile-cover">
-        {profile.banner ? (
+    <section
+      className={`personal-profile${profile.banner ? "" : " profile-without-cover"}`}
+    >
+      {profile.banner && (
+        <div className="profile-cover">
           <img
             className="profile-banner"
             src={profile.banner}
             alt=""
             style={{ objectPosition: `center ${profile.banner_position}%` }}
           />
-        ) : (
-          <div className="cover-art" aria-hidden="true">
-            <span />
-            <Icon name="spark" size={88} />
-          </div>
-        )}
-      </div>
+        </div>
+      )}
       <div className="profile-details">
         <div className="avatar">
           {profile.avatar ? (
@@ -76,6 +73,7 @@ export function ProfileHeader({
             <button
               type="button"
               className="button profile-share"
+              aria-label={copied ? t("Lien copié !") : t("Partager")}
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(location.href);

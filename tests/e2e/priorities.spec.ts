@@ -141,6 +141,7 @@ test("priorities can be renamed, added and reordered without losing the wish dra
     await expect(
       page.getByRole("button", { name: new RegExp(renamed) }),
     ).toBeVisible();
+    await page.locator(".wishlist-filters summary").click();
     await page
       .getByRole("combobox", { name: "Filtrer par priorité", exact: true })
       .selectOption(String(priority.id));
@@ -180,6 +181,7 @@ test("priorities can be renamed, added and reordered without losing the wish dra
         name: /Manage priorities|Gérer les priorités/,
       }),
     ).toHaveCount(0);
+    await visitor.locator(".wishlist-filters summary").click();
     await visitor
       .getByRole("combobox", { name: "Filter by priority", exact: true })
       .selectOption(String(priority.id));

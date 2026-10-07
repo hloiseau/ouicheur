@@ -2,6 +2,7 @@
 import type { ReactNode } from "react";
 import { LanguageSwitcher, useI18n } from "./language";
 import { Brand } from "./ui";
+import { ThemeSwitcher } from "./theme";
 export function PageHeader({
   back = false,
   backName,
@@ -28,6 +29,7 @@ export function PageHeader({
         )}
         <div className="header-actions">
           {children}
+          <ThemeSwitcher />
           <LanguageSwitcher />
         </div>
       </div>

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { openDatabase } from "../lib/db";
+import { database, openDatabase } from "../lib/db";
 import {
   initializeOwner,
   verifyPassword,
@@ -306,6 +306,7 @@ test("sauvegarde cohérente, restauration sur nouvelle instance et reprise des i
     if (previousDataDir === undefined) delete process.env.DATA_DIR;
     else process.env.DATA_DIR = previousDataDir;
     db.close();
+    database().close();
     rmSync(folder, { recursive: true, force: true });
   }
 });

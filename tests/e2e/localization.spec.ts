@@ -13,7 +13,7 @@ test("English browser, French preference, localized errors and preserved input",
   await expect(
     page.getByRole("heading", { name: "Camille’s Ouichlist" }),
   ).toBeVisible();
-  await expect(page.locator(".personal-footer")).toContainText("Ouicheur");
+  await expect(page.getByRole("contentinfo")).toContainText("Ouicheur");
   await expect(
     page.getByRole("link", {
       name: "Une lumière pour les soirs de lecture",

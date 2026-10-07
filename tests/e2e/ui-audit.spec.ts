@@ -20,7 +20,8 @@ test("audit visuel de toutes les pages et des principaux états", async ({
   page.setDefaultTimeout(10000);
   const base = "http://localhost:3211";
   const headers = { origin: base };
-  const folder = `test-results/ui-audit-${info.project.name}`;
+  const theme = process.env.UI_AUDIT_THEME === "dark" ? "dark" : "light";
+  const folder = `test-results/ui-audit-${theme}-${info.project.name}`;
   mkdirSync(folder, { recursive: true });
   const observations: unknown[] = [];
   const failures: string[] = [];
@@ -102,6 +103,7 @@ test("audit visuel de toutes les pages et des principaux états", async ({
   };
   await context.addCookies([
     { name: "ouicheur_locale", value: "fr", url: base },
+    { name: "ouicheur_theme", value: theme, url: base },
   ]);
   await page.goto("/admin");
   await expect(page.getByLabel("Mot de passe", { exact: true })).toBeVisible();
@@ -140,7 +142,10 @@ test("audit visuel de toutes les pages et des principaux états", async ({
     isMobile: info.project.name === "mobile",
     deviceScaleFactor: 1,
   });
-  await guest.addCookies([{ name: "ouicheur_locale", value: "fr", url: base }]);
+  await guest.addCookies([
+    { name: "ouicheur_locale", value: "fr", url: base },
+    { name: "ouicheur_theme", value: theme, url: base },
+  ]);
   const visitor = await guest.newPage();
   visitor.setDefaultTimeout(10000);
   watch(visitor);
@@ -168,7 +173,9 @@ test("audit visuel de toutes les pages et des principaux états", async ({
     await visitor
       .getByRole("button", { name: "J’ai acheté le cadeau", exact: true })
       .click();
-    await expect(visitor.getByText(/Acheté/)).toBeVisible();
+    await expect(
+      visitor.getByRole("status").filter({ hasText: "Acheté ou prêt" }),
+    ).toBeVisible();
     await capture(visitor, "07-reservation-purchased");
     await visitor.goto(`/cadeaux/${gift}`);
     await capture(visitor, "08-gift-reserved");

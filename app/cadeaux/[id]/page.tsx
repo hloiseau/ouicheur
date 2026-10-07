@@ -1,3 +1,4 @@
+import { appearanceStyle } from "../../../lib/appearance";
 import {
   hasBudget,
   variantSummary,
@@ -55,7 +56,7 @@ export default async function GiftPage({
   const reservationClosed =
     !!gift.closed || !!gift.purchased || gift.visibility !== "visible";
   return (
-    <>
+    <div style={appearanceStyle(profile)}>
       <PageHeader
         back
         backName={profile.name}
@@ -63,19 +64,38 @@ export default async function GiftPage({
       />
       <main id="main" className="container detail-page">
         <div className="detail-art">
-          <GiftArt gift={gift} />
+          <GiftArt gift={gift} detail />
         </div>
         <section className="detail-content">
           <span className="eyebrow">
             {gift.category || t("Une petite envie")}
           </span>
           <h1>{gift.title}</h1>
+          <div className="detail-price">
+            <strong>
+              {hasBudget(gift)
+                ? money(gift.target, gift.currency)
+                : t(
+                    gift.budget_mode === "free"
+                      ? "Sans dépense nécessaire"
+                      : "Budget non précisé",
+                  )}
+            </strong>
+            {hasBudget(gift) && <span>{t("Budget estimé")}</span>}
+          </div>
           {priority && (
             <p className="fine-print">
               {t("Priorité")} : {priorityLabel(priority, t)}
             </p>
           )}
-          <p className="detail-description">{gift.description}</p>
+          {gift.description.length > 400 ? (
+            <details className="detail-description">
+              <summary>{t("Description complète de cette envie")}</summary>
+              <p>{gift.description}</p>
+            </details>
+          ) : gift.description ? (
+            <p className="detail-description">{gift.description}</p>
+          ) : null}
           {gift.kind && gift.kind !== "product" && (
             <p>{t(wishKinds[gift.kind])}</p>
           )}
@@ -162,7 +182,10 @@ export default async function GiftPage({
               details
             />
           )}
-          <div className="detail-progress">
+          <div
+            className="detail-progress"
+            data-empty={!gift.funded && !gift.unknown_gross && !gift.promised}
+          >
             <Progress gift={gift} />
           </div>
           {!!gift.purchased && (
@@ -280,6 +303,6 @@ export default async function GiftPage({
           </section>
         )}
       </main>
-    </>
+    </div>
   );
 }
