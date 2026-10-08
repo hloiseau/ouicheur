@@ -93,9 +93,11 @@ export class PostgresParticipationStore implements ParticipationStore {
     return participationAccess(g as ParticipationGift | undefined, access);
   }
   private async settings(client: PgConnection) {
+    // configureParticipation holds the same advisory lock. SELECT FOR SHARE
+    // would require granting runtime UPDATE on the administrative settings.
     const s = (
       await client.query(
-        "SELECT currency,paypal,strict_contributions FROM ouicheur.tenants WHERE id=$1 FOR SHARE",
+        "SELECT currency,paypal,strict_contributions FROM ouicheur.tenants WHERE id=$1",
         [this.tenantId],
       )
     ).rows[0];
@@ -585,7 +587,7 @@ export async function configureParticipation(
     );
     if (!result.rowCount) throw new AppError("Foyer introuvable.", 404);
     await client.query(
-      "INSERT INTO ouicheur.audit(tenant_id,id,action,entity_id,detail,created_at) VALUES ($1,$2,'participation.settings',$1::text,$3::jsonb,clock_timestamp())",
+      "INSERT INTO ouicheur.audit(tenant_id,id,action,entity_id,detail,created_at) VALUES ($1::uuid,$2,'participation.settings',($1::uuid)::text,$3::jsonb,clock_timestamp())",
       [
         tenantId,
         randomUUID(),
