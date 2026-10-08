@@ -192,7 +192,11 @@ export async function migrateCatalog(pool: PgPool) {
     await client.query(
       "CREATE SCHEMA IF NOT EXISTS ouicheur; CREATE TABLE IF NOT EXISTS ouicheur.catalog_migrations(name text PRIMARY KEY,sha256 text NOT NULL)",
     );
-    const names = ["001-catalog.sql", "002-gift-details.sql"];
+    const names = [
+      "001-catalog.sql",
+      "002-gift-details.sql",
+      "003-participation.sql",
+    ];
     const migrations = names.map((name) => {
       const sql = readFileSync(
         new URL(`./postgres/${name}`, import.meta.url),
@@ -300,7 +304,7 @@ export async function grantCatalogRuntime(pool: PgPool, role: string) {
     if (!r || r.rolsuper || r.rolbypassrls)
       throw new Error("Invalid PostgreSQL runtime role");
     await client.query(
-      `GRANT USAGE ON SCHEMA ouicheur TO "${role}"; GRANT SELECT,INSERT,UPDATE ON ouicheur.lists TO "${role}"; GRANT SELECT,INSERT,UPDATE ON ouicheur.gifts TO "${role}"; GRANT SELECT,UPDATE ON ouicheur.session_reveals TO "${role}"; GRANT SELECT ON ouicheur.tenants,ouicheur.categories,ouicheur.gift_priorities,ouicheur.reservations,ouicheur.contributions TO "${role}"; GRANT SELECT,INSERT,UPDATE,DELETE ON ouicheur.gift_offers TO "${role}"; GRANT SELECT,INSERT ON ouicheur.audit TO "${role}"`,
+      `GRANT USAGE ON SCHEMA ouicheur TO "${role}"; GRANT SELECT,INSERT,UPDATE ON ouicheur.lists TO "${role}"; GRANT SELECT,INSERT,UPDATE ON ouicheur.gifts TO "${role}"; GRANT SELECT,UPDATE ON ouicheur.session_reveals TO "${role}"; GRANT SELECT ON ouicheur.tenants,ouicheur.categories,ouicheur.gift_priorities TO "${role}"; GRANT SELECT,INSERT,UPDATE,DELETE ON ouicheur.gift_offers TO "${role}"; GRANT SELECT,INSERT,UPDATE ON ouicheur.reservations,ouicheur.contributions,ouicheur.payments TO "${role}"; GRANT SELECT,INSERT ON ouicheur.payment_events,ouicheur.participation_outbox TO "${role}"; GRANT SELECT,INSERT ON ouicheur.audit TO "${role}"`,
     );
   } finally {
     client.release();

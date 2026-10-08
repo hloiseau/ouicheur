@@ -790,6 +790,7 @@ export const english: Record<string, string> = {
   "Sélection invalide.": "Invalid selection.",
   "Doublon : « {0} ». Choisissez explicitement de remplacer ou décochez cet élément.":
     "Duplicate: “{0}”. Choose to replace it or deselect this item.",
+  "Foyer introuvable.": "Household not found.",
   "Cadeau introuvable.": "Gift not found.",
   "Les détails de ce cadeau doivent être complétés.":
     "This gift's details must be completed.",
