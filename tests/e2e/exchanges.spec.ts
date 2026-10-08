@@ -200,7 +200,9 @@ test("family exchange invitations, one draw and anonymous questions stay scoped 
     await incoming
       .getByRole("button", { name: "Enregistrer la réponse", exact: true })
       .click();
-    await expect(incoming.getByText(/Bleu, merci !/)).toBeVisible();
+    await expect(
+      incoming.getByText("Réponse : Bleu, merci !", { exact: true }),
+    ).toBeVisible();
     recipient.once("dialog", (d) => d.accept());
     await incoming
       .getByRole("button", { name: "Signaler et bloquer", exact: true })
