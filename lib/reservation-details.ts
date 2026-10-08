@@ -32,6 +32,17 @@ export function captureReservationDetails(
         )
         .get(offerId, giftId)
     : null;
+  return buildReservationDetails(
+    g as Omit<ReservedDetails, "offer_id" | "offer_note" | "condition">,
+    offerId,
+    offer as { url: string; note: string; condition: string } | undefined,
+  );
+}
+export function buildReservationDetails(
+  g: Omit<ReservedDetails, "offer_id" | "offer_note" | "condition">,
+  offerId: string | null,
+  offer?: { url: string; note: string; condition: string } | null,
+): ReservedDetails {
   if (offerId && !offer) throw new AppError("Offre inconnue.", 404);
   return {
     ...g,

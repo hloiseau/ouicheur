@@ -58,11 +58,8 @@ import {
   reviewSuggestion,
 } from "../../../lib/suggestions";
 import { accessFromCookies, listLists, rotateShare } from "../../../lib/lists";
-import {
-  createReservation,
-  reservationStatus,
-  updateReservation,
-} from "../../../lib/reservations";
+import { participationService } from "../../../lib/participation.ts";
+import { SqliteParticipationStore } from "../../../lib/participation-sqlite.ts";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createI18n, localeCookie, resolveLocale } from "../../../lib/i18n";
@@ -88,16 +85,7 @@ import {
   setSurpriseReveal,
 } from "../../../lib/surprise";
 import { completeWebSetup } from "../../../lib/setup";
-import {
-  confirmManual,
-  cancelPledge,
-  contributionStatus,
-  correctPayment,
-  createIntent,
-  declareIntent,
-  expireIntents,
-  reviewContribution,
-} from "../../../lib/payments";
+import { expireIntents } from "../../../lib/payments";
 import {
   AppError,
   currencySchema,
@@ -507,8 +495,9 @@ async function handle(
       rateLimit(db, `intent:${ip}`, 30, 60 * 60000);
       rateLimit(db, "intent:global", 300, 60 * 60000);
       return response(
-        createIntent(
-          db,
+        await participationService(
+          new SqliteParticipationStore(db),
+        ).createIntent(
           await body(request),
           accessFromCookies(db, request.cookies),
         ),
@@ -527,14 +516,20 @@ async function handle(
       /^[a-f0-9]{64}$/.test(segments[1] || "")
     ) {
       if (segments.length === 2 && request.method === "GET")
-        return response(contributionStatus(db, segments[1]));
+        return response(
+          await participationService(
+            new SqliteParticipationStore(db),
+          ).contributionStatus(segments[1]),
+        );
       if (
         segments.length === 3 &&
         segments[2] === "cancel" &&
         request.method === "POST"
       ) {
         rateLimit(db, `declare:${ip}`, 60, 60 * 60000);
-        cancelPledge(db, segments[1]);
+        await participationService(
+          new SqliteParticipationStore(db),
+        ).cancelPledge(segments[1]);
         return response({ ok: true });
       }
       if (
@@ -543,7 +538,9 @@ async function handle(
         request.method === "POST"
       ) {
         rateLimit(db, `declare:${ip}`, 60, 60 * 60000);
-        declareIntent(db, segments[1]);
+        await participationService(
+          new SqliteParticipationStore(db),
+        ).declareIntent(segments[1]);
         return response({ ok: true });
       }
     }
@@ -551,8 +548,9 @@ async function handle(
       rateLimit(db, `reservation:${ip}`, 20, 3600000);
       rateLimit(db, "reservation:global", 200, 3600000);
       return response(
-        createReservation(
-          db,
+        await participationService(
+          new SqliteParticipationStore(db),
+        ).createReservation(
           await body(request),
           accessFromCookies(db, request.cookies),
         ),
@@ -561,9 +559,15 @@ async function handle(
     }
     if (segments[0] === "reservations" && segments.length === 2) {
       if (request.method === "GET")
-        return response(reservationStatus(db, segments[1]));
+        return response(
+          await participationService(
+            new SqliteParticipationStore(db),
+          ).reservationStatus(segments[1]),
+        );
       if (request.method === "POST") {
-        updateReservation(db, segments[1], await body(request));
+        await participationService(
+          new SqliteParticipationStore(db),
+        ).updateReservation(segments[1], await body(request));
         return response({ ok: true });
       }
     }
@@ -936,13 +940,21 @@ async function handle(
       });
     }
     if (path === "admin/confirm")
-      return response({ id: confirmManual(db, data) });
+      return response({
+        id: await participationService(
+          new SqliteParticipationStore(db),
+        ).confirmManual(data, access),
+      });
     if (path === "admin/contributions/review") {
-      reviewContribution(db, data);
+      await participationService(
+        new SqliteParticipationStore(db),
+      ).reviewContribution(data, access);
       return response({ ok: true });
     }
     if (path === "admin/correct") {
-      correctPayment(db, data);
+      await participationService(
+        new SqliteParticipationStore(db),
+      ).correctPayment(data, access);
       return response({ ok: true });
     }
     if (path === "admin/contribution-state") {

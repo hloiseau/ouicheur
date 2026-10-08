@@ -1,3 +1,4 @@
+import { fundingExpressions } from "./participation.ts";
 import { purchaseCommandSchema, requireCatalogOwner } from "./catalog.ts";
 import { SqliteCatalogStore } from "./catalog-sqlite.ts";
 import { parseGift } from "./gift-persistence.ts";
@@ -59,8 +60,7 @@ export function publicProfile(db: DatabaseSync) {
 }
 // A recorded payment replaces its declaration, including after a refund.
 export const fundingTotalsSql = `SELECT c.gift_id,
-  SUM(CASE WHEN p.id IS NOT NULL THEN COALESCE(p.net-p.net_reversed,p.gross-MAX(p.refunded,p.net_reversed))
-    WHEN c.state='declared' AND (c.approved=1 OR (SELECT strict_contributions FROM owner WHERE id=1)=0) THEN c.amount ELSE 0 END) funded
+  SUM(${fundingExpressions("sqlite", "(SELECT strict_contributions FROM owner WHERE id=1)").funded}) funded
   FROM contributions c LEFT JOIN payments p ON p.contribution_id=c.id GROUP BY c.gift_id`;
 
 export function listGifts(

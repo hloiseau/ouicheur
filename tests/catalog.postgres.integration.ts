@@ -1,3 +1,15 @@
+import { participationService } from "../lib/participation.ts";
+import {
+  PostgresParticipationStore,
+  configureParticipation,
+} from "../lib/participation-postgres.ts";
+import {
+  participationContract,
+  participationGift,
+  participationOwner,
+  participant,
+  confirmation,
+} from "./participation-contract.ts";
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
@@ -473,7 +485,7 @@ test("PostgreSQL gifts: prior schema upgrades preserve purchase state and requir
         "SELECT count(*)::int AS n FROM ouicheur.catalog_migrations",
       )
     ).rows[0].n,
-    2,
+    3,
   );
 });
 test("PostgreSQL gifts: metadata and dependency references remain within their tenant", async () => {
@@ -566,8 +578,8 @@ test("PostgreSQL gifts: metadata and dependency references remain within their t
   await assert.rejects(
     tenantTransaction(runtime, b, (c) =>
       c.query(
-        "INSERT INTO ouicheur.contributions(tenant_id,id,gift_id,amount,currency,state,created_at,expires_at) VALUES ($1,$2,$3,1,'EUR','intent',now(),now())",
-        [b, randomUUID(), gb],
+        "DELETE FROM ouicheur.contributions WHERE tenant_id=$1 AND gift_id=$2",
+        [b, gb],
       ),
     ),
     /permission denied/,
@@ -621,4 +633,424 @@ test("PostgreSQL gifts: independent replicas serialize duplicate creation and pr
     ),
   );
   assert.equal(new Set(positions).size, 3);
+});
+
+async function participationFixture(pool = runtime) {
+  const id = await tenant();
+  const catalog = service(id, pool);
+  const list = await catalog.saveList(
+    { name: "Participation", visibility: "public" },
+    participationOwner,
+  );
+  return {
+    tenantId: id,
+    list,
+    catalog,
+    gifts: giftService(new PostgresGiftStore(pool, id)),
+    service: participationService(new PostgresParticipationStore(pool, id)),
+    async settings(v: {
+      paypal?: string;
+      strict_contributions?: boolean;
+      currency?: string;
+    }) {
+      const { currency, ...settings } = v;
+      if (currency !== undefined)
+        await admin.query(
+          "UPDATE ouicheur.tenants SET currency=$1 WHERE id=$2",
+          [currency, id],
+        );
+      if (Object.keys(settings).length)
+        await configureParticipation(admin, id, settings);
+    },
+    async expire(kind: "reservations" | "contributions", entity: string) {
+      await admin.query(
+        `UPDATE ouicheur.${kind} SET expires_at='2000-01-01' WHERE tenant_id=$1 AND id=$2`,
+        [id, entity],
+      );
+    },
+    async failAudit() {
+      await admin.query(`REVOKE INSERT ON ouicheur.audit FROM "${role}"`);
+    },
+    async auditCount(action: string, entity: string) {
+      return (
+        await admin.query(
+          "SELECT count(*)::int n FROM ouicheur.audit WHERE tenant_id=$1 AND action=$2 AND entity_id=$3",
+          [id, action, entity],
+        )
+      ).rows[0].n;
+    },
+    async close() {
+      await grantCatalogRuntime(admin, role);
+    },
+  };
+}
+participationContract("PostgreSQL participation", participationFixture);
+
+test("PostgreSQL participation: replicas cannot oversubscribe quantity, remaining funds or participation mode", async () => {
+  const f = await participationFixture(),
+    second = participationService(
+      new PostgresParticipationStore(otherReplica, f.tenantId),
+    );
+  const { id } = await participationGift(f);
+  const reservations = await Promise.allSettled([
+    f.service.createReservation({ gift_id: id, quantity: 1 }, participant),
+    second.createReservation({ gift_id: id, quantity: 1 }, participant),
+  ]);
+  assert.equal(reservations.filter((r) => r.status === "fulfilled").length, 1);
+  assert.equal(
+    (await f.service.fundingTotals(id, participationOwner)).reserved,
+    1,
+  );
+  const bank = await participationGift(f);
+  const transfers = await Promise.allSettled([
+    f.service.createIntent(
+      { gift_id: bank.id, amount: "60", method: "bank_transfer" },
+      participant,
+    ),
+    second.createIntent(
+      { gift_id: bank.id, amount: "60", method: "bank_transfer" },
+      participant,
+    ),
+  ]);
+  assert.equal(transfers.filter((r) => r.status === "fulfilled").length, 1);
+  assert.equal(
+    (await f.service.fundingTotals(bank.id, participationOwner)).funded,
+    6000,
+  );
+  const mixed = await participationGift(f);
+  const modes = await Promise.allSettled([
+    f.service.createReservation(
+      { gift_id: mixed.id, quantity: 1 },
+      participant,
+    ),
+    second.createIntent(
+      { gift_id: mixed.id, amount: "1", method: "pledge" },
+      participant,
+    ),
+  ]);
+  assert.equal(modes.filter((r) => r.status === "fulfilled").length, 1);
+  const totals = await f.service.fundingTotals(mixed.id, participationOwner);
+  assert.ok(
+    (totals.reserved === 1 && totals.promised === 0) ||
+      (totals.reserved === 0 && totals.promised === 100),
+  );
+});
+test("PostgreSQL participation: confirmations and corrections across replicas have one financial and audit effect", async () => {
+  const f = await participationFixture(),
+    second = participationService(
+      new PostgresParticipationStore(otherReplica, f.tenantId),
+    );
+  const { id } = await participationGift(f);
+  const c = await f.service.createIntent(
+    { gift_id: id, amount: "25", method: "bank_transfer" },
+    participant,
+  );
+  const input = confirmation(c.id);
+  const [a, b] = await Promise.all([
+    f.service.confirmManual(input, participationOwner),
+    second.confirmManual(input, participationOwner),
+  ]);
+  assert.equal(a, b);
+  assert.equal(await f.auditCount("payment.confirm_manual", a), 1);
+  const correction = {
+    payment_id: a,
+    event_id: randomUUID(),
+    revision: 1,
+    gross: "25",
+    fee: "1",
+    refunded: "1",
+    net_reversed: "1",
+    disputed: false,
+    reason: "Correction de test",
+  };
+  const race = await Promise.allSettled([
+    f.service.correctPayment(correction, participationOwner),
+    second.correctPayment(
+      {
+        ...correction,
+        event_id: randomUUID(),
+        refunded: "2",
+        net_reversed: "2",
+      },
+      participationOwner,
+    ),
+  ]);
+  assert.equal(race.filter((r) => r.status === "fulfilled").length, 1);
+  assert.equal(await f.auditCount("payment.correct_manual", a), 1);
+  const t = await f.service.fundingTotals(id, participationOwner);
+  assert.ok([2200, 2300].includes(t.confirmed));
+  assert.equal(t.confirmed, t.funded);
+  const p = (
+    await admin.query(
+      "SELECT revision FROM ouicheur.payments WHERE tenant_id=$1 AND id=$2",
+      [f.tenantId, a],
+    )
+  ).rows[0];
+  assert.equal(p.revision, 2);
+});
+test("PostgreSQL participation: tenant-scoped tokens, event IDs, references and foreign keys", async () => {
+  const a = await participationFixture(),
+    b = await participationFixture();
+  const ga = await participationGift(a),
+    gb = await participationGift(b);
+  const r = await a.service.createReservation(
+    { gift_id: ga.id, quantity: 1 },
+    participant,
+  );
+  await assert.rejects(b.service.reservationStatus(r.token), /introuvable/);
+  await assert.rejects(
+    b.service.updateReservation(r.token, { state: "cancelled" }),
+    /introuvable/,
+  );
+  await a.service.updateReservation(r.token, { state: "cancelled" });
+  const c = await a.service.createIntent(
+    { gift_id: ga.id, amount: "25", method: "bank_transfer" },
+    participant,
+  );
+  for (const action of [
+    () => b.service.contributionStatus(c.id),
+    () => b.service.declareIntent(c.id),
+    () => b.service.cancelPledge(c.id),
+    () =>
+      b.service.reviewContribution(
+        { id: c.id, approved: true },
+        participationOwner,
+      ),
+    () => b.service.confirmManual(confirmation(c.id), participationOwner),
+  ])
+    await assert.rejects(action(), /introuvable/);
+  const input = confirmation(c.id),
+    p = await a.service.confirmManual(input, participationOwner);
+  const correction = {
+    payment_id: p,
+    event_id: randomUUID(),
+    revision: 1,
+    gross: "25",
+    fee: "1",
+    refunded: "0",
+    net_reversed: "0",
+    disputed: false,
+    reason: "Test de cloisonnement",
+  };
+  await assert.rejects(
+    b.service.correctPayment(correction, participationOwner),
+    /introuvable/,
+  );
+  const cb = await b.service.createIntent(
+    { gift_id: gb.id, amount: "25", method: "bank_transfer" },
+    participant,
+  );
+  // Same real-world reference and event ID in another household are independent.
+  await b.service.confirmManual(
+    { ...input, contribution_id: cb.id },
+    participationOwner,
+  );
+  await assert.rejects(
+    admin.query(
+      "INSERT INTO ouicheur.payment_events(tenant_id,id,payment_id,kind,payload,created_at) VALUES ($1,$2,$3,'correction_manual','{}',now())",
+      [b.tenantId, randomUUID(), p],
+    ),
+    /foreign key/,
+  );
+  for (const table of [
+    "reservations",
+    "contributions",
+    "payments",
+    "payment_events",
+    "participation_outbox",
+  ]) {
+    assert.equal(
+      (await runtime.query(`SELECT 1 FROM ouicheur.${table}`)).rowCount,
+      0,
+    );
+    await tenantTransaction(runtime, b.tenantId, async (client) => {
+      assert.equal(
+        (
+          await client.query(
+            `SELECT 1 FROM ouicheur.${table} WHERE tenant_id=$1`,
+            [a.tenantId],
+          )
+        ).rowCount,
+        0,
+      );
+    });
+  }
+  await assert.rejects(
+    tenantTransaction(runtime, b.tenantId, (client) =>
+      client.query(
+        "UPDATE ouicheur.payment_events SET payload='{}' WHERE tenant_id=$1",
+        [b.tenantId],
+      ),
+    ),
+    /permission denied/,
+  );
+  await assert.rejects(
+    configureParticipation(runtime, b.tenantId, { strict_contributions: true }),
+    /permission denied/,
+  );
+  assert.equal(
+    (
+      await runtime.query(
+        "SELECT current_setting('ouicheur.tenant_id',true) value",
+      )
+    ).rows[0].value,
+    "",
+  );
+  assert.equal(
+    (await a.service.fundingTotals(ga.id, participationOwner)).funded,
+    2400,
+  );
+  const audit = await admin.query(
+    "SELECT detail::text FROM ouicheur.audit WHERE tenant_id=$1",
+    [a.tenantId],
+  );
+  assert.ok(!JSON.stringify(audit.rows).includes(r.token));
+});
+test("PostgreSQL participation: outbox is atomic, deduplicated and contains no bearer secrets", async () => {
+  const f = await participationFixture(),
+    second = participationService(
+      new PostgresParticipationStore(otherReplica, f.tenantId),
+    );
+  const { id } = await participationGift(f);
+  await admin.query(
+    `REVOKE INSERT ON ouicheur.participation_outbox FROM "${role}"`,
+  );
+  try {
+    await assert.rejects(
+      f.service.createIntent(
+        { gift_id: id, amount: "25", method: "bank_transfer" },
+        participant,
+      ),
+      /permission denied/,
+    );
+    assert.equal(
+      (await f.service.fundingTotals(id, participationOwner)).funded,
+      0,
+    );
+    await assert.rejects(
+      f.service.createReservation({ gift_id: id, quantity: 1 }, participant),
+      /permission denied/,
+    );
+    assert.equal(
+      (await f.service.fundingTotals(id, participationOwner)).reserved,
+      0,
+    );
+    assert.equal(
+      (
+        await admin.query(
+          "SELECT 1 FROM ouicheur.audit WHERE tenant_id=$1 AND action='reservation.create'",
+          [f.tenantId],
+        )
+      ).rowCount,
+      0,
+    );
+  } finally {
+    await grantCatalogRuntime(admin, role);
+  }
+  const c = await f.service.createIntent(
+    {
+      gift_id: id,
+      amount: "25",
+      method: "pledge",
+      message: "DoNotCopyPrivateMessage",
+    },
+    participant,
+  );
+  await Promise.all([
+    f.service.declareIntent(c.id),
+    second.declareIntent(c.id),
+  ]);
+  const rows = (
+    await admin.query(
+      "SELECT * FROM ouicheur.participation_outbox WHERE tenant_id=$1",
+      [f.tenantId],
+    )
+  ).rows;
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].kind, "declaration");
+  // Contribution IDs are bearer tokens: the outbox must use a one-way digest.
+  assert.equal(
+    rows[0].entity_id,
+    createHash("sha256").update(c.id).digest("hex"),
+  );
+  assert.ok(!JSON.stringify(rows).includes(c.id));
+  assert.ok(!JSON.stringify(rows).includes("DoNotCopyPrivateMessage"));
+});
+
+test("PostgreSQL participation: failed audit rolls back payments, events and corrections together", async () => {
+  const f = await participationFixture();
+  const { id } = await participationGift(f);
+  const c = await f.service.createIntent(
+    { gift_id: id, amount: "25", method: "bank_transfer" },
+    participant,
+  );
+  const input = confirmation(c.id);
+  await f.failAudit();
+  try {
+    await assert.rejects(
+      f.service.confirmManual(input, participationOwner),
+      /permission denied/,
+    );
+    assert.equal((await f.service.contributionStatus(c.id)).payment, null);
+    assert.equal(
+      (
+        await admin.query(
+          "SELECT 1 FROM ouicheur.payment_events WHERE tenant_id=$1",
+          [f.tenantId],
+        )
+      ).rowCount,
+      0,
+    );
+    assert.equal(
+      (await f.service.fundingTotals(id, participationOwner)).funded,
+      2500,
+    );
+  } finally {
+    await f.close();
+  }
+  const p = await f.service.confirmManual(input, participationOwner);
+  await f.failAudit();
+  try {
+    await assert.rejects(
+      f.service.correctPayment(
+        {
+          payment_id: p,
+          event_id: randomUUID(),
+          revision: 1,
+          gross: "25",
+          fee: "1",
+          refunded: "25",
+          net_reversed: "24",
+          disputed: false,
+          reason: "Rollback de test",
+        },
+        participationOwner,
+      ),
+      /permission denied/,
+    );
+    assert.equal(
+      (await f.service.fundingTotals(id, participationOwner)).funded,
+      2400,
+    );
+    assert.equal(
+      (
+        await admin.query(
+          "SELECT revision FROM ouicheur.payments WHERE tenant_id=$1 AND id=$2",
+          [f.tenantId, p],
+        )
+      ).rows[0].revision,
+      1,
+    );
+    assert.equal(
+      (
+        await admin.query(
+          "SELECT 1 FROM ouicheur.payment_events WHERE tenant_id=$1",
+          [f.tenantId],
+        )
+      ).rowCount,
+      1,
+    );
+  } finally {
+    await f.close();
+  }
 });
