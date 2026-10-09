@@ -1,3 +1,5 @@
+import { sessionService } from "./session-service.ts";
+import { SqliteSessionStore } from "./session-sqlite.ts";
 import { variantKey } from "./wish-details.ts";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
@@ -7,7 +9,6 @@ import {
   hashPassword,
   hashToken,
   sessionAccount,
-  verifyPassword,
 } from "./auth.ts";
 import { atomic, audit } from "./db.ts";
 import {
@@ -185,28 +186,11 @@ export async function loginMember(
   password: string,
   userAgent = "",
 ) {
-  const member = db
-    .prepare("SELECT id,password_hash,enabled FROM members WHERE login=?")
-    .get(login.trim().toLowerCase());
-  const encoded =
-    member?.password_hash ||
-    db.prepare("SELECT password_hash FROM owner WHERE id=1").get()
-      ?.password_hash;
-  const valid = encoded && (await verifyPassword(password, String(encoded)));
-  if (!member?.enabled || !valid)
-    throw new AppError("Connexion impossible. Vérifiez vos identifiants.", 401);
-  return atomic(db, () => {
-    const current = db
-      .prepare("SELECT password_hash,enabled FROM members WHERE id=?")
-      .get(member.id);
-    if (!current?.enabled || current.password_hash !== member.password_hash)
-      throw new AppError(
-        "Connexion impossible. Vérifiez vos identifiants.",
-        401,
-      );
-    audit(db, "member.login", String(member.id));
-    return createSession(db, userAgent, String(member.id));
-  });
+  return sessionService(new SqliteSessionStore(db)).login(
+    `member:${login}`,
+    password,
+    userAgent,
+  );
 }
 export function updateMemberAccess(db: DatabaseSync, input: unknown) {
   const v = z
