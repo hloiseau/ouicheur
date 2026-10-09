@@ -672,6 +672,15 @@ async function participationFixture(pool = runtime) {
     async failAudit() {
       await admin.query(`REVOKE INSERT ON ouicheur.audit FROM "${role}"`);
     },
+    async auditLog() {
+      return JSON.stringify(
+        (
+          await admin.query("SELECT * FROM ouicheur.audit WHERE tenant_id=$1", [
+            id,
+          ])
+        ).rows,
+      );
+    },
     async auditCount(action: string, entity: string) {
       return (
         await admin.query(

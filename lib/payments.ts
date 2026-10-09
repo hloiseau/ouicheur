@@ -1,3 +1,4 @@
+import { participationAudit } from "./participation-audit.ts";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { atomic, audit } from "./db";
@@ -24,6 +25,16 @@ import {
   type CorrectionCommand,
 } from "./participation.ts";
 import { AppError, dateNow, paypalLink } from "./validation";
+
+function recordAudit(
+  db: DatabaseSync,
+  action: string,
+  id: string,
+  detail: unknown = {},
+) {
+  const entry = participationAudit(action, id, detail);
+  audit(db, action, entry.id, entry.detail);
+}
 
 export function createIntent(
   db: DatabaseSync,
@@ -118,7 +129,7 @@ export function cancelPledge(db: DatabaseSync, id: string) {
     db.prepare(
       "UPDATE contributions SET state='expired',expires_at=? WHERE id=?",
     ).run(dateNow(), id);
-    audit(db, "contribution.cancel_pledge", id);
+    recordAudit(db, "contribution.cancel_pledge", id);
   });
 }
 
@@ -147,7 +158,7 @@ export function reviewContributionInTransaction(
     state,
     value.id,
   );
-  audit(db, "contribution.review", value.id, {
+  recordAudit(db, "contribution.review", value.id, {
     before: contribution,
     approved: value.approved,
   });
@@ -212,7 +223,7 @@ export function recordConfirmedPaymentInTransaction(
     JSON.stringify(v),
     dateNow(),
   );
-  audit(db, `payment.confirm_${provenance}`, id, v);
+  recordAudit(db, `payment.confirm_${provenance}`, id, v);
   return id;
 }
 // The ledger is independent of PayPal transport. A future verified adapter must validate
@@ -256,7 +267,7 @@ export function correctPaymentInTransaction(
     JSON.stringify(v),
     dateNow(),
   );
-  audit(db, "payment.correct_manual", p!.id, { before: p, after: v });
+  recordAudit(db, "payment.correct_manual", p!.id, { before: p, after: v });
 }
 export function contributionStatus(db: DatabaseSync, id: string) {
   expireIntents(db);

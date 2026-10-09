@@ -1,3 +1,4 @@
+import { participationAudit } from "./participation-audit.ts";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 import { z } from "zod";
 import type { Access } from "./lists.ts";
@@ -152,9 +153,16 @@ export class PostgresParticipationStore implements ParticipationStore {
     id: string,
     detail: unknown = {},
   ) {
+    const entry = participationAudit(action, id, detail);
     await client.query(
       "INSERT INTO ouicheur.audit(tenant_id,id,action,entity_id,detail,created_at) VALUES ($1,$2,$3,$4,$5::jsonb,clock_timestamp())",
-      [this.tenantId, randomUUID(), action, id, JSON.stringify(detail)],
+      [
+        this.tenantId,
+        randomUUID(),
+        action,
+        entry.id,
+        JSON.stringify(entry.detail),
+      ],
     );
   }
   private async notify(

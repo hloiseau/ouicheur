@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { test } from "node:test";
 import type { participationService } from "../lib/participation.ts";
 import type { giftService } from "../lib/gift-persistence.ts";
@@ -35,6 +35,7 @@ export interface ParticipationFixture {
   expire(kind: "reservations" | "contributions", id: string): Promise<void>;
   failAudit(): Promise<void>;
   auditCount(action: string, id: string): Promise<number>;
+  auditLog(): Promise<string>;
   close(): Promise<void>;
 }
 export async function participationGift(
@@ -296,7 +297,14 @@ export function participationContract(
           { id: bank.id, approved: true },
           participationOwner,
         );
-        assert.equal(await f.auditCount("contribution.review", bank.id), 1);
+        assert.ok(!(await f.auditLog()).includes(bank.id));
+        assert.equal(
+          await f.auditCount(
+            "contribution.review",
+            `sha256:${createHash("sha256").update(bank.id).digest("hex")}`,
+          ),
+          1,
+        );
         const promise = await f.service.createIntent(
           { gift_id: id, amount: "20", method: "pledge" },
           participant,
@@ -361,7 +369,14 @@ export function participationContract(
         );
         await f.service.cancelPledge(c.id);
         await f.service.cancelPledge(c.id);
-        assert.equal(await f.auditCount("contribution.cancel_pledge", c.id), 1);
+        assert.ok(!(await f.auditLog()).includes(c.id));
+        assert.equal(
+          await f.auditCount(
+            "contribution.cancel_pledge",
+            `sha256:${createHash("sha256").update(c.id).digest("hex")}`,
+          ),
+          1,
+        );
         await assert.rejects(f.service.declareIntent(c.id), /annulée/);
         const r = await f.service.createReservation(
           { gift_id: id, quantity: 1 },
@@ -517,6 +532,10 @@ export function participationContract(
         await f.service.correctPayment(correction, participationOwner);
         await f.service.correctPayment(correction, participationOwner);
         assert.equal(await f.auditCount("payment.correct_manual", p), 1);
+        assert.ok(
+          !(await f.auditLog()).includes(c.id),
+          "Audit must not contain the contributor bearer credential",
+        );
         await assert.rejects(
           f.service.correctPayment(
             { ...correction, reason: "Autre raison" },
