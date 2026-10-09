@@ -35,6 +35,9 @@ participationContract("SQLite participation", async () => {
         "CREATE TRIGGER test_participation_audit BEFORE INSERT ON audit BEGIN SELECT RAISE(ABORT,'test audit failure'); END",
       );
     },
+    async auditLog() {
+      return JSON.stringify(db.prepare("SELECT * FROM audit").all());
+    },
     async auditCount(action, id) {
       return Number(
         db
