@@ -20,8 +20,39 @@ export interface PgConnection {
   ): Promise<{ rows: Record<string, unknown>[]; rowCount: number | null }>;
   release(destroy?: boolean): void;
 }
+const boundTransaction = Symbol("bound tenant transaction");
 export interface PgPool {
   connect(): Promise<PgConnection>;
+  [boundTransaction]?: <T>(
+    tenantId: string,
+    work: (client: PgConnection) => Promise<T>,
+  ) => Promise<T>;
+}
+// Compose authorization and several services atomically on one connection.
+// The scoped pool rejects a different tenant and cannot escape this callback.
+export async function catalogTransaction<T>(
+  pool: PgPool,
+  tenantId: string,
+  work: (client: PgConnection, scoped: PgPool) => Promise<T>,
+): Promise<T> {
+  return tenantTransaction(pool, tenantId, async (client) => {
+    let active = true;
+    const scoped: PgPool = {
+      connect: async () => {
+        throw new Error("Use tenantTransaction with a scoped pool");
+      },
+      [boundTransaction]: async (id, run) => {
+        if (!active || id !== tenantId)
+          throw new Error("Tenant transaction scope mismatch or closed");
+        return run(client);
+      },
+    };
+    try {
+      return await work(client, scoped);
+    } finally {
+      active = false;
+    }
+  });
 }
 const tenantSchema = z.uuid();
 const columns =
@@ -33,6 +64,7 @@ export async function tenantTransaction<T>(
   work: (client: PgConnection) => Promise<T>,
 ): Promise<T> {
   tenantSchema.parse(tenantId);
+  if (pool[boundTransaction]) return pool[boundTransaction](tenantId, work);
   const client = await pool.connect();
   let broken = false;
   try {

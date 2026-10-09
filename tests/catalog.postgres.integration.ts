@@ -19,6 +19,7 @@ import { catalogService } from "../lib/catalog.ts";
 import {
   PostgresCatalogStore,
   tenantTransaction,
+  catalogTransaction,
   migrateCatalog,
   grantCatalogRuntime,
   provisionCatalogTenant,
@@ -1052,5 +1053,68 @@ test("PostgreSQL participation: failed audit rolls back payments, events and cor
     );
   } finally {
     await f.close();
+  }
+});
+
+test("a composed authorization/business transaction is atomic, tenant-bound and cannot escape", async () => {
+  const tenant = randomUUID(),
+    other = randomUUID();
+  await provisionCatalogTenant(admin, tenant);
+  let escaped: Parameters<typeof catalogService>[0] | undefined;
+  const count = async () =>
+    Number(
+      (
+        await admin.query(
+          "SELECT count(*) n FROM ouicheur.lists WHERE tenant_id=$1",
+          [tenant],
+        )
+      ).rows[0].n,
+    );
+  await assert.rejects(
+    catalogTransaction(runtime, tenant, async (client, scoped) => {
+      escaped = new PostgresCatalogStore(scoped, tenant);
+      const service = catalogService(escaped);
+      const id = await service.saveList(
+        { name: "Rolled back", visibility: "private" },
+        catalogOwner,
+      );
+      assert.equal(
+        (await service.getList(id, catalogOwner))?.name,
+        "Rolled back",
+      );
+      await assert.rejects(
+        tenantTransaction(scoped, other, async () => undefined),
+        /scope mismatch/,
+      );
+      assert.equal(
+        (await client.query("SELECT current_setting('ouicheur.tenant_id') id"))
+          .rows[0].id,
+        tenant,
+      );
+      throw new Error("rollback requested");
+    }),
+    /rollback requested/,
+  );
+  assert.equal(await count(), 0);
+  await assert.rejects(escaped!.getList("any"), /scope mismatch or closed/);
+  await catalogTransaction(runtime, tenant, async (_, scoped) => {
+    await catalogService(new PostgresCatalogStore(scoped, tenant)).saveList(
+      { name: "Committed", visibility: "private" },
+      catalogOwner,
+    );
+  });
+  assert.equal(await count(), 1);
+  const c = await runtime.connect();
+  try {
+    assert.equal(
+      (
+        await c.query(
+          "SELECT NULLIF(current_setting('ouicheur.tenant_id',true),'') value",
+        )
+      ).rows[0].value,
+      null,
+    );
+  } finally {
+    c.release();
   }
 });

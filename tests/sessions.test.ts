@@ -219,3 +219,15 @@ test("a revoked or expired session cannot complete a password change already in 
     db.close();
   }
 });
+
+test("a member login called owner cannot authenticate as the instance owner", async () => {
+  const db = openDatabase(":memory:");
+  try {
+    await initializeOwner(db, "Test", password);
+    const { loginMember } = await import("../lib/family.ts");
+    await assert.rejects(loginMember(db, "owner", password), { status: 401 });
+    assert.equal(db.prepare("SELECT count(*) n FROM sessions").get()!.n, 0);
+  } finally {
+    db.close();
+  }
+});

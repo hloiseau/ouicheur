@@ -1,35 +1,20 @@
-import { randomBytes, scrypt, timingSafeEqual, createHash } from "node:crypto";
+import {
+  hashPassword,
+  hashToken,
+  newSession,
+  sessionLimit,
+} from "./session-credentials.ts";
+export {
+  hashPassword,
+  hashToken,
+  verifyPassword,
+  sessionLifetime,
+  sessionDevice,
+} from "./session-credentials.ts";
 import type { DatabaseSync } from "node:sqlite";
 import { atomic, audit } from "./db.ts";
 import { AppError } from "./validation.ts";
 
-export const hashToken = (token: string) =>
-  createHash("sha256").update(token).digest("hex");
-const derive = (password: string, salt: string) =>
-  new Promise<Buffer>((resolve, reject) =>
-    scrypt(
-      password,
-      salt,
-      64,
-      { N: 32768, r: 8, p: 3, maxmem: 128 * 1024 * 1024 },
-      (error, key) => (error ? reject(error) : resolve(key)),
-    ),
-  );
-export async function hashPassword(password: string) {
-  if (password.length < 12 || password.length > 256)
-    throw new AppError(
-      "Le mot de passe doit contenir entre 12 et 256 caractères.",
-    );
-  const salt = randomBytes(16).toString("hex");
-  return `scrypt:${salt}:${(await derive(password, salt)).toString("hex")}`;
-}
-export async function verifyPassword(password: string, encoded: string) {
-  const [, salt, hex] = encoded.split(":");
-  if (!salt || !hex || password.length > 256) return false;
-  const actual = await derive(password, salt);
-  const expected = Buffer.from(hex, "hex");
-  return expected.length === actual.length && timingSafeEqual(actual, expected);
-}
 export async function initializeOwner(
   db: DatabaseSync,
   name: string,
@@ -59,54 +44,27 @@ export async function setPassword(db: DatabaseSync, password: string) {
     audit(db, "owner.password_changed", "1");
   });
 }
-export const sessionLifetime = 12 * 60 * 60 * 1000;
-// Keep only broad, allowlisted browser/OS families, never the raw User-Agent or IP.
-export function sessionDevice(userAgent = "") {
-  const ua = userAgent.slice(0, 512);
-  const browser = /Edg(?:e|A|iOS)?\//.test(ua)
-    ? "Edge"
-    : /(?:Firefox|FxiOS)\//.test(ua)
-      ? "Firefox"
-      : /(?:Chrome|CriOS)\//.test(ua)
-        ? "Chrome"
-        : /Safari\//.test(ua)
-          ? "Safari"
-          : "";
-  const platform = /iPhone|iPad/.test(ua)
-    ? "iOS"
-    : /Android/.test(ua)
-      ? "Android"
-      : /Windows/.test(ua)
-        ? "Windows"
-        : /Macintosh|Mac OS X/.test(ua)
-          ? "macOS"
-          : /Linux/.test(ua)
-            ? "Linux"
-            : "";
-  return [browser, platform].filter(Boolean).join(" · ");
-}
 export function createSession(
   db: DatabaseSync,
   userAgent = "",
   memberId: string | null = null,
 ) {
-  const token = randomBytes(32).toString("hex");
-  const now = Date.now();
-  db.prepare("DELETE FROM sessions WHERE expires <= ?").run(now);
+  const { token, record: row } = newSession(userAgent);
+  db.prepare("DELETE FROM sessions WHERE expires <= ?").run(row.created);
   db.prepare(
     "INSERT INTO sessions(hash,expires,id,created_at,last_seen,device,member_id) VALUES (?,?,?,?,?,?,?)",
   ).run(
-    hashToken(token),
-    now + sessionLifetime,
-    randomBytes(16).toString("hex"),
-    now,
-    now,
-    sessionDevice(userAgent),
+    row.hash,
+    row.expires,
+    row.id,
+    row.created,
+    row.seen,
+    row.device,
     memberId,
   );
   db.prepare(
-    "DELETE FROM sessions WHERE hash IN (SELECT hash FROM sessions WHERE member_id IS ? ORDER BY created_at DESC,rowid DESC LIMIT -1 OFFSET 100)",
-  ).run(memberId);
+    "DELETE FROM sessions WHERE hash IN (SELECT hash FROM sessions WHERE member_id IS ? ORDER BY created_at DESC,rowid DESC LIMIT -1 OFFSET ?)",
+  ).run(memberId, sessionLimit);
   return token;
 }
 export function authorized(db: DatabaseSync, token?: string) {
