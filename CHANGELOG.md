@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.5 — dépendance de source maps corrigée
+
+- Résolution de `source-map-js` en 1.2.2 pour corriger GHSA-68fv-2mgg-jv7q dans la chaîne de dépendances PostCSS.
+- Contrôle CI des avis de sécurité npm de sévérité haute ou critique dans les dépendances de production.
+- Aucune migration, option nouvelle ou modification de l’interface.
+
+Voir les [notes de version](docs/releases/1.4.5.md).
+
 ## 1.4.4 — lectures PostgreSQL et transport configurable
 
 - Lecture des listes et cadeaux avec filtres, compteurs et pagination dans PostgreSQL ; seule la page demandée est matérialisée par le pilote.
