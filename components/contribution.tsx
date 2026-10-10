@@ -1,8 +1,9 @@
 "use client";
+import { useAppHref } from "./runtime";
 import { useI18n } from "./language";
 
 import { useEffect, useId, useState } from "react";
-import { api, Field, Icon, Notice } from "./ui";
+import { useApi, Field, Icon, Notice } from "./ui";
 import {
   contributionLabel,
   type ContributionMethod,
@@ -24,6 +25,8 @@ export function ContributionForm({
   strict?: boolean;
 }) {
   const { t, money } = useI18n();
+  const api = useApi(),
+    href = useAppHref();
   const amountHelpId = useId();
   const [amount, setAmount] = useState(String(Math.min(1000, remaining) / 100));
   const [nickname, setNickname] = useState("");
@@ -75,7 +78,7 @@ export function ContributionForm({
           );
           if (paypalTab && !paypalTab.closed && result.paypal_url)
             paypalTab.location.replace(result.paypal_url);
-          location.assign(`/contribution/${result.id}`);
+          location.assign(href(`/contribution/${result.id}`));
         } catch (e) {
           paypalTab?.close();
           setError(
@@ -246,6 +249,8 @@ type Status = {
 };
 export function ContributionStatus({ id }: { id: string }) {
   const { t, money } = useI18n();
+  const api = useApi(),
+    href = useAppHref();
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -443,7 +448,7 @@ export function ContributionStatus({ id }: { id: string }) {
           )}
           <a
             className={counted ? "button primary wide" : "text-link"}
-            href={`/cadeaux/${status.gift_id}`}
+            href={href(`/cadeaux/${status.gift_id}`)}
           >
             {t("Retour au cadeau")}
           </a>

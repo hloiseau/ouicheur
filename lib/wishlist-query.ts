@@ -7,40 +7,8 @@ import { listPriorities } from "./priorities.ts";
 import { filterWishlist } from "./wishlist-filters.ts";
 import { hasBudget } from "./wish-details.ts";
 import { AppError } from "./validation.ts";
-const querySchema = z
-  .object({
-    mode: z.enum(["public", "owner", "team"]).default("public"),
-    list: z.string().max(64).default(""),
-    search: z.string().trim().max(300).default(""),
-    category: z.string().max(64).default(""),
-    priority: z.string().regex(/^\d*$/).max(16).default(""),
-    view: z.enum(["all", "favorites", "completed", "archived"]).default("all"),
-    currency: z
-      .union([z.literal(""), z.string().regex(/^[A-Z]{3}$/)])
-      .default(""),
-    basis: z.enum(["unit", "total", "remaining"]).default("unit"),
-    minimum: z.coerce.number().int().min(0).max(100000000).optional(),
-    maximum: z.coerce.number().int().min(0).max(100000000).optional(),
-    available: z.enum(["0", "1"]).default("0"),
-    sort: z
-      .enum([
-        "manual",
-        "priority",
-        "price",
-        "price-desc",
-        "unit-price",
-        "unit-price-desc",
-        "remaining",
-        "progress",
-        "title",
-      ])
-      .default("priority"),
-    locale: z.enum(["fr", "en"]).default("en"),
-    cursor: z.string().max(2048).default(""),
-    limit: z.coerce.number().int().min(1).max(60).default(24),
-  })
-  .strict();
-export type WishlistQuery = z.input<typeof querySchema>;
+import { wishlistAccess } from "./wishlist-read.ts";
+export type { WishlistQuery } from "./wishlist-read.ts";
 function cursorKey(db: DatabaseSync) {
   return String(
     db.prepare("SELECT password_hash FROM owner WHERE id=1").get()
@@ -88,13 +56,7 @@ export function queryWishlist(
   input: unknown,
   original: Access,
 ) {
-  const q = querySchema.parse(input),
-    admin = q.mode !== "public";
-  if (q.mode === "owner" && !original.owner)
-    throw new AppError("Connexion administrateur requise.", 401);
-  if (q.mode === "team" && !original.memberId)
-    throw new AppError("Connexion coorganisateur requise.", 401);
-  const access = q.mode === "public" ? { ...original, owner: false } : original;
+  const { query: q, admin, access } = wishlistAccess(input, original);
   db.exec("BEGIN");
   try {
     const lists = listLists(db, access).filter(

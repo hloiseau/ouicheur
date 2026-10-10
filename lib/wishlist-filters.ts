@@ -1,3 +1,4 @@
+import { normalizeWishlistSearch } from "./wishlist-read.ts";
 import { hasBudget, variantSummary, type WishDetails } from "./wish-details.ts";
 import type { Gift } from "./gifts";
 
@@ -78,10 +79,7 @@ export function filterWishlist<T extends FilterableGift>(
   },
 ): T[] {
   const normalize = (text: string) =>
-    text
-      .normalize("NFD")
-      .replace(/\p{M}/gu, "")
-      .toLocaleLowerCase(filters.locale);
+    normalizeWishlistSearch(text, filters.locale);
   const search = normalize(filters.search.trim());
   const titleOrder = new Intl.Collator(filters.locale, {
     sensitivity: "base",

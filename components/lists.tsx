@@ -4,7 +4,8 @@ import { ListTools } from "./list-tools";
 import { useRef, useState } from "react";
 import QRCode from "qrcode";
 import type { Wishlist } from "../lib/lists";
-import { api, Field, Notice } from "./ui";
+import { useApi, Field, Notice } from "./ui";
+import { useAppHref } from "./runtime";
 import { useI18n } from "./language";
 
 export function ShareLink({ value }: { value: string }) {
@@ -81,11 +82,15 @@ const empty = {
 export function ListsEditor({
   lists,
   refresh,
+  extras = true,
 }: {
   lists: Wishlist[];
   refresh: () => Promise<void>;
+  extras?: boolean;
 }) {
   const { t } = useI18n();
+  const api = useApi(),
+    href = useAppHref();
   const [value, setValue] = useState<{
     id?: string;
     name: string;
@@ -121,7 +126,7 @@ export function ListsEditor({
     <div className="operations-grid">
       <section className="panel stack">
         <h2>{t("Mes listes et événements")}</h2>
-        <ListTemplates refresh={refresh} />
+        {extras && <ListTemplates refresh={refresh} />}
         {lists.map((l) => (
           <button
             key={l.id}
@@ -142,7 +147,7 @@ export function ListsEditor({
               });
               setShare(
                 l.visibility === "public" && !l.archived
-                  ? `${location.origin}/lists/${l.id}`
+                  ? `${location.origin}${href(`/lists/${l.id}`)}`
                   : "",
               );
             }}
@@ -198,7 +203,7 @@ export function ListsEditor({
               setSaved(true);
               setShare(
                 value.visibility === "public" && !value.archived
-                  ? `${location.origin}/lists/${r.id}`
+                  ? `${location.origin}${href(`/lists/${r.id}`)}`
                   : "",
               );
             });
@@ -313,21 +318,28 @@ export function ListsEditor({
               "Masque les réservations et achats au propriétaire connecté, y compris dans son aperçu public. Les proches gardent les disponibilités réelles. Les contributions financières restent visibles ; ce mode ne protège pas contre une visite anonyme ou l’accès au serveur.",
             )}
           </p>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={value.suggestions_enabled}
-              onChange={(e) =>
-                setValue({ ...value, suggestions_enabled: e.target.checked })
-              }
-            />
-            {t("Autoriser les suggestions des proches")}
-          </label>
-          <p className="fine-print">
-            {t(
-              "Les visiteurs autorisés peuvent vous proposer une idée. Vous la lirez et déciderez de la publier, même en mode surprise. Une liste privée ou archivée ne reçoit pas de suggestions.",
-            )}
-          </p>
+          {extras && (
+            <>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={value.suggestions_enabled}
+                  onChange={(e) =>
+                    setValue({
+                      ...value,
+                      suggestions_enabled: e.target.checked,
+                    })
+                  }
+                />
+                {t("Autoriser les suggestions des proches")}
+              </label>
+              <p className="fine-print">
+                {t(
+                  "Les visiteurs autorisés peuvent vous proposer une idée. Vous la lirez et déciderez de la publier, même en mode surprise. Une liste privée ou archivée ne reçoit pas de suggestions.",
+                )}
+              </p>
+            </>
+          )}
           <p className="fine-print">
             {t(
               "Changer la confidentialité ou archiver révoque le lien existant.",
@@ -340,7 +352,7 @@ export function ListsEditor({
         </form>
         {value.id && (
           <>
-            <a href={`/lists/${value.id}`} className="text-link">
+            <a href={href(`/lists/${value.id}`)} className="text-link">
               {t("Ouvrir cette liste")}
             </a>
             {value.visibility === "unlisted" && !value.archived && (
@@ -359,7 +371,7 @@ export function ListsEditor({
                         "admin/lists/share",
                         { id: value.id },
                       );
-                      setShare(`${location.origin}/s/${r.token}`);
+                      setShare(`${location.origin}${href(`/s/${r.token}`)}`);
                     })
                   }
                 >
@@ -385,7 +397,7 @@ export function ListsEditor({
           </>
         )}
         {share && <ShareLink key={share} value={share} />}
-        {value.id && lists.find((l) => l.id === value.id) && (
+        {extras && value.id && lists.find((l) => l.id === value.id) && (
           <ListTools
             key={value.id}
             list={lists.find((l) => l.id === value.id)!}

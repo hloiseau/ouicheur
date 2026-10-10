@@ -2,40 +2,9 @@
 import { useI18n } from "./language";
 
 import type { ReactNode } from "react";
-import { createI18n, resolveLocale } from "../lib/i18n";
+import { useAppHref } from "./runtime";
+export { api, ApiError, useApi } from "./runtime";
 
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-  ) {
-    super(message);
-  }
-}
-
-export async function api<T = Record<string, unknown>>(
-  path: string,
-  data?: unknown,
-): Promise<T> {
-  const { t } = createI18n(resolveLocale(document.documentElement.lang));
-  const result = await fetch(
-    `/api/${path}`,
-    data === undefined
-      ? { cache: "no-store" }
-      : {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        },
-  );
-  const value = await result.json().catch(() => ({}));
-  if (!result.ok)
-    throw new ApiError(
-      value.error || t("L’opération a échoué."),
-      result.status,
-    );
-  return value;
-}
 export function Icon({ name, size = 22 }: { name: string; size?: number }) {
   const paths: Record<string, ReactNode> = {
     gift: (
@@ -112,9 +81,10 @@ export function Icon({ name, size = 22 }: { name: string; size?: number }) {
   );
 }
 export function Brand() {
+  const href = useAppHref();
   const { t } = useI18n();
   return (
-    <a className="brand" href="/" aria-label={t("Ouicheur, accueil")}>
+    <a className="brand" href={href("/")} aria-label={t("Ouicheur, accueil")}>
       <span className="brand-mark">
         <Icon name="gift" size={21} />
       </span>

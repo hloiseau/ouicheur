@@ -105,7 +105,7 @@ export function GiftFields({
   showDuplicate?: boolean;
   onManagePriorities?: () => void;
   onCreateCategory?: () => void;
-  imageEndpoint?: string;
+  imageEndpoint?: string | null;
 }) {
   const { t, money } = useI18n();
   let total: number | undefined;
@@ -228,13 +228,15 @@ export function GiftFields({
           {t("Autoriser un doublon")}
         </label>
       )}
-      <ImagePicker
-        endpoint={imageEndpoint}
-        value={value.image}
-        allowUrl={false}
-        onChange={(v) => set("image", v)}
-        onBusyChange={onImageBusy}
-      />
+      {imageEndpoint !== null && (
+        <ImagePicker
+          endpoint={imageEndpoint}
+          value={value.image}
+          allowUrl={false}
+          onChange={(v) => set("image", v)}
+          onBusyChange={onImageBusy}
+        />
+      )}
 
       <WishDetailsFields
         value={value}

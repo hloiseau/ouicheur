@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "./language";
-import { api, Notice } from "./ui";
+import { useApi, Notice } from "./ui";
 
 export function GiftPurchaseToggle({
   id,
@@ -19,6 +19,7 @@ export function GiftPurchaseToggle({
   details?: boolean;
 }) {
   const { t } = useI18n();
+  const api = useApi();
   const router = useRouter();
   const [checked, setChecked] = useState(purchased);
   const [busy, setBusy] = useState(false);

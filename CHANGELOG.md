@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.4 — lectures PostgreSQL et transport configurable
+
+- Lecture des listes et cadeaux avec filtres, compteurs et pagination dans PostgreSQL ; seule la page demandée est matérialisée par le pilote.
+- Curseurs signés, liés au périmètre autorisé, invalidés après modification ou expiration pertinente.
+- Transport et liens des composants de liste configurables par un hôte ; comportement SQLite et présentation existants conservés par défaut.
+- Migration PostgreSQL additive pour les profils et le tri ICU ; aucun changement du schéma SQLite.
+
+Voir les [notes de version](docs/releases/1.4.4.md).
+
 ## 1.4.0 — une interface plus simple, en clair et en sombre
 
 - Thèmes Appareil, Clair et Sombre disponibles dans les en-têtes, avec préférence mémorisée et application dès le premier affichage.
