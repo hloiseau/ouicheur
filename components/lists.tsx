@@ -203,7 +203,7 @@ export function ListsEditor({
               setSaved(true);
               setShare(
                 value.visibility === "public" && !value.archived
-                  ? `${location.origin}/lists/${r.id}`
+                  ? `${location.origin}${href(`/lists/${r.id}`)}`
                   : "",
               );
             });
