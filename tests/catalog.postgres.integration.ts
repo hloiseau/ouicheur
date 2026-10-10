@@ -486,7 +486,7 @@ test("PostgreSQL gifts: prior schema upgrades preserve purchase state and requir
         "SELECT count(*)::int AS n FROM ouicheur.catalog_migrations",
       )
     ).rows[0].n,
-    3,
+    4,
   );
 });
 test("PostgreSQL gifts: metadata and dependency references remain within their tenant", async () => {
@@ -1126,4 +1126,280 @@ test("a composed authorization/business transaction is atomic, tenant-bound and 
   } finally {
     c.release();
   }
+});
+
+// Read the same catalogue through both persistence adapters; the fixture uses
+// their shared write contracts so cents, defaults and offers are representative.
+import { PostgresWishlistStore } from "../lib/wishlist-postgres.ts";
+import { queryWishlist } from "../lib/wishlist-query.ts";
+import { openDatabase } from "../lib/db.ts";
+import { initializeOwner } from "../lib/auth.ts";
+import { saveGift } from "../lib/gifts.ts";
+import { saveList } from "../lib/lists.ts";
+const readKey = randomBytes(32).toString("hex");
+test("wishlist PostgreSQL and SQLite preserve filters, exact totals, title ordering and offers", async () => {
+  const id = await tenant(),
+    store = new PostgresWishlistStore(runtime, id, readKey);
+  const db = openDatabase(":memory:");
+  await initializeOwner(db, "Reader", "test-only-wishlist-password");
+  const list = await service(id).saveList(
+    { name: "Public", visibility: "public" },
+    catalogOwner,
+  );
+  const gifts = giftService(new PostgresGiftStore(runtime, id));
+  try {
+    for (let i = 0; i < 37; i++) {
+      const input = {
+        ...giftInput,
+        title: `Édition ${i}`,
+        url: `https://example.org/${i}`,
+        description: i % 2 ? "L'été" : "",
+        target: String(i + 1),
+        quantity: 1 + (i % 3),
+        priority: i % 3,
+        budget_mode: i % 7 === 0 ? "unknown" : "fixed",
+        size: i % 2 ? "M" : "",
+        color: i % 2 ? "Bleu" : "",
+        variant_note: i % 2 ? "À offrir" : "",
+        time_hint: "Décembre",
+        offers: [
+          {
+            url: `https://second.example.org/${i}`,
+            condition: "used",
+            note: "Boîte",
+            price: 100,
+            currency: "EUR",
+            shipping: null,
+            availability: "unknown",
+            checked_at: null,
+          },
+        ],
+      };
+      const pgId = await gifts.saveGift(
+        { ...input, list_id: list },
+        catalogOwner,
+      );
+      const sqliteId = saveGift(db, { ...input, list_id: "default" });
+      if (i % 9 === 0) {
+        await admin.query(
+          "UPDATE ouicheur.gifts SET purchased=1 WHERE tenant_id=$1 AND id=$2",
+          [id, pgId],
+        );
+        db.prepare("UPDATE gifts SET purchased=1 WHERE id=?").run(sqliteId);
+      }
+    }
+    const publicAccess = { owner: false, lists: [] };
+    const cases = [
+      ...[
+        "manual",
+        "priority",
+        "title",
+        "price",
+        "price-desc",
+        "unit-price",
+        "unit-price-desc",
+        "remaining",
+        "progress",
+      ]
+        .filter((s) => s !== "manual")
+        .map((sort) => ({ sort })),
+      { search: "edition 2" },
+      { search: "m · bleu" },
+      { search: "a offrir" },
+      { search: "decembre" },
+      { priority: "2" },
+      { view: "favorites" },
+      { view: "completed" },
+      { available: "1" },
+      { currency: "EUR", minimum: 500, maximum: 1700, basis: "unit" },
+      { currency: "EUR", maximum: 2500, basis: "total" },
+      { minimum: 100 },
+      { currency: "USD" },
+    ];
+    for (const query of cases) {
+      const input = { ...query, locale: "fr", limit: 60 };
+      const pg = (await store.query(input, publicAccess)).page,
+        sqlite = queryWishlist(db, input, publicAccess);
+      const projection = (p: typeof sqlite) => ({
+        titles: p.items.map((g) => g.title),
+        values: p.items.map((g) => [
+          g.target,
+          g.quantity,
+          g.funded,
+          g.reserved,
+          g.purchased,
+          g.offers?.map((o) => [o.url, o.price, o.shipping]),
+        ]),
+        total: p.total,
+        counts: p.counts,
+        currencies: p.currencies,
+        priorities: p.priorities,
+        hidden: p.hidden,
+      });
+      assert.deepEqual(
+        projection(pg),
+        projection(sqlite),
+        JSON.stringify(input),
+      );
+    }
+    const first = (
+      await store.query({ sort: "title", locale: "fr", limit: 7 }, publicAccess)
+    ).page;
+    let next = first.next;
+    const titles = first.items.map((g) => g.title);
+    while (next) {
+      const p = (
+        await store.query(
+          { sort: "title", locale: "fr", limit: 7, cursor: next },
+          publicAccess,
+        )
+      ).page;
+      titles.push(...p.items.map((g) => g.title));
+      next = p.next;
+    }
+    assert.equal(titles.length, 37);
+    assert.equal(new Set(titles).size, 37);
+    assert.equal(titles.at(-1), "Édition 36");
+    const secretList = await service(id).saveList(
+      { name: "PRIVATE_LIST", visibility: "private" },
+      catalogOwner,
+    );
+    await gifts.saveGift(
+      { ...giftInput, title: "PRIVATE_GIFT", url: "", list_id: secretList },
+      catalogOwner,
+    );
+    const unchanged = (
+      await store.query({ sort: "title", locale: "fr", limit: 7 }, publicAccess)
+    ).page;
+    assert.equal(unchanged.version, first.version);
+    assert.doesNotMatch(JSON.stringify(unchanged), /PRIVATE_/);
+    await assert.rejects(
+      store.query({ mode: "owner" }, publicAccess),
+      /Connexion/,
+    );
+    await assert.rejects(
+      store.query({ list: secretList }, publicAccess),
+      /introuvable/,
+    );
+    await assert.rejects(
+      store.query(
+        { sort: "title", locale: "fr", limit: 7, cursor: first.next + "x" },
+        publicAccess,
+      ),
+      /Actualisez/,
+    );
+    await assert.rejects(
+      new PostgresWishlistStore(runtime, await tenant(), readKey).query(
+        { sort: "title", locale: "fr", limit: 7, cursor: first.next },
+        publicAccess,
+      ),
+      /Actualisez/,
+    );
+    await admin.query(
+      "UPDATE ouicheur.gifts SET title='Changed' WHERE tenant_id=$1 AND id=$2",
+      [id, first.items[0].id],
+    );
+    await assert.rejects(
+      store.query(
+        { sort: "title", locale: "fr", limit: 7, cursor: first.next },
+        publicAccess,
+      ),
+      /Actualisez/,
+    );
+    const member = {
+      owner: false,
+      lists: [],
+      memberId: "member",
+      managedLists: [secretList],
+    };
+    const team = (await store.query({ mode: "team" }, member)).page;
+    assert.equal(team.total, 1);
+    assert.equal(
+      (await store.query({ mode: "team" }, { ...member, managedLists: [] }))
+        .page.total,
+      0,
+    );
+    assert.equal(
+      (await store.getGift(first.items[0].id, publicAccess)).gift.title,
+      "Changed",
+    );
+    await assert.rejects(
+      store.getGift(team.items[0].id, publicAccess),
+      /introuvable/,
+    );
+    await admin.query(
+      "UPDATE ouicheur.lists SET surprise_mode=1 WHERE tenant_id=$1 AND id=$2",
+      [id, list],
+    );
+    const hidden = (
+      await store.query(
+        { mode: "owner", view: "completed", available: "1" },
+        {
+          ...catalogOwner,
+          recipient: true,
+          recipientLists: [list],
+          revealSurprises: false,
+        },
+      )
+    ).page;
+    assert.equal(hidden.hidden, true);
+    assert.equal(hidden.counts.completed, null);
+    assert.equal(hidden.items[0].reserved, null);
+    assert.equal(hidden.items[0].purchased, null);
+    assert.equal(hidden.items[0].closed, null);
+  } finally {
+    db.close();
+  }
+});
+test("wishlist SQL materializes only the requested page in the driver for 10,000 wishes", async (t) => {
+  const id = await tenant();
+  const list = await service(id).saveList(
+    { name: "Load", visibility: "public" },
+    catalogOwner,
+  );
+  await admin.query(
+    "INSERT INTO ouicheur.gifts(tenant_id,id,list_id,updated_at,details_ready,title,budget_mode,created_at) SELECT $1,gen_random_uuid()::text,$2,now(),1,'Édition '||i,'unknown',now() FROM generate_series(1,10000) i",
+    [id, list],
+  );
+  let largest = 0,
+    returnedBytes = 0;
+  const measured = {
+    async connect() {
+      const c = await runtime.connect();
+      return {
+        async query(sql: string, values?: unknown[]) {
+          const r = await c.query(sql, values);
+          largest = Math.max(largest, r.rows.length);
+          returnedBytes += Buffer.byteLength(JSON.stringify(r.rows));
+          return r;
+        },
+        release() {
+          c.release();
+        },
+      };
+    },
+  };
+  const start = performance.now();
+  const result = await new PostgresWishlistStore(measured, id, readKey).query(
+    { sort: "title", locale: "fr" },
+    { owner: false, lists: [] },
+  );
+  t.diagnostic(
+    JSON.stringify({
+      wishes: 10000,
+      first_page_ms: Math.round(performance.now() - start),
+      driver_rows_max: largest,
+      driver_bytes: returnedBytes,
+    }),
+  );
+  assert.equal(result.page.total, 10000);
+  assert.equal(result.page.items.length, 24);
+  assert.equal(largest, 1);
+  assert.ok(returnedBytes < 100000);
+  assert.ok(performance.now() - start < 10000);
+  const last = await new PostgresWishlistStore(runtime, id, readKey).query(
+    { search: "edition 10000" },
+    { owner: false, lists: [] },
+  );
+  assert.equal(last.page.total, 1);
 });

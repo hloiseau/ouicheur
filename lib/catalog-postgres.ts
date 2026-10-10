@@ -228,6 +228,7 @@ export async function migrateCatalog(pool: PgPool) {
       "001-catalog.sql",
       "002-gift-details.sql",
       "003-participation.sql",
+      "004-wishlist-read.sql",
     ];
     const migrations = names.map((name) => {
       const sql = readFileSync(

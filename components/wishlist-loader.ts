@@ -1,25 +1,19 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { WishlistPage, WishlistQuery } from "../lib/wishlist-query";
-import { ApiError } from "./ui";
-
-async function readPage(query: WishlistQuery, signal?: AbortSignal) {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(query))
-    if (value !== undefined && value !== null) params.set(key, String(value));
-  const response = await fetch(`/api/wishes?${params}`, {
-    cache: "no-store",
-    signal,
-  });
-  const value = await response.json();
-  if (!response.ok) throw new ApiError(value.error, response.status);
-  return value as WishlistPage;
-}
+import { ApiError, useApi } from "./runtime";
 
 export function useWishlistPage(
   initial: WishlistPage | undefined,
   query: WishlistQuery,
 ) {
+  const api = useApi();
+  const readPage = (query: WishlistQuery, signal?: AbortSignal) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query))
+      if (value !== undefined && value !== null) params.set(key, String(value));
+    return api<WishlistPage>(`wishes?${params}`, undefined, { signal });
+  };
   const [page, setPage] = useState(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -56,7 +50,7 @@ export function useWishlistPage(
       clearTimeout(timer);
       controller.abort();
     };
-  }, [initial, key, retry]);
+  }, [initial, key, retry, api]);
   const more = async () => {
     if (loading || !page?.next) return;
     const current = generation.current;

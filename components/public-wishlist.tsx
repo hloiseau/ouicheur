@@ -1,4 +1,5 @@
 "use client";
+import { useAppHref } from "./runtime";
 import type { WishlistPage } from "../lib/wishlist-query";
 import { imageSrcSet } from "../lib/image-srcset";
 import { useWishlistPage } from "./wishlist-loader";
@@ -174,8 +175,10 @@ export function PublicWishlist({
   surprise,
   member = false,
   initialPage,
+  listTools = true,
 }: {
   initialPage?: WishlistPage;
+  listTools?: boolean;
   member?: boolean;
   surprise?: { revealed: boolean };
   lists?: Wishlist[];
@@ -189,6 +192,7 @@ export function PublicWishlist({
   onRefresh?: () => void;
 }) {
   const { t, locale, money, date } = useI18n();
+  const href = useAppHref();
   const [origin, setOrigin] = useState("");
   useEffect(() => setOrigin(location.origin), []);
   const router = useRouter();
@@ -243,7 +247,7 @@ export function PublicWishlist({
   const minAmount = parseBudget(minimum);
   const maxAmount = parseBudget(maximum);
   const remote = useWishlistPage(initialPage, {
-    mode: owner ? "owner" : "public",
+    mode: initialPage?.mode ?? (owner ? "owner" : "public"),
     list: selectedList,
     search,
     category,
@@ -327,7 +331,10 @@ export function PublicWishlist({
           <Brand />
           <div className="header-actions">
             {(owner || member) && (
-              <a className="text-link" href={member ? "/organiser" : "/admin"}>
+              <a
+                className="text-link"
+                href={href(member ? "/organiser" : "/admin")}
+              >
                 {t("Mon espace")} <Icon name="arrow" size={16} />
               </a>
             )}
@@ -393,11 +400,13 @@ export function PublicWishlist({
             <section className="list-intro stack">
               <h2>{currentList.name}</h2>
               {currentList.description && <p>{currentList.description}</p>}
-              <ListTools
-                key={currentList.id}
-                list={currentList}
-                owner={!!owner}
-              />
+              {listTools && (
+                <ListTools
+                  key={currentList.id}
+                  list={currentList}
+                  owner={!!owner}
+                />
+              )}
               {currentList.event_date && (
                 <p>
                   {date(
@@ -411,7 +420,9 @@ export function PublicWishlist({
                 origin && (
                   <details>
                     <summary>{t("Partager")}</summary>
-                    <ShareLink value={`${origin}/lists/${currentList.id}`} />
+                    <ShareLink
+                      value={`${origin}${href(`/lists/${currentList.id}`)}`}
+                    />
                   </details>
                 )}
             </section>
@@ -507,12 +518,15 @@ export function PublicWishlist({
                   </select>
                 </label>
                 {selectedList && (
-                  <a className="text-link" href={`/lists/${selectedList}`}>
+                  <a
+                    className="text-link"
+                    href={href(`/lists/${selectedList}`)}
+                  >
                     {t("Ouvrir cette liste")}
                   </a>
                 )}
                 {owner && (
-                  <a className="text-link" href="/add">
+                  <a className="text-link" href={href("/add")}>
                     {t("Ajout mobile")}
                   </a>
                 )}
@@ -816,7 +830,7 @@ export function PublicWishlist({
                   key={gift.id}
                 >
                   <Link
-                    href={`/cadeaux/${gift.id}`}
+                    href={href(`/cadeaux/${gift.id}`)}
                     className="gift-picture-link"
                     aria-label={t("Découvrir {0}", gift.title)}
                   >
@@ -851,7 +865,9 @@ export function PublicWishlist({
                       <span className="gift-category">{gift.category}</span>
                     )}
                     <h2>
-                      <Link href={`/cadeaux/${gift.id}`}>{gift.title}</Link>
+                      <Link href={href(`/cadeaux/${gift.id}`)}>
+                        {gift.title}
+                      </Link>
                     </h2>
                     {variantSummary(gift) && (
                       <p className="fine-print">{variantSummary(gift)}</p>
@@ -887,7 +903,9 @@ export function PublicWishlist({
                         {owner && (
                           <Link
                             className="text-link reservation-manage"
-                            href={`/admin?tab=reservations&gift=${gift.id}`}
+                            href={href(
+                              `/admin?tab=reservations&gift=${gift.id}`,
+                            )}
                           >
                             {t("Gérer les réservations")}
                           </Link>
@@ -926,7 +944,7 @@ export function PublicWishlist({
                     ) : (
                       <Link
                         className="card-action"
-                        href={`/cadeaux/${gift.id}`}
+                        href={href(`/cadeaux/${gift.id}`)}
                       >
                         {gift.surprise_hidden ||
                         gift.closed ||
@@ -965,7 +983,7 @@ export function PublicWishlist({
                 </button>
               )}
               {!profile && (
-                <a className="text-link" href="/admin">
+                <a className="text-link" href={href("/admin")}>
                   {t("Espace propriétaire")} <Icon name="arrow" size={16} />
                 </a>
               )}
@@ -995,10 +1013,10 @@ export function PublicWishlist({
             </div>
           )}
           <div className="wishlist-secondary-actions">
-            <a className="text-link" href="/help">
+            <a className="text-link" href={href("/help")}>
               {t("Aide et ajout depuis un navigateur")}
             </a>
-            {!owner && (
+            {listTools && !owner && (
               <SuggestGift
                 lists={lists.filter(
                   (l) =>
@@ -1062,7 +1080,7 @@ export function PublicWishlist({
           </details>
           <footer className="personal-footer">
             <span>Ouicheur</span>
-            <a href={member ? "/organiser" : "/admin"}>
+            <a href={href(member ? "/organiser" : "/admin")}>
               <Icon name="lock" size={14} />
               {t("Mon espace")}{" "}
             </a>

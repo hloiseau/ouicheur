@@ -1,10 +1,11 @@
 "use client";
 import { useState } from "react";
-import { api, Notice } from "./ui";
+import { useApi, Notice } from "./ui";
 import { useI18n } from "./language";
 
 export function SurpriseNotice({ revealed = false }: { revealed?: boolean }) {
   const { t } = useI18n();
+  const api = useApi();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   return (
