@@ -30,7 +30,9 @@ export default async function GiftPage({
     AND CASE WHEN p.id IS NULL THEN c.approved=1 ELSE COALESCE(p.net-p.net_reversed,p.gross-MAX(p.refunded,p.net_reversed))>0 END
     ORDER BY c.created_at DESC LIMIT 30`,
     )
-    .all(id);
+    .all(id)
+    // SQLite rows have null prototypes; React client props need plain records.
+    .map((row) => ({ ...row }));
   return (
     <GiftDetails
       gift={gift}
