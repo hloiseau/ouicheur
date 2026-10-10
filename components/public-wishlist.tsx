@@ -176,9 +176,11 @@ export function PublicWishlist({
   member = false,
   initialPage,
   listTools = true,
+  initialView = "all",
 }: {
   initialPage?: WishlistPage;
   listTools?: boolean;
+  initialView?: "all" | "archived";
   member?: boolean;
   surprise?: { revealed: boolean };
   lists?: Wishlist[];
@@ -217,7 +219,7 @@ export function PublicWishlist({
   const [maximum, setMaximum] = useState("");
   const [currency, setCurrency] = useState("");
   const [availableOnly, setAvailableOnly] = useState(false);
-  const [view, setView] = useState("all");
+  const [view, setView] = useState<string>(initialView);
   const resetFilters = () => {
     setView("all");
     setSearch("");

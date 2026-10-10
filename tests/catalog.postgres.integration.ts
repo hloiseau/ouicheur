@@ -1266,7 +1266,12 @@ test("wishlist PostgreSQL and SQLite preserve filters, exact totals, title order
       catalogOwner,
     );
     await gifts.saveGift(
-      { ...giftInput, title: "PRIVATE_GIFT", url: "", list_id: secretList },
+      {
+        ...giftInput,
+        title: "PRIVATE_GIFT",
+        url: "https://example.org/private",
+        list_id: secretList,
+      },
       catalogOwner,
     );
     const unchanged = (
@@ -1345,9 +1350,9 @@ test("wishlist PostgreSQL and SQLite preserve filters, exact totals, title order
     ).page;
     assert.equal(hidden.hidden, true);
     assert.equal(hidden.counts.completed, null);
-    assert.equal(hidden.items[0].reserved, null);
-    assert.equal(hidden.items[0].purchased, null);
-    assert.equal(hidden.items[0].closed, null);
+    assert.equal(hidden.items.find((g) => g.list_id === list)!.reserved, null);
+    assert.equal(hidden.items.find((g) => g.list_id === list)!.purchased, null);
+    assert.equal(hidden.items.find((g) => g.list_id === list)!.closed, null);
   } finally {
     db.close();
   }
