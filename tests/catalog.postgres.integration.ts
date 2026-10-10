@@ -23,6 +23,7 @@ import {
   migrateCatalog,
   grantCatalogRuntime,
   provisionCatalogTenant,
+  createCatalogTenant,
 } from "../lib/catalog-postgres.ts";
 import { catalogContract, catalogOwner } from "./catalog-contract.ts";
 import { giftService } from "../lib/gift-persistence.ts";
@@ -1369,8 +1370,8 @@ test("wishlist SQL materializes only the requested page in the driver for 10,000
       return {
         async query(sql: string, values?: unknown[]) {
           const r = await c.query(sql, values);
-          largest = Math.max(largest, r.rows.length);
-          returnedBytes += Buffer.byteLength(JSON.stringify(r.rows));
+          largest = Math.max(largest, (r.rows || []).length);
+          returnedBytes += Buffer.byteLength(JSON.stringify(r.rows || []));
           return r;
         },
         release() {
@@ -1402,4 +1403,45 @@ test("wishlist SQL materializes only the requested page in the driver for 10,000
     { owner: false, lists: [] },
   );
   assert.equal(last.page.total, 1);
+});
+
+test("runtime catalogue bootstrap is explicit, transactional and cannot replace a tenant", async () => {
+  const id = randomUUID();
+  await assert.rejects(
+    createCatalogTenant(runtime, id, { name: "Foyer" }),
+    /permission denied/,
+  );
+  await admin.query(
+    `GRANT INSERT ON ouicheur.tenants,ouicheur.gift_priorities TO "${role}"`,
+  );
+  try {
+    await assert.rejects(
+      catalogTransaction(runtime, id, async (_client, scoped) => {
+        await createCatalogTenant(scoped, id, { name: "Rolled back" });
+        throw Error("rollback");
+      }),
+      /rollback/,
+    );
+    assert.equal(
+      (await admin.query("SELECT 1 FROM ouicheur.tenants WHERE id=$1", [id]))
+        .rowCount,
+      0,
+    );
+    await createCatalogTenant(runtime, id, { name: "Foyer", currency: "CHF" });
+    await assert.rejects(
+      createCatalogTenant(runtime, id, { name: "Replacement" }),
+      /duplicate/,
+    );
+    const doc = await new PostgresWishlistStore(runtime, id, readKey).query(
+      { mode: "owner" },
+      catalogOwner,
+    );
+    assert.equal(doc.profile.name, "Foyer");
+    assert.equal(doc.profile.currency, "CHF");
+    assert.equal(doc.page.priorities.length, 3);
+  } finally {
+    await admin.query(
+      `REVOKE INSERT ON ouicheur.tenants,ouicheur.gift_priorities FROM "${role}"`,
+    );
+  }
 });

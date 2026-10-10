@@ -1,10 +1,11 @@
 "use client";
+import { useAppHref } from "./runtime";
 import { SaveReservation } from "./personal-gifts";
 import type { GiftOffer, WishKind } from "../lib/wish-details";
 import { variantSummary, offerConditions } from "../lib/wish-details";
 import type { ReservedDetails } from "../lib/reservation-details";
 import { useEffect, useState } from "react";
-import { api, Field, Notice } from "./ui";
+import { useApi, Field, Notice } from "./ui";
 import { useI18n } from "./language";
 
 export function ReservationForm({
@@ -21,6 +22,8 @@ export function ReservationForm({
   kind?: WishKind;
 }) {
   const { t } = useI18n();
+  const api = useApi(),
+    href = useAppHref();
   const [offerId, setOfferId] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState("");
@@ -60,7 +63,7 @@ export function ReservationForm({
                 quantity,
                 offer_id: offerId || null,
               });
-              window.location.assign(`/reservation/${r.token}`);
+              window.location.assign(href(`/reservation/${r.token}`));
             } catch (e) {
               setError((e as Error).message);
               setBusy(false);
@@ -102,8 +105,16 @@ export function ReservationForm({
     </section>
   );
 }
-export function ReservationStatus({ token }: { token: string }) {
+export function ReservationStatus({
+  token,
+  saveToAccount = true,
+}: {
+  token: string;
+  saveToAccount?: boolean;
+}) {
   const { t, date } = useI18n();
+  const api = useApi(),
+    href = useAppHref();
   const [data, setData] = useState<{
     details: ReservedDetails | null;
     details_changed: boolean;
@@ -254,7 +265,7 @@ export function ReservationStatus({ token }: { token: string }) {
           )}
         </>
       )}
-      {data && (
+      {data && saveToAccount && (
         <details>
           <summary>{t("Retrouver cette réservation dans mon compte")}</summary>
           <SaveReservation token={token} />

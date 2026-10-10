@@ -287,6 +287,33 @@ export async function migrateCatalog(pool: PgPool) {
   }
 }
 
+// Explicit bootstrap for a new tenant, composed in the caller's transaction.
+// Runtime INSERT privileges are deliberately not granted by grantCatalogRuntime;
+// a host that offers creation must authorize the account and grant this capability.
+export async function createCatalogTenant(
+  pool: PgPool,
+  tenantId: string,
+  input: unknown,
+) {
+  const value = z
+    .object({
+      name: z.string().trim().min(1).max(80),
+      currency: currencySchema.default("EUR"),
+    })
+    .strict()
+    .parse(input);
+  return tenantTransaction(pool, tenantId, async (client) => {
+    await client.query(
+      "INSERT INTO ouicheur.tenants(id,currency,name) VALUES($1,$2,$3)",
+      [tenantId, value.currency, value.name],
+    );
+    await client.query(
+      "INSERT INTO ouicheur.gift_priorities(tenant_id,id,position,featured) VALUES ($1,0,2,0),($1,1,1,0),($1,2,0,1)",
+      [tenantId],
+    );
+  });
+}
+
 // Administrative provisioning, never available from the runtime service.
 export async function provisionCatalogTenant(
   pool: PgPool,

@@ -32,6 +32,7 @@ const marks = (() => {
   return `[${ranges.join("")}]`;
 })();
 export type WishlistDocument = {
+  supporters: Record<string, unknown>[];
   page: WishlistPage;
   lists: Wishlist[];
   profile: PublicProfile;
@@ -188,6 +189,7 @@ export class PostgresWishlistStore {
       FROM scoped s JOIN ouicheur.categories c ON c.tenant_id=$1 AND c.id=s.category_id GROUP BY c.id,c.name,c.image ORDER BY c.name,c.id
     )
     SELECT
+      ${giftId ? `(SELECT COALESCE(jsonb_agg(to_jsonb(s)), '[]'::jsonb) FROM (SELECT CASE WHEN c.public_name=1 THEN c.nickname ELSE '' END nickname,CASE WHEN c.public_message=1 THEN c.message ELSE '' END message,COALESCE(p.provenance,'manual') provenance FROM ouicheur.contributions c LEFT JOIN ouicheur.payments p ON p.tenant_id=c.tenant_id AND p.contribution_id=c.id WHERE c.tenant_id=$1 AND c.gift_id IN (SELECT id FROM raw) AND (c.public_name=1 OR c.public_message=1) AND CASE WHEN p.id IS NULL THEN c.approved=1 ELSE COALESCE(p.net-p.net_reversed,p.gross-GREATEST(p.refunded,p.net_reversed))>0 END ORDER BY c.created_at DESC,c.id LIMIT 30) s)` : "'[]'::jsonb"} supporters,
       (SELECT COALESCE(jsonb_agg((to_jsonb(p)-ARRAY['created_at','priority_position','list_archived','deadline','offers_digest']) || jsonb_build_object('offers',COALESCE((SELECT jsonb_agg(to_jsonb(o)-ARRAY['tenant_id','gift_id','position'] ORDER BY o.position,o.id) FROM ouicheur.gift_offers o WHERE o.tenant_id=$1 AND o.gift_id=p.id),'[]'::jsonb)) ORDER BY ${order}), '[]'::jsonb) FROM page p) items,
       (SELECT count(*) FROM filtered)::int total,
       to_jsonb(summary) summary,
@@ -252,6 +254,7 @@ export class PostgresWishlistStore {
       };
       return {
         page,
+        supporters: r.supporters,
         lists: r.lists,
         profile: r.profile,
         categories: r.editor_categories,
