@@ -8,6 +8,7 @@ import {
   createReservationCommand,
   reservationStatus,
   updateReservation,
+  cancelReservationCommand,
   reservedQuantity,
 } from "./reservations.ts";
 import {
@@ -21,6 +22,12 @@ import {
 } from "./payments.ts";
 import {
   fundingExpressions,
+  reservationPrivacy,
+  reservationStateSql,
+  reservationFilterSql,
+  type OwnerCancellationCommand,
+  type ReservationPageQuery,
+  type ReservationPage,
   type ParticipationStore,
   type ReservationCommand,
   type ReservationState,
@@ -47,6 +54,51 @@ export class SqliteParticipationStore implements ParticipationStore {
   }
   async updateReservation(token: string, state: ReservationState) {
     updateReservation(this.db, token, { state });
+  }
+  async cancelReservation(v: OwnerCancellationCommand, access: Access) {
+    cancelReservationCommand(this.db, v, access);
+  }
+  async reservationPage(
+    v: ReservationPageQuery,
+    access: Access,
+  ): Promise<ReservationPage> {
+    requireCatalogOwner(access);
+    return atomic(this.db, () => {
+      const privacy = reservationPrivacy(access);
+      const recipients =
+        privacy.recipients === null ? null : JSON.stringify(privacy.recipients);
+      const hidden =
+        "l.surprise_mode=1 AND ? AND (? IS NULL OR l.id IN (SELECT value FROM json_each(?)))";
+      const bindings = [Number(privacy.protect), recipients, recipients];
+      const rows = this.db
+        .prepare(
+          `WITH page AS (
+        SELECT r.id,r.gift_id,g.list_id,g.title gift_title,l.name list_name,r.quantity,
+        ${reservationStateSql("?")} state,r.created_at,r.expires_at
+        FROM reservations r JOIN gifts g ON g.id=r.gift_id JOIN lists l ON l.id=g.list_id
+        WHERE NOT (${hidden}) AND (? IS NULL OR r.gift_id=?)
+        AND (? IS NULL OR (r.created_at,r.id)<(?,?)))
+        SELECT * FROM page WHERE ${reservationFilterSql(v.filter)} ORDER BY created_at DESC,id DESC LIMIT 51`,
+        )
+        .all(
+          new Date().toISOString(),
+          ...bindings,
+          v.gift_id ?? null,
+          v.gift_id ?? null,
+          v.after?.time ?? null,
+          v.after?.time ?? null,
+          v.after?.id ?? null,
+        ) as ReservationPage["items"];
+      const last = rows[49];
+      return {
+        items: rows.slice(0, 50),
+        next: rows.length > 50 ? { time: last.created_at, id: last.id } : null,
+        hidden_surprises: !!this.db
+          .prepare(`SELECT 1 FROM lists l WHERE ${hidden} LIMIT 1`)
+          .get(...bindings),
+        revealed: !!access.revealSurprises,
+      };
+    });
   }
   async createIntent(v: IntentCommand, access: Access) {
     return createIntentCommand(this.db, v, access);

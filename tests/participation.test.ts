@@ -30,6 +30,12 @@ participationContract("SQLite participation", async () => {
         `UPDATE ${kind} SET expires_at='2000-01-01T00:00:00.000Z' WHERE id=?`,
       ).run(id);
     },
+    async alignReservations(ids) {
+      for (const id of ids)
+        db.prepare(
+          "UPDATE reservations SET created_at='2026-01-01T00:00:00.123456Z' WHERE id=?",
+        ).run(id);
+    },
     async failAudit() {
       db.exec(
         "CREATE TRIGGER test_participation_audit BEFORE INSERT ON audit BEGIN SELECT RAISE(ABORT,'test audit failure'); END",

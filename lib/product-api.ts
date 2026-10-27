@@ -25,6 +25,8 @@ import { rateLimit } from "./auth";
 import { AppError, text } from "./validation";
 import type { Access } from "./lists";
 import { requireSurpriseReveal } from "./surprise";
+import { participationService } from "./participation.ts";
+import { SqliteParticipationStore } from "./participation-sqlite.ts";
 
 const json = (value: unknown) =>
   Response.json(value, { headers: { "Cache-Control": "private, no-store" } });
@@ -199,26 +201,9 @@ export async function productPost(
     return json({ ok: true });
   }
   if (path === "admin/reservations/cancel") {
-    const v = z.object({ id: z.uuid(), confirm: z.literal(true) }).parse(data);
-    atomic(db, () => {
-      const reservation = db
-        .prepare(
-          "SELECT r.state,r.expires_at,g.list_id FROM reservations r JOIN gifts g ON g.id=r.gift_id WHERE r.id=?",
-        )
-        .get(v.id);
-      if (!reservation) throw new AppError("Réservation introuvable.", 404);
-      requireSurpriseReveal(db, access, String(reservation.list_id));
-      if (
-        !["reserved", "purchased"].includes(String(reservation.state)) ||
-        (reservation.state === "reserved" &&
-          String(reservation.expires_at) <= new Date().toISOString())
-      )
-        throw new AppError("Cette réservation n’est plus active.", 409);
-      db.prepare("UPDATE reservations SET state='cancelled' WHERE id=?").run(
-        v.id,
-      );
-      audit(db, "reservation.cancel_owner", v.id);
-    });
+    await participationService(
+      new SqliteParticipationStore(db),
+    ).cancelReservation(data, access);
     return json({ ok: true });
   }
   if (path === "admin/gifts/move") {

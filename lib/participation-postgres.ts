@@ -18,6 +18,13 @@ import {
   participationAccess,
   reservationDecision,
   reservationStateDecision,
+  ownerCancellationDecision,
+  reservationPrivacy,
+  reservationStateSql,
+  reservationFilterSql,
+  type OwnerCancellationCommand,
+  type ReservationPageQuery,
+  type ReservationPage,
   intentDecision,
   declarationDecision,
   pledgeCancellationDecision,
@@ -306,6 +313,77 @@ export class PostgresParticipationStore implements ParticipationStore {
         [state, this.tenantId, r.id],
       );
       await this.audit(client, `reservation.${state}`, r.id);
+    });
+  }
+  async cancelReservation(v: OwnerCancellationCommand, access: Access) {
+    requireCatalogOwner(access);
+    await this.transaction(async (client) => {
+      const r = (
+        await client.query(
+          "SELECT r.gift_id,r.state,r.expires_at,clock_timestamp() AS now FROM ouicheur.reservations r WHERE r.tenant_id=$1 AND r.id=$2 FOR UPDATE",
+          [this.tenantId, v.id],
+        )
+      ).rows[0];
+      if (!r) throw new AppError("Réservation introuvable.", 404);
+      await this.gift(client, String(r.gift_id), access);
+      ownerCancellationDecision(
+        { state: String(r.state), expires_at: iso(r.expires_at as Date) },
+        iso(r.now as Date),
+      );
+      await client.query(
+        "UPDATE ouicheur.reservations SET state='cancelled' WHERE tenant_id=$1 AND id=$2",
+        [this.tenantId, v.id],
+      );
+      await this.audit(client, "reservation.cancel_owner", v.id);
+    });
+  }
+  async reservationPage(
+    v: ReservationPageQuery,
+    access: Access,
+  ): Promise<ReservationPage> {
+    requireCatalogOwner(access);
+    return tenantTransaction(this.pool, this.tenantId, async (client) => {
+      const privacy = reservationPrivacy(access);
+      const hidden =
+        "l.surprise_mode=1 AND $2::boolean AND ($3::text[] IS NULL OR l.id=ANY($3::text[]))";
+      const { rows } = await client.query(
+        `WITH page AS (
+        SELECT r.id,r.gift_id,g.list_id,g.title gift_title,l.name list_name,r.quantity,
+        ${reservationStateSql("statement_timestamp()")} state,r.created_at,r.expires_at,
+        to_char(r.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') sort_time
+        FROM ouicheur.reservations r
+        JOIN ouicheur.gifts g ON g.tenant_id=r.tenant_id AND g.id=r.gift_id
+        JOIN ouicheur.lists l ON l.tenant_id=g.tenant_id AND l.id=g.list_id
+        WHERE r.tenant_id=$1 AND NOT (${hidden}) AND ($4::text IS NULL OR r.gift_id=$4)
+        AND ($5::timestamptz IS NULL OR (r.created_at,r.id)<($5::timestamptz,$6::uuid)))
+        SELECT * FROM page WHERE ${reservationFilterSql(v.filter)} ORDER BY created_at DESC,id DESC LIMIT 51`,
+        [
+          this.tenantId,
+          privacy.protect,
+          privacy.recipients,
+          v.gift_id ?? null,
+          v.after?.time ?? null,
+          v.after?.id ?? null,
+        ],
+      );
+      const hiddenLists = await client.query(
+        `SELECT 1 FROM ouicheur.lists l WHERE l.tenant_id=$1 AND ${hidden} LIMIT 1`,
+        [this.tenantId, privacy.protect, privacy.recipients],
+      );
+      const last = rows[49];
+      return {
+        items: rows.slice(0, 50).map(({ sort_time, ...r }) => ({
+          ...r,
+          created_at: iso(r.created_at as Date),
+          expires_at: iso(r.expires_at as Date),
+        })) as ReservationPage["items"],
+        next:
+          rows.length > 50
+            ? { time: String(last.sort_time), id: String(last.id) }
+            : null,
+        hidden_surprises: hiddenLists.rows.length > 0,
+        revealed: !!access.revealSurprises,
+      };
     });
   }
   async createIntent(v: IntentCommand, access: Access) {

@@ -670,6 +670,12 @@ async function participationFixture(pool = runtime) {
         [id, entity],
       );
     },
+    async alignReservations(ids: string[]) {
+      await admin.query(
+        "UPDATE ouicheur.reservations SET created_at='2026-01-01T00:00:00.123456Z' WHERE tenant_id=$1 AND id=ANY($2::uuid[])",
+        [id, ids],
+      );
+    },
     async failAudit() {
       await admin.query(`REVOKE INSERT ON ouicheur.audit FROM "${role}"`);
     },
@@ -696,6 +702,44 @@ async function participationFixture(pool = runtime) {
   };
 }
 participationContract("PostgreSQL participation", participationFixture);
+
+test("PostgreSQL participation: concurrent owner cancellations audit once and cannot affect another tenant", async () => {
+  const a = await participationFixture(),
+    b = await participationFixture();
+  const { id } = await participationGift(a);
+  const r = await a.service.createReservation(
+    { gift_id: id, quantity: 1 },
+    participant,
+  );
+  const selected = (await a.service.reservationStatus(r.token)).id;
+  const input = { id: selected, confirm: true };
+  await assert.rejects(
+    b.service.cancelReservation(input, participationOwner),
+    /introuvable/,
+  );
+  assert.equal(
+    (await b.service.reservationPage({ gift_id: id }, participationOwner)).items
+      .length,
+    0,
+  );
+  const second = participationService(
+    new PostgresParticipationStore(otherReplica, a.tenantId),
+  );
+  const results = await Promise.allSettled([
+    a.service.cancelReservation(input, participationOwner),
+    second.cancelReservation(input, participationOwner),
+  ]);
+  assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+  assert.equal(await a.auditCount("reservation.cancel_owner", selected), 1);
+  assert.equal(
+    (await second.fundingTotals(id, participationOwner)).reserved,
+    0,
+  );
+  await assert.rejects(
+    a.service.updateReservation(r.token, { state: "purchased" }),
+    /plus active/,
+  );
+});
 
 test("PostgreSQL participation: replicas cannot oversubscribe quantity, remaining funds or participation mode", async () => {
   const f = await participationFixture(),
