@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.6 — mises à jour de sécurité des dépendances
+
+- Next.js 16.4.3 corrige les avis de sécurité affectant les versions précédentes, notamment les risques d’exécution de code et de déni de service.
+- Mise à jour de Nodemailer 10.2.1 et Zod 4.6.7, ainsi que de la dépendance indirecte Undici.
+- React et React DOM restent synchronisés en 19.3.1.
+- Aucune migration de données ni modification intentionnelle de l’interface ; l’audit de production reste bloquant dans la CI.
+
+Voir les [notes de version](docs/releases/1.4.6.md).
+
 ## 1.4.5 — dépendance de source maps corrigée
 
 - Résolution de `source-map-js` en 1.2.2 pour corriger GHSA-68fv-2mgg-jv7q dans la chaîne de dépendances PostCSS.
