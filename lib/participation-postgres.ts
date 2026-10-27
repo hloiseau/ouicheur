@@ -355,7 +355,7 @@ export class PostgresParticipationStore implements ParticipationStore {
         JOIN ouicheur.gifts g ON g.tenant_id=r.tenant_id AND g.id=r.gift_id
         JOIN ouicheur.lists l ON l.tenant_id=g.tenant_id AND l.id=g.list_id
         WHERE r.tenant_id=$1 AND NOT (${hidden}) AND ($4::text IS NULL OR r.gift_id=$4)
-        AND ($5::timestamptz IS NULL OR (r.created_at,r.id)<($5::timestamptz,$6::uuid)))
+        AND ($5::timestamptz IS NULL OR (r.created_at,r.id)<($5::timestamptz,$6::text)))
         SELECT * FROM page WHERE ${reservationFilterSql(v.filter)} ORDER BY created_at DESC,id DESC LIMIT 51`,
         [
           this.tenantId,

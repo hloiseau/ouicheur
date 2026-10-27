@@ -672,7 +672,7 @@ async function participationFixture(pool = runtime) {
     },
     async alignReservations(ids: string[]) {
       await admin.query(
-        "UPDATE ouicheur.reservations SET created_at='2026-01-01T00:00:00.123456Z' WHERE tenant_id=$1 AND id=ANY($2::uuid[])",
+        "UPDATE ouicheur.reservations SET created_at='2026-01-01T00:00:00.123456Z' WHERE tenant_id=$1 AND id=ANY($2::text[])",
         [id, ids],
       );
     },
