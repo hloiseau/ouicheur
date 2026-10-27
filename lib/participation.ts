@@ -72,6 +72,68 @@ export const reservationStateSchema = z.object({
 });
 export type ReservationCommand = z.infer<typeof reservationSchema>;
 export type ReservationState = z.infer<typeof reservationStateSchema>["state"];
+export const ownerCancellationSchema = z
+  .object({ id: z.uuid(), confirm: z.literal(true) })
+  .strict();
+export type OwnerCancellationCommand = z.infer<typeof ownerCancellationSchema>;
+export function ownerCancellationDecision(
+  row: { state: string; expires_at: string } | undefined,
+  now: string,
+) {
+  if (!row) throw new AppError("Réservation introuvable.", 404);
+  if (row.state === "cancelled")
+    throw new AppError("Cette réservation n’est plus active.", 409);
+  reservationStateDecision(row, "cancelled", now);
+}
+export const reservationPageSchema = z
+  .object({
+    filter: z
+      .enum(["active", "reserved", "purchased", "expired", "cancelled", "all"])
+      .default("active"),
+    gift_id: text(64).min(1).optional(),
+    after: z
+      .object({ time: z.iso.datetime(), id: z.uuid() })
+      .strict()
+      .optional(),
+  })
+  .strict();
+export type ReservationPageQuery = z.infer<typeof reservationPageSchema>;
+export type ReservationPage = {
+  items: {
+    id: string;
+    gift_id: string;
+    list_id: string;
+    gift_title: string;
+    list_name: string;
+    quantity: number;
+    state: string;
+    created_at: string;
+    expires_at: string;
+  }[];
+  next: { time: string; id: string } | null;
+  hidden_surprises: boolean;
+  revealed: boolean;
+};
+export function reservationPrivacy(access: Access) {
+  return {
+    protect: !!(access.recipient ?? access.owner) && !access.revealSurprises,
+    recipients: access.recipientLists ?? null,
+  };
+}
+// Both adapters project expiration without requiring a maintenance write.
+export function reservationStateSql(now: string) {
+  return `CASE WHEN r.state='reserved' AND r.expires_at<=${now} THEN 'expired' ELSE r.state END`;
+}
+export function reservationFilterSql(filter: ReservationPageQuery["filter"]) {
+  return {
+    all: "1=1",
+    active: "state IN ('reserved','purchased')",
+    reserved: "state='reserved'",
+    purchased: "state='purchased'",
+    expired: "state='expired'",
+    cancelled: "state='cancelled'",
+  }[filter];
+}
 export function reservationDecision(
   g: ParticipationGift,
   quantity: number,
@@ -347,6 +409,14 @@ export interface ParticipationStore {
   ): Promise<{ token: string }>;
   reservationStatus(token: string): Promise<ReservationStatus>;
   updateReservation(token: string, state: ReservationState): Promise<void>;
+  cancelReservation(
+    value: OwnerCancellationCommand,
+    access: Access,
+  ): Promise<void>;
+  reservationPage(
+    value: ReservationPageQuery,
+    access: Access,
+  ): Promise<ReservationPage>;
   createIntent(
     value: IntentCommand,
     access: Access,
@@ -377,6 +447,17 @@ export function participationService(store: ParticipationStore) {
         bearer(token, "Réservation"),
         reservationStateSchema.parse(input).state,
       );
+    },
+    async cancelReservation(input: unknown, access: Access) {
+      requireCatalogOwner(access);
+      return store.cancelReservation(
+        ownerCancellationSchema.parse(input),
+        access,
+      );
+    },
+    async reservationPage(input: unknown, access: Access) {
+      requireCatalogOwner(access);
+      return store.reservationPage(reservationPageSchema.parse(input), access);
     },
     async createIntent(input: unknown, access: Access) {
       return store.createIntent(intentSchema.parse(input), access);

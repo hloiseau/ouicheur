@@ -33,6 +33,7 @@ export interface ParticipationFixture {
     currency?: string;
   }): Promise<void>;
   expire(kind: "reservations" | "contributions", id: string): Promise<void>;
+  alignReservations(ids: string[]): Promise<void>;
   failAudit(): Promise<void>;
   auditCount(action: string, id: string): Promise<number>;
   auditLog(): Promise<string>;
@@ -58,6 +59,234 @@ export function participationContract(
   create: () => Promise<ParticipationFixture>,
 ) {
   const cases: [string, (f: ParticipationFixture) => Promise<void>][] = [
+    [
+      "owners cancel only the selected active quantity with confirmation and surprise consent",
+      async (f) => {
+        const { id } = await participationGift(f, { quantity: 3 });
+        const a = await f.service.createReservation(
+          { gift_id: id, quantity: 1 },
+          participant,
+        );
+        const b = await f.service.createReservation(
+          { gift_id: id, quantity: 2 },
+          participant,
+        );
+        await f.service.updateReservation(a.token, { state: "purchased" });
+        const selected = (await f.service.reservationStatus(a.token)).id;
+        const input = { id: selected, confirm: true };
+        assert.equal(
+          (
+            await f.service.reservationPage(
+              { filter: "purchased" },
+              participationOwner,
+            )
+          ).items[0]?.id,
+          selected,
+        );
+        assert.equal(
+          (
+            await f.service.reservationPage(
+              { filter: "reserved" },
+              participationOwner,
+            )
+          ).items.length,
+          1,
+        );
+        await assert.rejects(
+          f.service.cancelReservation(input, participant),
+          /Connexion/,
+        );
+        await assert.rejects(
+          f.service.reservationPage({}, participant),
+          /Connexion/,
+        );
+        await assert.rejects(
+          f.service.cancelReservation({ id: selected }, participationOwner),
+        );
+        await assert.rejects(
+          f.service.cancelReservation(
+            { id: randomUUID(), confirm: true },
+            participationOwner,
+          ),
+          /introuvable/,
+        );
+        await f.service.cancelReservation(input, participationOwner);
+        assert.equal(
+          (await f.service.fundingTotals(id, participationOwner)).reserved,
+          2,
+        );
+        assert.equal(
+          (await f.service.reservationStatus(b.token)).state,
+          "reserved",
+        );
+        assert.equal(
+          await f.auditCount("reservation.cancel_owner", selected),
+          1,
+        );
+        await assert.rejects(
+          f.service.cancelReservation(input, participationOwner),
+          /plus active/,
+        );
+        const page = await f.service.reservationPage(
+          { filter: "all", gift_id: id },
+          participationOwner,
+        );
+        assert.equal(page.items.length, 2);
+        assert.equal(
+          page.items.find((r) => r.id === selected)?.state,
+          "cancelled",
+        );
+        for (const key of ["token", "token_hash", "details_snapshot"])
+          assert.ok(!JSON.stringify(page).includes(key));
+        assert.ok(!JSON.stringify(page).includes(a.token));
+        const secondId = (await f.service.reservationStatus(b.token)).id;
+        await f.expire("reservations", secondId);
+        assert.equal(
+          (
+            await f.service.reservationPage(
+              { filter: "active" },
+              participationOwner,
+            )
+          ).items.length,
+          0,
+        );
+        assert.equal(
+          (
+            await f.service.reservationPage(
+              { filter: "expired" },
+              participationOwner,
+            )
+          ).items[0]?.id,
+          secondId,
+        );
+        await assert.rejects(
+          f.service.cancelReservation(
+            { id: secondId, confirm: true },
+            participationOwner,
+          ),
+          /plus active/,
+        );
+        await f.catalog.saveList(
+          {
+            id: f.list,
+            name: "Secret list",
+            visibility: "public",
+            surprise_mode: true,
+          },
+          participationOwner,
+        );
+        const secretGift = await participationGift(f);
+        const secret = await f.service.createReservation(
+          { gift_id: secretGift.id, quantity: 1 },
+          participationOwner,
+        );
+        const secretId = (await f.service.reservationStatus(secret.token)).id;
+        const hiddenAccess = { owner: true, lists: [] };
+        const hidden = await f.service.reservationPage(
+          { filter: "all" },
+          hiddenAccess,
+        );
+        assert.equal(hidden.items.length, 0);
+        assert.equal(hidden.hidden_surprises, true);
+        assert.ok(!JSON.stringify(hidden).includes(id));
+        await assert.rejects(
+          f.service.cancelReservation(
+            { id: secretId, confirm: true },
+            hiddenAccess,
+          ),
+          /Révélez/,
+        );
+        assert.equal(
+          (
+            await f.service.reservationPage(
+              { filter: "all" },
+              { ...hiddenAccess, recipientLists: ["elsewhere"] },
+            )
+          ).items.length,
+          3,
+        );
+        assert.equal(
+          (
+            await f.service.reservationPage(
+              { filter: "all" },
+              participationOwner,
+            )
+          ).items.length,
+          3,
+        );
+        await f.service.cancelReservation(
+          { id: secretId, confirm: true },
+          participationOwner,
+        );
+        assert.equal(
+          (await f.service.reservationStatus(secret.token)).state,
+          "cancelled",
+        );
+      },
+    ],
+    [
+      "reservation continuations preserve timestamp ties and expose no credential",
+      async (f) => {
+        const { id } = await participationGift(f, { quantity: 52 });
+        const ids: string[] = [];
+        for (let i = 0; i < 52; i++) {
+          const r = await f.service.createReservation(
+            { gift_id: id, quantity: 1 },
+            participant,
+          );
+          ids.push((await f.service.reservationStatus(r.token)).id);
+        }
+        await f.alignReservations(ids);
+        const first = await f.service.reservationPage(
+          { gift_id: id },
+          participationOwner,
+        );
+        assert.equal(first.items.length, 50);
+        assert.ok(first.next);
+        assert.match(first.next.time, /\.123456Z$/);
+        const second = await f.service.reservationPage(
+          { gift_id: id, after: first.next },
+          participationOwner,
+        );
+        assert.equal(second.items.length, 2);
+        assert.equal(second.next, null);
+        assert.deepEqual(
+          [...first.items, ...second.items].map((r) => r.id),
+          ids.sort().reverse(),
+        );
+        const third = await f.service.reservationPage(
+          { after: { time: first.next.time, id: second.items[1].id } },
+          participationOwner,
+        );
+        assert.equal(third.items.length, 0);
+      },
+    ],
+    [
+      "failed owner cancellation audit preserves the original reservation and quantity",
+      async (f) => {
+        const { id } = await participationGift(f);
+        const r = await f.service.createReservation(
+          { gift_id: id, quantity: 1 },
+          participant,
+        );
+        const selected = (await f.service.reservationStatus(r.token)).id;
+        await f.failAudit();
+        await assert.rejects(
+          f.service.cancelReservation(
+            { id: selected, confirm: true },
+            participationOwner,
+          ),
+        );
+        assert.equal(
+          (await f.service.reservationStatus(r.token)).state,
+          "reserved",
+        );
+        assert.equal(
+          (await f.service.fundingTotals(id, participationOwner)).reserved,
+          1,
+        );
+      },
+    ],
     [
       "quantity, immutable details and token transitions survive privacy changes",
       async (f) => {

@@ -9,12 +9,15 @@ import { atomic, audit } from "./db.ts";
 import { publicAccess, type Access } from "./lists.ts";
 import { AppError, dateNow } from "./validation.ts";
 import { enqueueNotification } from "./notifications.ts";
+import { requireCatalogOwner } from "./catalog.ts";
 import { readParticipationGift } from "./participation-sqlite-context.ts";
 import {
   reservationSchema,
   reservationStateSchema,
   reservationDecision,
   reservationStateDecision,
+  ownerCancellationDecision,
+  type OwnerCancellationCommand,
   type ReservationCommand,
 } from "./participation.ts";
 
@@ -101,6 +104,28 @@ export function updateReservation(
   return atomic(db, () => {
     const row = reservationStatus(db, token);
     updateReservationById(db, row.id, v.state);
+  });
+}
+export function cancelReservationCommand(
+  db: DatabaseSync,
+  v: OwnerCancellationCommand,
+  access: Access,
+) {
+  requireCatalogOwner(access);
+  atomic(db, () => {
+    const row = db
+      .prepare("SELECT state,expires_at,gift_id FROM reservations WHERE id=?")
+      .get(v.id);
+    if (!row) throw new AppError("Réservation introuvable.", 404);
+    readParticipationGift(db, String(row.gift_id), access);
+    ownerCancellationDecision(
+      row as { state: string; expires_at: string },
+      dateNow(),
+    );
+    db.prepare("UPDATE reservations SET state='cancelled' WHERE id=?").run(
+      v.id,
+    );
+    audit(db, "reservation.cancel_owner", v.id);
   });
 }
 // Caller has proved possession of the token or an explicitly saved account mapping.

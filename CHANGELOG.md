@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.7 — gestion des réservations dans le service partagé
+
+- Annulation propriétaire sur SQLite et PostgreSQL, avec confirmation explicite, contrôle des surprises et audit atomique. La route existante utilise le même service.
+- Lecture propriétaire des réservations avec filtres et pagination par cinquante lignes ; secrets de suivi et snapshots privés exclus des résultats.
+- Expiration calculée à la lecture, continuations conservant les égalités de date et isolation entre foyers.
+- Aucune migration ni modification de la présentation existante.
+
+Voir les [notes de version](docs/releases/1.4.7.md).
+
 ## 1.4.6 — mises à jour de sécurité des dépendances
 
 - Next.js 16.4.3 corrige les avis de sécurité affectant les versions précédentes, notamment les risques d’exécution de code et de déni de service.
