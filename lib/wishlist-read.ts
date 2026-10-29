@@ -45,7 +45,15 @@ export function wishlistAccess(input: unknown, original: Access) {
   return {
     query,
     admin: query.mode !== "public",
-    access: query.mode === "public" ? { ...original, owner: false } : original,
+    access:
+      query.mode === "public"
+        ? { ...original, owner: false }
+        : query.mode === "team"
+          ? {
+              ...original,
+              managedLists: original.editableLists ?? original.managedLists,
+            }
+          : original,
   };
 }
 export function normalizeWishlistSearch(text: string, locale: string) {

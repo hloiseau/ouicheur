@@ -3,6 +3,7 @@ import { randomUUID, randomBytes } from "node:crypto";
 import { test } from "node:test";
 import type { giftService } from "../lib/gift-persistence.ts";
 import { catalogOwner } from "./catalog-contract.ts";
+import type { Access } from "../lib/lists.ts";
 
 export const giftInput = {
   title: "Cadeau",
@@ -27,12 +28,190 @@ export interface GiftFixture {
   seedContribution(id: string): Promise<void>;
   seedSource(id: string): Promise<void>;
   setPurchased(id: string): Promise<void>;
+  purchase(id: string, purchased: boolean, access: Access): Promise<unknown>;
+  archiveList(id: string): Promise<void>;
   failAudit(): Promise<void>;
   auditCount(id: string): Promise<number>;
   close(): Promise<void>;
 }
 export function giftContract(name: string, create: () => Promise<GiftFixture>) {
   const cases: [string, (f: GiftFixture) => Promise<void>][] = [
+    [
+      "coeditors have explicit list scope and cannot discover private duplicates, categories or images",
+      async (f) => {
+        const other = await f.listCreate(),
+          category = randomUUID(),
+          image = "/media/" + "a".repeat(64) + ".webp";
+        await f.seedCategory(category);
+        const privateId = await f.service.saveGift(
+          { ...giftInput, list_id: other, category_id: category, image },
+          catalogOwner,
+        );
+        const actor = {
+          owner: false,
+          lists: [],
+          memberId: "coeditor",
+          managedLists: [f.list],
+          editableLists: [f.list],
+        };
+        const readonly = { ...actor, editableLists: [] };
+        await assert.rejects(
+          f.service.saveManagedGift(
+            { gift: { ...giftInput, list_id: f.list } },
+            readonly,
+          ),
+          /Connexion/,
+        );
+        await assert.rejects(
+          f.service.saveManagedGift(
+            { gift: { ...giftInput, list_id: f.list } },
+            { ...actor, memberId: undefined },
+          ),
+          /Connexion/,
+        );
+        await assert.rejects(
+          f.service.getManagedGift(privateId, actor),
+          /introuvable/,
+        );
+        await assert.rejects(
+          f.service.saveManagedGift(
+            {
+              id: privateId,
+              gift: { ...giftInput, list_id: f.list },
+              version: "0".repeat(64),
+            },
+            actor,
+          ),
+          /introuvable/,
+        );
+        await assert.rejects(
+          f.service.saveManagedGift(
+            { gift: { ...giftInput, list_id: f.list, image } },
+            actor,
+          ),
+          /Image inaccessible/,
+        );
+        await assert.rejects(
+          f.service.saveManagedGift(
+            { gift: { ...giftInput, list_id: f.list, category_id: category } },
+            actor,
+          ),
+          /Catégorie inconnue/,
+        );
+        const id = await f.service.saveManagedGift(
+          { gift: { ...giftInput, list_id: f.list } },
+          actor,
+        );
+        const row = await f.service.getManagedGift(id, actor);
+        assert.match(row!.edit_version!, /^[a-f0-9]{64}$/);
+        await assert.rejects(
+          f.service.saveManagedGift(
+            {
+              id,
+              gift: { ...giftInput, list_id: other },
+              version: row!.edit_version,
+            },
+            actor,
+          ),
+          /introuvable/,
+        );
+        await assert.rejects(f.purchase(privateId, true, actor), /introuvable/);
+        await f.purchase(id, true, actor);
+        assert.equal((await f.service.getManagedGift(id, actor))?.purchased, 1);
+      },
+    ],
+    [
+      "managed edits reject stale forms and preserve updates when the audit fails",
+      async (f) => {
+        const actor = {
+          owner: false,
+          lists: [],
+          memberId: "coeditor",
+          managedLists: [f.list],
+        };
+        const input = { ...giftInput, list_id: f.list };
+        const id = await f.service.saveManagedGift({ gift: input }, actor);
+        const initial = await f.service.getManagedGift(id, actor);
+        await assert.rejects(
+          f.service.saveManagedGift({ id, gift: input }, actor),
+          /Rechargez/,
+        );
+        await f.service.saveManagedGift(
+          {
+            id,
+            gift: { ...input, title: "First edit" },
+            version: initial!.edit_version,
+          },
+          actor,
+        );
+        await assert.rejects(
+          f.service.saveManagedGift(
+            {
+              id,
+              gift: { ...input, title: "Stale edit" },
+              version: initial!.edit_version,
+            },
+            actor,
+          ),
+          /a été modifiée/,
+        );
+        const current = await f.service.getManagedGift(id, actor);
+        assert.equal(current?.title, "First edit");
+        await f.failAudit();
+        await assert.rejects(
+          f.service.saveManagedGift(
+            {
+              id,
+              gift: { ...input, title: "Rolled back" },
+              version: current!.edit_version,
+            },
+            actor,
+          ),
+        );
+        assert.equal(
+          (await f.service.getManagedGift(id, actor))?.edit_version,
+          current!.edit_version,
+        );
+      },
+    ],
+    [
+      "recipient surprises and archived lists guard managed reads, edits, destinations and purchases",
+      async (f) => {
+        const secret = await f.listCreate(true);
+        const input = { ...giftInput, list_id: secret };
+        const id = await f.service.saveGift(input, catalogOwner);
+        const actor = {
+          owner: false,
+          lists: [],
+          memberId: "recipient",
+          managedLists: [secret],
+          recipient: true,
+          recipientLists: [secret],
+        };
+        await assert.rejects(f.service.getManagedGift(id, actor), /Révélez/);
+        await assert.rejects(f.purchase(id, true, actor), /Révélez/);
+        const visible = { ...actor, revealSurprises: true };
+        const row = await f.service.getManagedGift(id, visible);
+        await f.service.saveManagedGift(
+          {
+            id,
+            gift: { ...input, title: "Revealed" },
+            version: row!.edit_version,
+          },
+          visible,
+        );
+        await f.archiveList(secret);
+        await assert.rejects(f.service.getManagedGift(id, visible), /archivée/);
+        await assert.rejects(f.purchase(id, true, visible), /archivée/);
+        await assert.rejects(
+          f.service.saveManagedGift(
+            { gift: { ...input, url: "https://example.org/new" } },
+            visible,
+          ),
+          /archivée/,
+        );
+      },
+    ],
     [
       "metadata, variants, offers, exact cents and currency survive updates",
       async (f) => {

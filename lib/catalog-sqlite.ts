@@ -65,7 +65,7 @@ export class SqliteCatalogStore implements CatalogStore {
     return atomic(db, () => {
       const gift = db
         .prepare(
-          "SELECT g.list_id,g.purchased,l.surprise_mode FROM gifts g JOIN lists l ON l.id=g.list_id WHERE g.id=?",
+          "SELECT g.list_id,g.purchased,l.surprise_mode,l.archived FROM gifts g JOIN lists l ON l.id=g.list_id WHERE g.id=?",
         )
         .get(id) as PurchaseSnapshot | undefined;
       const decision = purchaseDecision(gift, purchased, access);

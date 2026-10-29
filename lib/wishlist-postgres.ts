@@ -210,6 +210,7 @@ export class PostgresWishlistStore {
         ...access,
         lists: [...access.lists].sort(),
         managedLists: [...(access.managedLists || [])].sort(),
+        editableLists: access.editableLists && [...access.editableLists].sort(),
         recipientLists:
           access.recipientLists && [...access.recipientLists].sort(),
       };

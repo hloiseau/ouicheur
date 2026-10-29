@@ -1,12 +1,15 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { atomic, audit } from "./db.ts";
-import { dateNow } from "./validation.ts";
+import { dateNow, AppError } from "./validation.ts";
+import { editableGiftLists } from "./catalog.ts";
 import { reservedQuantity } from "./reservations.ts";
 import {
   giftDecision,
   giftRecord,
   requireGiftEdit,
+  requireGiftDestination,
+  checkGiftVersion,
   type GiftCommand,
   type GiftSnapshot,
   type GiftSource,
@@ -19,10 +22,23 @@ export function saveGiftInTransaction(
   gift: GiftCommand,
   id: string = randomUUID(),
   source?: GiftSource,
+  access: Access = { owner: true, lists: [] },
 ) {
   const existing = db.prepare("SELECT * FROM gifts WHERE id=?").get(id) as
     GiftSnapshot | undefined;
   const list = gift.list_id || existing?.list_id || "default";
+  const scope = JSON.stringify(editableGiftLists(access));
+  if (
+    !access.owner &&
+    gift.image &&
+    gift.image !== existing?.image &&
+    !db
+      .prepare(
+        "SELECT 1 FROM gifts WHERE image=? AND list_id IN (SELECT value FROM json_each(?)) UNION ALL SELECT 1 FROM member_uploads WHERE member_id=? AND path=? LIMIT 1",
+      )
+      .get(gift.image, scope, access.memberId || "", gift.image)
+  )
+    throw new AppError("Image inaccessible.", 404);
   const owners = db
     .prepare(
       "SELECT id,gift_id FROM gift_offers WHERE id IN (SELECT value FROM json_each(?))",
@@ -39,8 +55,10 @@ export function saveGiftInTransaction(
       categoryExists:
         !gift.category_id ||
         !!db
-          .prepare("SELECT 1 FROM categories WHERE id=?")
-          .get(gift.category_id),
+          .prepare(
+            "SELECT 1 FROM categories c WHERE id=? AND (? OR EXISTS(SELECT 1 FROM gifts g WHERE g.category_id=c.id AND g.list_id IN (SELECT value FROM json_each(?))))",
+          )
+          .get(gift.category_id, Number(access.owner), scope),
       priorityExists: !!db
         .prepare("SELECT 1 FROM gift_priorities WHERE id=?")
         .get(gift.priority),
@@ -52,9 +70,17 @@ export function saveGiftInTransaction(
         !!gift.url &&
         !!db
           .prepare(
-            "SELECT 1 FROM gifts WHERE url=? AND size=? COLLATE NOCASE AND color=? COLLATE NOCASE AND model=? COLLATE NOCASE AND id<>?",
+            "SELECT 1 FROM gifts WHERE url=? AND size=? COLLATE NOCASE AND color=? COLLATE NOCASE AND model=? COLLATE NOCASE AND id<>? AND (? OR list_id IN (SELECT value FROM json_each(?)))",
           )
-          .get(gift.url, gift.size, gift.color, gift.model, id),
+          .get(
+            gift.url,
+            gift.size,
+            gift.color,
+            gift.model,
+            id,
+            Number(access.owner),
+            scope,
+          ),
       copiedSource:
         !!source &&
         gift.allow_duplicate &&
@@ -145,7 +171,10 @@ export function saveGiftInTransaction(
     db.prepare(
       "UPDATE gifts SET suggested_price=?,suggested_currency=?,extracted_at=? WHERE id=?",
     ).run(gift.suggested_price, gift.suggested_currency, gift.extracted_at, id);
-  audit(db, plan.action, id, plan.audit);
+  audit(db, plan.action, id, {
+    ...plan.audit,
+    ...(access.memberId ? { actor: access.memberId } : {}),
+  });
   return id;
 }
 
@@ -154,12 +183,17 @@ export class SqliteGiftStore implements GiftStore {
   constructor(db: DatabaseSync) {
     this.db = db;
   }
-  async saveGift(gift: GiftCommand, access: Access, id?: string) {
+  async saveGift(
+    gift: GiftCommand,
+    access: Access,
+    id?: string,
+    version?: string,
+  ) {
     return atomic(this.db, () => {
       const existing = id
         ? (this.db
             .prepare(
-              "SELECT g.*,l.surprise_mode FROM gifts g JOIN lists l ON l.id=g.list_id WHERE g.id=?",
+              "SELECT g.*,l.surprise_mode,l.archived FROM gifts g JOIN lists l ON l.id=g.list_id WHERE g.id=?",
             )
             .get(id) as GiftSnapshot | undefined)
         : undefined;
@@ -169,16 +203,44 @@ export class SqliteGiftStore implements GiftStore {
         access,
         id,
       );
-      return saveGiftInTransaction(this.db, gift, id);
+      const list = this.db
+        .prepare("SELECT id,archived,surprise_mode FROM lists WHERE id=?")
+        .get(gift.list_id || existing?.list_id || "default");
+      requireGiftDestination(
+        list as
+          { id: string; archived: number; surprise_mode: number } | undefined,
+        access,
+        !!id,
+      );
+      if (version !== undefined)
+        checkGiftVersion(
+          version,
+          id ? this.getGiftSync(id, access) : undefined,
+        );
+      return saveGiftInTransaction(this.db, gift, id, undefined, access);
     });
   }
   async getGift(id: string, access: Access) {
+    return this.getGiftSync(id, access);
+  }
+  private getGiftSync(id: string, access: Access) {
     const row = this.db
       .prepare(
-        "SELECT g.*,l.surprise_mode FROM gifts g JOIN lists l ON l.id=g.list_id WHERE g.id=?",
+        "SELECT g.*,l.surprise_mode,l.archived FROM gifts g JOIN lists l ON l.id=g.list_id WHERE g.id=?",
       )
       .get(id);
     if (!row) return undefined;
+    if (!access.owner) {
+      requireGiftDestination(
+        {
+          id: String(row.list_id),
+          archived: Number(row.archived),
+          surprise_mode: Number(row.surprise_mode),
+        },
+        access,
+        true,
+      );
+    }
     const offers = this.db
       .prepare(
         "SELECT id,url,condition,note,price,currency,shipping,availability,checked_at FROM gift_offers WHERE gift_id=? ORDER BY position,id",

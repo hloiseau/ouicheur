@@ -1,6 +1,12 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
+import { z } from "zod";
 import { AppError, giftSchema, text, webUrl } from "./validation.ts";
-import { requireCatalogOwner, purchaseDecision } from "./catalog.ts";
+import {
+  requireCatalogOwner,
+  purchaseDecision,
+  requireGiftOperator,
+  requireGiftList,
+} from "./catalog.ts";
 import { variantKey } from "./wish-details.ts";
 import type { Access } from "./lists.ts";
 
@@ -146,6 +152,7 @@ export const giftFields = [
 export type GiftRecord = Record<(typeof giftFields)[number], unknown> & {
   offers: GiftCommand["offers"];
   surprise_hidden?: boolean;
+  edit_version?: string;
 };
 export function giftRecord(
   row: Record<string, unknown>,
@@ -173,7 +180,34 @@ export function giftRecord(
     result.closed = null;
     result.surprise_hidden = true;
   }
+  if (!result.surprise_hidden)
+    result.edit_version = createHash("sha256")
+      .update(JSON.stringify(result))
+      .digest("hex");
   return result;
+}
+export function checkGiftVersion(
+  expected: string | undefined,
+  current: GiftRecord | undefined,
+) {
+  if (expected !== undefined && expected !== current?.edit_version)
+    throw new AppError(
+      "Cette envie a été modifiée. Rechargez-la avant d’enregistrer vos changements.",
+      409,
+    );
+}
+export function requireGiftDestination(
+  list: { id: string; archived?: number; surprise_mode: number } | undefined,
+  access: Access,
+  editing: boolean,
+) {
+  requireGiftList(list, access);
+  if (!access.owner && editing && list)
+    purchaseDecision(
+      { list_id: list.id, purchased: 0, ...list },
+      false,
+      access,
+    );
 }
 export function requireGiftEdit(
   existing: GiftSnapshot | undefined,
@@ -188,13 +222,19 @@ export function requireGiftEdit(
         list_id: existing.list_id,
         purchased: existing.purchased,
         surprise_mode: surprise,
+        archived: Number(existing.archived || 0),
       },
       !!existing.purchased,
       access,
     );
 }
 export interface GiftStore {
-  saveGift(gift: GiftCommand, access: Access, id?: string): Promise<string>;
+  saveGift(
+    gift: GiftCommand,
+    access: Access,
+    id?: string,
+    version?: string,
+  ): Promise<string>;
   getGift(id: string, access: Access): Promise<GiftRecord | undefined>;
 }
 // Owner metadata API. It does not invent reservation/funding totals or expose
@@ -212,6 +252,27 @@ export function giftService(store: GiftStore) {
     async getGift(id: string, access: Access) {
       requireCatalogOwner(access);
       return store.getGift(text(64).min(1).parse(id), access);
+    },
+    async getManagedGift(id: string, access: Access) {
+      requireGiftOperator(access);
+      return store.getGift(text(64).min(1).parse(id), access);
+    },
+    async saveManagedGift(input: unknown, access: Access) {
+      requireGiftOperator(access);
+      const v = z
+        .object({
+          id: text(64).min(1).optional(),
+          gift: z.unknown(),
+          version: z
+            .string()
+            .regex(/^[a-f0-9]{64}$/)
+            .optional(),
+        })
+        .strict()
+        .parse(input);
+      if (v.id && !v.version)
+        throw new AppError("Rechargez cette envie avant de la modifier.", 409);
+      return store.saveGift(parseGift(v.gift), access, v.id, v.version);
     },
   };
 }

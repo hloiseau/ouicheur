@@ -381,6 +381,15 @@ giftContract("PostgreSQL gifts", async () => {
   return {
     service: gifts(id),
     list,
+    async purchase(gift, purchased, access) {
+      return service(id).setManagedGiftPurchased(gift, { purchased }, access);
+    },
+    async archiveList(listId) {
+      await admin.query(
+        "UPDATE ouicheur.lists SET archived=1 WHERE tenant_id=$1 AND id=$2",
+        [id, listId],
+      );
+    },
     async listCreate(surprise = false) {
       return service(id).saveList(
         { name: "Another", visibility: "private", surprise_mode: surprise },
@@ -455,6 +464,67 @@ giftContract("PostgreSQL gifts", async () => {
     },
   };
 });
+test("PostgreSQL coediting: two replicas cannot overwrite the same version or cross tenants", async () => {
+  const id = await tenant(),
+    otherId = await tenant();
+  const list = await service(id).saveList(
+    { name: "Team", visibility: "private" },
+    catalogOwner,
+  );
+  const actor = {
+    owner: false,
+    lists: [],
+    memberId: "coeditor",
+    managedLists: [list],
+    editableLists: [list],
+  };
+  const input = { ...giftInput, list_id: list };
+  const first = gifts(id),
+    second = gifts(id, otherReplica);
+  const gift = await first.saveManagedGift({ gift: input }, actor);
+  const row = await first.getManagedGift(gift, actor);
+  const attempts = await Promise.allSettled([
+    first.saveManagedGift(
+      {
+        id: gift,
+        gift: { ...input, title: "First" },
+        version: row!.edit_version,
+      },
+      actor,
+    ),
+    second.saveManagedGift(
+      {
+        id: gift,
+        gift: { ...input, title: "Second" },
+        version: row!.edit_version,
+      },
+      actor,
+    ),
+  ]);
+  assert.equal(attempts.filter((r) => r.status === "fulfilled").length, 1);
+  assert.match(
+    String(
+      (attempts.find((r) => r.status === "rejected") as PromiseRejectedResult)
+        .reason,
+    ),
+    /a été modifiée/,
+  );
+  const other = gifts(otherId);
+  assert.equal(await other.getManagedGift(gift, actor), undefined);
+  await assert.rejects(
+    other.saveManagedGift(
+      { id: gift, gift: input, version: row!.edit_version },
+      actor,
+    ),
+    /introuvable/,
+  );
+  assert.ok(
+    ["First", "Second"].includes(
+      String((await first.getManagedGift(gift, actor))?.title),
+    ),
+  );
+});
+
 test("PostgreSQL gifts: prior schema upgrades preserve purchase state and require explicit metadata", async () => {
   const raw = (
     await admin.query(

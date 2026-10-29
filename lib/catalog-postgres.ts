@@ -177,7 +177,7 @@ export class PostgresCatalogStore implements CatalogStore {
       await lockGiftWrites(client, this.tenantId);
       const gift = (
         await client.query(
-          "SELECT g.list_id,g.purchased,l.surprise_mode FROM ouicheur.gifts g JOIN ouicheur.lists l ON l.tenant_id=g.tenant_id AND l.id=g.list_id WHERE g.tenant_id=$1 AND g.id=$2 FOR UPDATE OF g,l",
+          "SELECT g.list_id,g.purchased,l.surprise_mode,l.archived FROM ouicheur.gifts g JOIN ouicheur.lists l ON l.tenant_id=g.tenant_id AND l.id=g.list_id WHERE g.tenant_id=$1 AND g.id=$2 FOR UPDATE OF g,l",
           [this.tenantId, id],
         )
       ).rows[0] as PurchaseSnapshot | undefined;

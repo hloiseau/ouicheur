@@ -29,6 +29,7 @@ export type Access = {
   revealSurprises?: boolean;
   memberId?: string;
   managedLists?: string[];
+  editableLists?: string[];
   recipientLists?: string[];
 };
 export const publicAccess: Access = { owner: false, lists: [] };
