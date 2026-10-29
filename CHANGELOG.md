@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.8 — coédition dans les services partagés
+
+- Lecture et modification des envies sur les seules listes confiées, sans attribuer le rôle propriétaire. Droits de lecture et de coédition distincts pour les hôtes qui le précisent.
+- Versions de formulaire vérifiées dans la transaction pour éviter les écrasements concurrents.
+- Surprises, listes archivées, déplacements, images et catégories privées protégés ; doublons hors du périmètre non révélés.
+- Contrats SQLite/PostgreSQL communs et contrôle de concurrence entre connexions. Aucun changement de présentation ou migration du socle.
+
+Voir les [notes de version](docs/releases/1.4.8.md).
+
 ## 1.4.7 — gestion des réservations dans le service partagé
 
 - Annulation propriétaire sur SQLite et PostgreSQL, avec confirmation explicite, contrôle des surprises et audit atomique. La route existante utilise le même service.

@@ -74,7 +74,25 @@ export type PurchaseSnapshot = {
   list_id: string;
   purchased: number;
   surprise_mode: number;
+  archived?: number;
 };
+export function editableGiftLists(access: Access) {
+  return access.editableLists ?? access.managedLists ?? [];
+}
+export function requireGiftOperator(access: Access) {
+  if (!access.owner && (!access.memberId || !editableGiftLists(access).length))
+    throw new AppError("Connexion coorganisateur requise.", 401);
+}
+export function requireGiftList(
+  list: { id: string; archived?: number } | undefined,
+  access: Access,
+) {
+  requireGiftOperator(access);
+  if (!list || (!access.owner && !editableGiftLists(access).includes(list.id)))
+    throw new AppError("Liste introuvable.", 404);
+  if (!access.owner && list.archived)
+    throw new AppError("Cette liste est archivée.", 409);
+}
 export function requireCatalogOwner(access: Access) {
   if (!access.owner)
     throw new AppError("Connexion administrateur requise.", 401);
@@ -84,8 +102,9 @@ export function purchaseDecision(
   purchased: boolean,
   access: Access,
 ) {
-  requireCatalogOwner(access);
+  requireGiftOperator(access);
   if (!gift) throw new AppError("Cadeau introuvable.", 404);
+  requireGiftList({ id: gift.list_id, archived: gift.archived }, access);
   if (
     gift.surprise_mode &&
     (access.recipient ?? access.owner) &&
@@ -126,6 +145,15 @@ export function catalogService(store: CatalogStore) {
     },
     async setGiftPurchased(id: string, input: unknown, access: Access) {
       requireCatalogOwner(access);
+      const { purchased } = purchaseCommandSchema.parse(input);
+      return store.setGiftPurchased(
+        text(64).min(1).parse(id),
+        purchased,
+        access,
+      );
+    },
+    async setManagedGiftPurchased(id: string, input: unknown, access: Access) {
+      requireGiftOperator(access);
       const { purchased } = purchaseCommandSchema.parse(input);
       return store.setGiftPurchased(
         text(64).min(1).parse(id),

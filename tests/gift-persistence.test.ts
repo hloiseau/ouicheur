@@ -5,12 +5,24 @@ import { saveList } from "../lib/lists.ts";
 import { giftService } from "../lib/gift-persistence.ts";
 import { SqliteGiftStore } from "../lib/gift-sqlite.ts";
 import { giftContract } from "./gift-contract.ts";
+import { catalogService } from "../lib/catalog.ts";
+import { SqliteCatalogStore } from "../lib/catalog-sqlite.ts";
 giftContract("SQLite gifts", async () => {
   const db = openDatabase(":memory:");
   await initializeOwner(db, "Gifts", "test-gift-password-only");
   return {
     service: giftService(new SqliteGiftStore(db)),
     list: "default",
+    async purchase(id, purchased, access) {
+      return catalogService(new SqliteCatalogStore(db)).setManagedGiftPurchased(
+        id,
+        { purchased },
+        access,
+      );
+    },
+    async archiveList(id) {
+      db.prepare("UPDATE lists SET archived=1 WHERE id=?").run(id);
+    },
     async listCreate(surprise = false) {
       return saveList(db, {
         name: "Test",

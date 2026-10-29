@@ -4,17 +4,21 @@ import {
   tenantTransaction,
   lockGiftWrites,
   type PgPool,
+  type PgConnection,
 } from "./catalog-postgres.ts";
 import {
   duplicateGiftKey,
   giftDecision,
   giftRecord,
   requireGiftEdit,
+  requireGiftDestination,
+  checkGiftVersion,
   type GiftCommand,
   type GiftSnapshot,
   type GiftStore,
 } from "./gift-persistence.ts";
 import type { Access } from "./lists.ts";
+import { editableGiftLists } from "./catalog.ts";
 
 // All gift metadata writes in one household share this transaction lock. This
 // closes races in duplicate detection, offer ownership and list positioning.
@@ -27,42 +31,60 @@ export class PostgresGiftStore implements GiftStore {
     this.pool = pool;
     this.tenant = tenant;
   }
+  private async offers(client: PgConnection, id: string) {
+    return (
+      await client.query(
+        "SELECT id,url,condition,note,price,currency,shipping,availability,checked_at FROM ouicheur.gift_offers WHERE tenant_id=$1 AND gift_id=$2 ORDER BY position,id",
+        [this.tenant, id],
+      )
+    ).rows.map((o) => ({
+      ...o,
+      checked_at:
+        o.checked_at instanceof Date
+          ? o.checked_at.toISOString()
+          : o.checked_at,
+    })) as GiftCommand["offers"];
+  }
   async getGift(id: string, access: Access) {
     return tenantTransaction(this.pool, this.tenant, async (client) => {
       const row = (
         await client.query(
-          "SELECT g.*,g.priority_id::double precision AS priority_id,l.surprise_mode FROM ouicheur.gifts g JOIN ouicheur.lists l ON l.tenant_id=g.tenant_id AND l.id=g.list_id WHERE g.tenant_id=$1 AND g.id=$2 FOR SHARE OF g,l",
+          "SELECT g.*,g.priority_id::double precision AS priority_id,l.surprise_mode,l.archived FROM ouicheur.gifts g JOIN ouicheur.lists l ON l.tenant_id=g.tenant_id AND l.id=g.list_id WHERE g.tenant_id=$1 AND g.id=$2 FOR SHARE OF g,l",
           [this.tenant, id],
         )
       ).rows[0];
       if (!row) return undefined;
+      if (!access.owner)
+        requireGiftDestination(
+          {
+            id: String(row.list_id),
+            archived: Number(row.archived),
+            surprise_mode: Number(row.surprise_mode),
+          },
+          access,
+          true,
+        );
       if (!row.details_ready)
         throw new AppError(
           "Les détails de ce cadeau doivent être complétés.",
           409,
         );
-      const offers = (
-        await client.query(
-          "SELECT id,url,condition,note,price,currency,shipping,availability,checked_at FROM ouicheur.gift_offers WHERE tenant_id=$1 AND gift_id=$2 ORDER BY position,id",
-          [this.tenant, id],
-        )
-      ).rows.map((o) => ({
-        ...o,
-        checked_at:
-          o.checked_at instanceof Date
-            ? o.checked_at.toISOString()
-            : o.checked_at,
-      })) as GiftCommand["offers"];
+      const offers = await this.offers(client, id);
       return giftRecord(row, offers, access, Number(row.surprise_mode));
     });
   }
-  async saveGift(gift: GiftCommand, access: Access, updateId?: string) {
+  async saveGift(
+    gift: GiftCommand,
+    access: Access,
+    updateId?: string,
+    version?: string,
+  ) {
     return tenantTransaction(this.pool, this.tenant, async (client) => {
       await lockGiftWrites(client, this.tenant);
       const id = updateId || randomUUID();
       const existing = (
         await client.query(
-          "SELECT g.*,g.priority_id::double precision AS priority_id,l.surprise_mode FROM ouicheur.gifts g JOIN ouicheur.lists l ON l.tenant_id=g.tenant_id AND l.id=g.list_id WHERE g.tenant_id=$1 AND g.id=$2 FOR UPDATE OF g",
+          "SELECT g.*,g.priority_id::double precision AS priority_id,l.surprise_mode,l.archived FROM ouicheur.gifts g JOIN ouicheur.lists l ON l.tenant_id=g.tenant_id AND l.id=g.list_id WHERE g.tenant_id=$1 AND g.id=$2 FOR UPDATE OF g",
           [this.tenant, id],
         )
       ).rows[0] as GiftSnapshot | undefined;
@@ -77,10 +99,40 @@ export class PostgresGiftStore implements GiftStore {
       // change between authorization and commit.
       const lists = (
         await client.query(
-          "SELECT id,surprise_mode FROM ouicheur.lists WHERE tenant_id=$1 AND id=ANY($2::text[]) ORDER BY id FOR SHARE",
+          "SELECT id,surprise_mode,archived FROM ouicheur.lists WHERE tenant_id=$1 AND id=ANY($2::text[]) ORDER BY id FOR SHARE",
           [this.tenant, [listId, ...(existing ? [existing.list_id] : [])]],
         )
       ).rows;
+      requireGiftDestination(
+        lists.find((l) => l.id === listId) as
+          { id: string; surprise_mode: number; archived: number } | undefined,
+        access,
+        !!updateId,
+      );
+      if (version !== undefined)
+        checkGiftVersion(
+          version,
+          existing
+            ? giftRecord(
+                existing,
+                await this.offers(client, id),
+                access,
+                Number(existing.surprise_mode),
+              )
+            : undefined,
+        );
+      if (
+        !access.owner &&
+        gift.image &&
+        gift.image !== existing?.image &&
+        !(
+          await client.query(
+            "SELECT 1 FROM ouicheur.gifts WHERE tenant_id=$1 AND image=$2 AND list_id=ANY($3::text[]) LIMIT 1",
+            [this.tenant, gift.image, editableGiftLists(access)],
+          )
+        ).rows.length
+      )
+        throw new AppError("Image inaccessible.", 404);
       if (existing)
         requireGiftEdit(
           existing,
@@ -98,13 +150,15 @@ export class PostgresGiftStore implements GiftStore {
       ).rows[0]?.currency as string | undefined;
       const refs = (
         await client.query(
-          "SELECT EXISTS(SELECT 1 FROM ouicheur.categories WHERE tenant_id=$1 AND id=$2) AS category, EXISTS(SELECT 1 FROM ouicheur.gift_priorities WHERE tenant_id=$1 AND id=$3) AS priority, EXISTS(SELECT 1 FROM ouicheur.contributions WHERE tenant_id=$1 AND gift_id=$4) AS contributed, (SELECT COALESCE(sum(quantity),0)::int FROM ouicheur.reservations WHERE tenant_id=$1 AND gift_id=$4 AND (state='purchased' OR (state='reserved' AND expires_at>now()))) AS reserved, EXISTS(SELECT 1 FROM ouicheur.gifts WHERE tenant_id=$1 AND md5(duplicate_key)=md5($5) AND duplicate_key=$5 AND id<>$4) AS duplicate",
+          "SELECT EXISTS(SELECT 1 FROM ouicheur.categories c WHERE tenant_id=$1 AND id=$2 AND ($6::boolean OR EXISTS(SELECT 1 FROM ouicheur.gifts g WHERE g.tenant_id=$1 AND g.category_id=c.id AND g.list_id=ANY($7::text[])))) AS category, EXISTS(SELECT 1 FROM ouicheur.gift_priorities WHERE tenant_id=$1 AND id=$3) AS priority, EXISTS(SELECT 1 FROM ouicheur.contributions WHERE tenant_id=$1 AND gift_id=$4) AS contributed, (SELECT COALESCE(sum(quantity),0)::int FROM ouicheur.reservations WHERE tenant_id=$1 AND gift_id=$4 AND (state='purchased' OR (state='reserved' AND expires_at>now()))) AS reserved, EXISTS(SELECT 1 FROM ouicheur.gifts WHERE tenant_id=$1 AND md5(duplicate_key)=md5($5) AND duplicate_key=$5 AND id<>$4 AND ($6::boolean OR list_id=ANY($7::text[]))) AS duplicate",
           [
             this.tenant,
             gift.category_id,
             gift.priority,
             id,
             duplicateGiftKey(gift),
+            access.owner,
+            editableGiftLists(access),
           ],
         )
       ).rows[0];
@@ -225,7 +279,10 @@ export class PostgresGiftStore implements GiftStore {
           randomUUID(),
           plan.action,
           id,
-          JSON.stringify(plan.audit),
+          JSON.stringify({
+            ...plan.audit,
+            ...(access.memberId ? { actor: access.memberId } : {}),
+          }),
           now,
         ],
       );

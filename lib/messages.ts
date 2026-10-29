@@ -7,6 +7,10 @@ import { accountEnglish } from "./account-messages.ts";
 import { familyEnglish } from "./family-messages.ts";
 // French source messages and their English translations. Keep placeholders in both.
 export const english: Record<string, string> = {
+  "Cette envie a été modifiée. Rechargez-la avant d’enregistrer vos changements.":
+    "This wish has changed. Reload it before saving your changes.",
+  "Rechargez cette envie avant de la modifier.":
+    "Reload this wish before editing it.",
   Filtres: "Filters",
   "Effacer les filtres": "Clear filters",
   "Trouver une envie…": "Find a wish…",
