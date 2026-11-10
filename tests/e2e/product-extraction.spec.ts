@@ -133,6 +133,12 @@ test("l’extraction importe automatiquement l’image et préserve les modifica
     await expect(page.getByText(/Prix relevé/)).toBeVisible();
     await expect(
       page.getByLabel("Objectif (EUR)", { exact: false }),
+    ).toBeHidden();
+    await page
+      .getByRole("button", { name: "Compléter les détails", exact: true })
+      .click();
+    await expect(
+      page.getByLabel("Objectif (EUR)", { exact: false }),
     ).toHaveValue("29.90");
     await expect(
       page.getByRole("button", {
