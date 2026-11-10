@@ -8,7 +8,13 @@ import {
   refreshOfferPrice,
   readPriceHistory,
   pollPriceWatches,
+  offerIdentity,
+  recordOfferPrice,
+  updatePriceWatch,
 } from "../lib/price-history";
+import { withOfferObservations } from "../lib/offer-observations";
+import { readOfferAlerts } from "../lib/offer-alerts";
+import { queryWishlist } from "../lib/wishlist-query";
 import { refreshProduct, applyProductPrice } from "../lib/product-refresh";
 import { deliverNotifications } from "../lib/notifications";
 import { saveNotificationPreferences } from "../lib/notification-preferences";
@@ -39,6 +45,195 @@ async function fixture() {
   await initializeOwner(db, "Owner", "price-test-only-password");
   return db;
 }
+test("wishlist observations retain the last verified price and exclude other variants", async () => {
+  const db = await fixture();
+  try {
+    const id = saveGift(db, input);
+    const identity = offerIdentity(db, id);
+    const now = new Date();
+    const old = new Date(now.getTime() - 72 * 60 * 60 * 1000);
+    recordOfferPrice(db, identity, metadata(identity.url, 2000), "manual", old);
+    recordOfferPrice(
+      db,
+      identity,
+      metadata(identity.url, 1500, "USD"),
+      "manual",
+      now,
+    );
+    const item = queryWishlist(db, { mode: "owner" }, owner).items[0];
+    assert.equal(item.target, 3000);
+    assert.deepEqual(item.offer_observations?.[0], {
+      offerId: "",
+      merchant: "example.org",
+      currency: "EUR",
+      price: 2000,
+      shipping: null,
+      availability: "unknown",
+      checkedAt: now.toISOString(),
+      priceCheckedAt: old.toISOString(),
+      verified: false,
+      stale: true,
+    });
+    recordOfferPrice(db, identity, metadata(identity.url, 1800), "manual", now);
+    const latest = withOfferObservations(db, listGifts(db), now.getTime())[0]
+      .offer_observations?.[0];
+    assert.equal(latest?.price, 1800);
+    assert.equal(latest?.availability, "in_stock");
+    assert.equal(latest?.verified, true);
+    assert.equal(latest?.stale, false);
+    saveGift(db, { ...input, model: "Edition 3" }, id);
+    assert.equal(
+      queryWishlist(db, { mode: "public" }, owner).items[0].offer_observations,
+      undefined,
+    );
+  } finally {
+    db.close();
+  }
+});
+test("current merchant promotions expire independently of observed price drops", async () => {
+  const db = await fixture();
+  try {
+    const id = saveGift(db, input);
+    const offer = offerIdentity(db, id);
+    const now = new Date();
+    const previous = new Date(now.getTime() - 86400000);
+    const expiresAt = new Date(now.getTime() + 60000).toISOString();
+    recordOfferPrice(db, offer, metadata(offer.url, 2500), "manual", previous);
+    recordOfferPrice(
+      db,
+      offer,
+      {
+        ...metadata(offer.url, 2000),
+        promotion: { referencePrice: 3000, expiresAt },
+      },
+      "manual",
+      now,
+    );
+    const read = (time: number) =>
+      withOfferObservations(db, listGifts(db), time)[0].offer_observations?.[0];
+    const quote = read(now.getTime());
+    assert.deepEqual(quote?.promotion, { referencePrice: 3000, expiresAt });
+    assert.deepEqual(quote?.observedDrop, {
+      previousPrice: 2500,
+      checkedAt: previous.toISOString(),
+    });
+    assert.equal(read(Date.parse(expiresAt))?.promotion, undefined);
+    assert.equal(
+      read(Date.parse(expiresAt))?.observedDrop?.previousPrice,
+      2500,
+    );
+    assert.equal(read(now.getTime() + 3 * 86400000)?.observedDrop, undefined);
+  } finally {
+    db.close();
+  }
+});
+
+test("price and stock alerts are distinct, scoped and emailed only while the offer qualifies", async () => {
+  const db = await fixture();
+  const smtp = {
+    SMTP_HOST: "smtp.invalid",
+    SMTP_FROM: "from@example.test",
+    SMTP_TO: "owner@example.test",
+  };
+  const previous = Object.fromEntries(
+    Object.keys(smtp).map((key) => [key, process.env[key]]),
+  );
+  Object.assign(process.env, smtp);
+  try {
+    const id = saveGift(db, input);
+    const offer = offerIdentity(db, id);
+    const now = new Date();
+    saveNotificationPreferences(
+      db,
+      {
+        enabled: true,
+        quiet_start: "00:00",
+        quiet_end: "00:00",
+        rules: [
+          { kind: "offer_changed", channel: "email", frequency: "daily" },
+        ],
+      },
+      owner,
+    );
+    savePriceWatch(db, {
+      gift_id: id,
+      threshold: 2000,
+      stock_alert: true,
+      confirmed_variant: true,
+      confirm: true,
+    });
+    recordOfferPrice(
+      db,
+      offer,
+      metadata(offer.url, 1700, "EUR", "out_of_stock"),
+      "manual",
+      new Date(now.getTime() - 60000),
+    );
+    recordOfferPrice(db, offer, metadata(offer.url, 1700), "manual", now);
+    assert.deepEqual(
+      readOfferAlerts(db, owner)
+        .map((alert) => alert.kind)
+        .sort(),
+      ["price", "stock"],
+    );
+    assert.deepEqual(
+      readOfferAlerts(db, { owner: false, lists: [], memberId: "unrelated" }),
+      [],
+    );
+    const emails: string[] = [];
+    await deliverNotifications(
+      db,
+      async (kind, channel, target, details) => {
+        assert.equal(kind, "digest");
+        assert.equal(channel, "email");
+        assert.equal(target, smtp.SMTP_TO);
+        emails.push(details || "");
+      },
+      now,
+    );
+    assert.equal(emails.length, 1);
+    assert.match(emails[0], /Target price reached · example\.org/);
+    assert.match(emails[0], /Back in stock · example\.org/);
+    assert.match(emails[0], /Checked: .+\nhttps:\/\/example\.org\/book/);
+    const later = new Date(now.getTime() + 86400000);
+    recordOfferPrice(
+      db,
+      offer,
+      metadata(offer.url, 2200),
+      "manual",
+      new Date(later.getTime() - 60000),
+    );
+    recordOfferPrice(db, offer, metadata(offer.url, 1700), "manual", later);
+    recordOfferPrice(
+      db,
+      offer,
+      metadata(offer.url, 1700, "EUR", "out_of_stock"),
+      "manual",
+      new Date(later.getTime() + 1000),
+    );
+    await deliverNotifications(
+      db,
+      async () => {
+        assert.fail("Invalidated alert was sent");
+      },
+      new Date(later.getTime() + 2000),
+    );
+    assert.equal(
+      db
+        .prepare(
+          "SELECT COUNT(*) n FROM notification_jobs WHERE state='pending'",
+        )
+        .get()!.n,
+      0,
+    );
+  } finally {
+    db.close();
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
 test("price history keeps dated offers separate from goals, currencies and variants", async () => {
   const db = await fixture();
   try {
@@ -137,7 +332,7 @@ test("threshold and stock alerts are explicit and deduplicated without changing 
     await observe(1800, "out_of_stock");
     assert.equal(
       db.prepare("SELECT COUNT(*) n FROM notification_jobs").get()!.n,
-      1,
+      0,
     );
     await observe(1900, "in_stock");
     await observe(1800, "in_stock");
@@ -170,6 +365,101 @@ test("threshold and stock alerts are explicit and deduplicated without changing 
     assert.equal(
       db.prepare("SELECT COUNT(*) n FROM notification_jobs").get()!.n,
       0,
+    );
+  } finally {
+    db.close();
+    if (old === undefined) delete process.env.NTFY_URL;
+    else process.env.NTFY_URL = old;
+  }
+});
+test("delivered thresholds require known shipping and fresh stock, and can be paused or deleted", async () => {
+  const db = await fixture();
+  const old = process.env.NTFY_URL;
+  process.env.NTFY_URL = "https://ntfy.invalid/test";
+  try {
+    const gift_id = saveGift(db, {
+      ...input,
+      offers: [{ url: "https://example.net/book", shipping: 400 }],
+    });
+    const offer_id = listGifts(db)[0].offers![0].id!;
+    saveNotificationPreferences(
+      db,
+      {
+        enabled: true,
+        rules: [
+          { kind: "offer_changed", channel: "ntfy", frequency: "instant" },
+        ],
+      },
+      owner,
+    );
+    const config = {
+      gift_id,
+      threshold: 2000,
+      threshold_basis: "delivered",
+      confirmed_variant: true,
+      confirm: true,
+    };
+    savePriceWatch(db, config);
+    savePriceWatch(db, { ...config, offer_id });
+    const alternative = offerIdentity(db, gift_id, offer_id);
+    const primary = offerIdentity(db, gift_id);
+    const pending = () =>
+      db
+        .prepare(
+          "SELECT COUNT(*) n FROM notification_jobs WHERE state='pending'",
+        )
+        .get()!.n;
+    recordOfferPrice(db, primary, metadata(primary.url, 800), "manual");
+    recordOfferPrice(
+      db,
+      alternative,
+      metadata(alternative.url, 800),
+      "manual",
+      new Date(Date.now() - 72 * 60 * 60 * 1000),
+    );
+    recordOfferPrice(
+      db,
+      alternative,
+      metadata(alternative.url, 1800),
+      "manual",
+    );
+    assert.equal(pending(), 0);
+    recordOfferPrice(
+      db,
+      alternative,
+      metadata(alternative.url, 1600),
+      "manual",
+    );
+    recordOfferPrice(
+      db,
+      alternative,
+      metadata(alternative.url, 1500),
+      "manual",
+    );
+    assert.equal(pending(), 1);
+    const quotes = queryWishlist(db, { mode: "owner" }, owner).items[0]
+      .offer_observations;
+    assert.equal(
+      quotes?.find((quote) => quote.offerId === offer_id)?.shipping,
+      400,
+    );
+    updatePriceWatch(db, { gift_id, offer_id, action: "pause", confirm: true });
+    assert.equal(
+      readPriceHistory(db, gift_id, offer_id).watch?.paused,
+      "manual",
+    );
+    assert.equal(pending(), 0);
+    updatePriceWatch(db, {
+      gift_id,
+      offer_id,
+      action: "delete",
+      confirm: true,
+    });
+    assert.equal(readPriceHistory(db, gift_id, offer_id).watch, null);
+    assert.equal(readPriceHistory(db, gift_id, offer_id).items.length, 4);
+    assert.equal(
+      readPriceHistory(db, gift_id).watch?.threshold_basis,
+      "delivered",
     );
   } finally {
     db.close();

@@ -1,4 +1,35 @@
 export const productEnglish: Record<string, string> = {
+  "Historique des prix chez {0}": "Price history at {0}",
+  "Choisissez vos occasions, canaux et horaires. Les courriels d’alerte de prix indiquent l’offre marchande et son relevé.":
+    "Choose occasions, channels and times. Price alert emails include the merchant offer and observation.",
+  "Alertes de prix récentes": "Recent price alerts",
+  "Prix cible atteint": "Target price reached",
+  "Retour en stock": "Back in stock",
+  "Promo annoncée par le marchand, prix de référence {0}":
+    "Merchant-advertised sale, reference price {0}",
+  "Baisse observée depuis le relevé de {0} du {1}":
+    "Observed drop from {0} on {1}",
+  "Calcul du seuil": "Price threshold basis",
+  "Prix unitaire hors livraison": "Unit price excluding shipping",
+  "Total unitaire livré": "Total per unit including shipping",
+  "Laisser vide pour ne pas surveiller un seuil.":
+    "Leave blank to monitor without a price threshold.",
+  "Ce suivi est en pause.": "This watch is paused.",
+  "Réactiver le suivi": "Resume this watch",
+  "Mettre le suivi en pause": "Pause this watch",
+  "Suivi mis en pause.": "Watch paused.",
+  "Suivi supprimé.": "Watch deleted.",
+  "Supprimer ce suivi": "Delete this watch",
+  "Supprimer ce suivi de prix ?": "Delete this price watch?",
+  "Prix marchand non vérifiable chez {0}":
+    "Merchant price could not be verified at {0}",
+  "Prix relevé chez {0} : {1}": "Observed price at {0}: {1}",
+  "Dernier prix vérifié chez {0} : {1}": "Last verified price at {0}: {1}",
+  "Dernière tentative non vérifiable le {0}":
+    "Latest check could not be verified on {0}",
+  "Relevé ancien": "Outdated observation",
+  "Plus bas observé : {0}": "Lowest observed price: {0}",
+  "Évolution du prix vérifié": "Verified price history",
   "Ce lien de partage est indisponible.": "This share link is unavailable.",
   "Réservation indisponible : envie fermée ou contributions existantes.":
     "Reservations are unavailable: this wish is closed or already has contributions.",

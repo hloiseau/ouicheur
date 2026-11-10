@@ -8,6 +8,7 @@ import { filterWishlist } from "./wishlist-filters.ts";
 import { hasBudget } from "./wish-details.ts";
 import { AppError } from "./validation.ts";
 import { wishlistAccess } from "./wishlist-read.ts";
+import { withOfferObservations } from "./offer-observations.ts";
 export type { WishlistQuery } from "./wishlist-read.ts";
 function cursorKey(db: DatabaseSync) {
   return String(
@@ -156,7 +157,7 @@ export function queryWishlist(
     const items = filtered.slice(previous + 1, previous + 1 + q.limit),
       last = items.at(-1);
     const result = {
-      items,
+      items: withOfferObservations(db, items),
       total: filtered.length,
       version,
       next:

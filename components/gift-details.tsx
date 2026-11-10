@@ -17,6 +17,9 @@ import { GiftArt, Progress } from "./public-wishlist";
 import { ContributionForm } from "./contribution";
 import { SurpriseNotice } from "./surprise-notice";
 import { GiftPurchaseToggle } from "./gift-purchase-toggle";
+import { MerchantPrice } from "./merchant-price";
+import { PriceTrend } from "./price-trend";
+import type { PricePoint } from "../lib/offer-observations";
 export function GiftDetails({
   gift,
   profile,
@@ -25,6 +28,7 @@ export function GiftDetails({
   owner = false,
   onRefresh,
   manageReservations = true,
+  priceSeries,
 }: {
   gift: Gift;
   profile: PublicProfile;
@@ -33,10 +37,12 @@ export function GiftDetails({
   owner?: boolean;
   onRefresh?: () => void;
   manageReservations?: boolean;
+  priceSeries?: { merchant: string; currency: string; points: PricePoint[] };
 }) {
   const { t, money, date } = useI18n();
   const href = useAppHref(),
     id = gift.id;
+  const primaryQuote = gift.offer_observations?.find((o) => o.offerId === "");
   const closed =
     !!gift.closed ||
     !!gift.purchased ||
@@ -73,6 +79,42 @@ export function GiftDetails({
             </strong>
             {hasBudget(gift) && <span>{t("Budget estimé")}</span>}
           </div>
+          {primaryQuote && <MerchantPrice observation={primaryQuote} />}
+          {!!priceSeries?.points.length && (
+            <details className="panel stack">
+              <summary>
+                {t("Historique des prix chez {0}", priceSeries.merchant)}
+              </summary>
+              <PriceTrend
+                currency={priceSeries.currency}
+                points={priceSeries.points}
+              />
+              <div
+                className="table-scroll"
+                role="region"
+                aria-label={t("Historique des relevés")}
+                tabIndex={0}
+              >
+                <table>
+                  <caption>{t("Historique des relevés")}</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">{t("Date")}</th>
+                      <th scope="col">{t("Prix unitaire")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {priceSeries.points.map(({ price, checkedAt }, index) => (
+                      <tr key={`${checkedAt}:${index}`}>
+                        <td>{date(checkedAt, true)}</td>
+                        <td>{money(price, priceSeries.currency)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
           {priority && (
             <p className="fine-print">
               {t("Priorité")} : {priorityLabel(priority, t)}
@@ -111,38 +153,53 @@ export function GiftDetails({
                   "Toutes ces offres correspondent à une seule envie. Les prix et stocks restent à vérifier chez le marchand.",
                 )}
               </p>
-              {gift.offers.map((o, i) => (
-                <article className="stack" key={o.id}>
-                  <h3>
-                    {t("Offre {0}", i + 1)} · {t(offerConditions[o.condition])}
-                  </h3>
-                  <a href={o.url} target="_blank" rel="noopener noreferrer">
-                    {new URL(o.url).hostname} ↗
-                  </a>
-                  <p>
-                    {o.price === null
-                      ? t("Prix non précisé")
-                      : money(o.price, o.currency)}{" "}
-                    ·{" "}
-                    {o.shipping === null
-                      ? t("Livraison non précisée")
-                      : t("Livraison : {0}", money(o.shipping, o.currency))}
-                  </p>
-                  {o.checked_at && (
-                    <p>
-                      {t("Relevé du {0}", date(o.checked_at, true))} ·{" "}
-                      {t(
-                        o.availability === "available"
-                          ? "Disponible lors du relevé"
-                          : o.availability === "unavailable"
-                            ? "Indisponible lors du relevé"
-                            : "Non vérifiée",
-                      )}
-                    </p>
-                  )}
-                  {o.note && <p>{o.note}</p>}
-                </article>
-              ))}
+              {gift.offers.map((o, i) => {
+                const quote = gift.offer_observations?.find(
+                  (observed) => observed.offerId === o.id,
+                );
+                return (
+                  <article className="stack" key={o.id}>
+                    <h3>
+                      {t("Offre {0}", i + 1)} ·{" "}
+                      {t(offerConditions[o.condition])}
+                    </h3>
+                    <a href={o.url} target="_blank" rel="noopener noreferrer">
+                      {new URL(o.url).hostname} ↗
+                    </a>
+                    {quote ? (
+                      <MerchantPrice observation={quote} />
+                    ) : (
+                      <>
+                        <p>
+                          {o.price === null
+                            ? t("Prix non précisé")
+                            : money(o.price, o.currency)}{" "}
+                          ·{" "}
+                          {o.shipping === null
+                            ? t("Livraison non précisée")
+                            : t(
+                                "Livraison : {0}",
+                                money(o.shipping, o.currency),
+                              )}
+                        </p>
+                        {o.checked_at && (
+                          <p>
+                            {t("Relevé du {0}", date(o.checked_at, true))} ·{" "}
+                            {t(
+                              o.availability === "available"
+                                ? "Disponible lors du relevé"
+                                : o.availability === "unavailable"
+                                  ? "Indisponible lors du relevé"
+                                  : "Non vérifiée",
+                            )}
+                          </p>
+                        )}
+                      </>
+                    )}
+                    {o.note && <p>{o.note}</p>}
+                  </article>
+                );
+              })}
             </section>
           )}
           {gift.quantity > 1 && hasBudget(gift) && (
@@ -189,7 +246,7 @@ export function GiftDetails({
           {!!gift.closed && !gift.purchased && (
             <p className="notice">{t("Cette envie est en pause.")}</p>
           )}
-          {gift.suggested_price != null && (
+          {!primaryQuote && gift.suggested_price != null && (
             <p className="fine-print">
               {t("Prix suggéré lors de l’extraction :")}{" "}
               {money(

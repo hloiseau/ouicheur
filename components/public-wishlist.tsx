@@ -31,6 +31,7 @@ import { GiftEditor } from "./admin-gifts";
 import { GiftActions } from "./gift-actions";
 import { Categories, type Category } from "./categories";
 import { GiftPurchaseToggle } from "./gift-purchase-toggle";
+import { MerchantPrice } from "./merchant-price";
 import {
   filterWishlist,
   parseBudget,
@@ -60,6 +61,7 @@ export type PublicGift = WishDetails &
     | "closed"
     | "funded"
     | "unknown_gross"
+    | "offer_observations"
   >;
 export function GiftArt({
   gift,
@@ -889,6 +891,7 @@ export function PublicWishlist({
                       </strong>
                       {hasBudget(gift) && <span>{t("Budget estimé")}</span>}
                     </div>
+                    <MerchantPrice observation={gift.offer_observations?.[0]} />
                     {gift.quantity > 1 && hasBudget(gift) && (
                       <p className="fine-print">
                         {t(

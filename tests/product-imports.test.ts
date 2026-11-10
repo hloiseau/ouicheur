@@ -185,6 +185,65 @@ test("Schema.org : Microdata et RDFa restent limités au produit et à son offre
   }
 });
 
+test("merchant promotions use only explicit compatible reference prices and valid dates", () => {
+  const reference = {
+    "@type": "UnitPriceSpecification",
+    priceType: "https://schema.org/StrikethroughPrice",
+    priceCurrency: "EUR",
+    price: 45,
+  };
+  const parse = (offer: Record<string, unknown>) =>
+    parseMetadata(
+      `<script type="application/ld+json">${JSON.stringify({ "@type": "Product", name: "Montre", offers: { "@type": "Offer", priceCurrency: "EUR", ...offer } })}</script>`,
+      "https://shop.example/watch",
+    );
+  const valid = parse({
+    price: 30,
+    priceValidUntil: "2099-01-30",
+    priceSpecification: [reference],
+  });
+  assert.equal(valid.price, 3000);
+  assert.deepEqual(valid.promotion, {
+    referencePrice: 4500,
+    expiresAt: "2099-01-31T00:00:00.000Z",
+  });
+  assert.equal(
+    parse({
+      price: 30,
+      priceValidUntil: "2000-01-30",
+      priceSpecification: [reference],
+    }).promotion,
+    undefined,
+  );
+  assert.equal(
+    parse({
+      price: 30,
+      priceSpecification: [{ ...reference, priceCurrency: "USD" }],
+    }).promotion,
+    undefined,
+  );
+  assert.equal(
+    parse({
+      price: 30,
+      priceSpecification: [{ ...reference, validForMemberTier: "gold" }],
+    }).promotion,
+    undefined,
+  );
+  assert.deepEqual(
+    parse({
+      priceSpecification: [
+        {
+          "@type": "UnitPriceSpecification",
+          price: 30,
+          validThrough: "2099-01-30",
+        },
+        reference,
+      ],
+    }).promotion,
+    valid.promotion,
+  );
+});
+
 test("Amazon : les lignes imbriquées, prix groupés et URL malformées ne cassent pas l’import", () => {
   const rows = parseAmazon(
     `<li data-itemid="wish"><a href="/dp/B000TEST01" title="Montre">Montre</a><span class="a-price"><span class="a-offscreen">1.234,56 €</span></span><div data-asin="B000TEST01"><a href="/dp/B000TEST01">Miniature</a></div></li><li data-itemid="broken"><a href="http://[invalid/dp/B000TEST02">À corriger</a></li>`,

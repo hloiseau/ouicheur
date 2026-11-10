@@ -130,7 +130,9 @@ test("l’extraction importe automatiquement l’image et préserve les modifica
     await expect(page.getByLabel("Nom de cette envie")).toHaveValue(
       "Produit extrait",
     );
-    await expect(page.getByText(/Prix relevé/)).toBeVisible();
+    await expect(
+      page.getByRole("dialog").getByText(/Prix relevé :/),
+    ).toBeVisible();
     await expect(
       page.getByLabel("Objectif (EUR)", { exact: false }),
     ).toBeHidden();

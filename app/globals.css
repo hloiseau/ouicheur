@@ -861,6 +861,15 @@ body:has(.personal-page) {
   color: var(--muted);
   font-size: 13px;
 }
+.merchant-quote p {
+  margin: 0;
+}
+.price-trend svg {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  color: var(--accent);
+}
 .gift-card-menu summary {
   width: fit-content;
   cursor: pointer;

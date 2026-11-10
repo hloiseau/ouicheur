@@ -8,8 +8,9 @@ import { preferenceSchema, quietNow } from "./notification-preferences.ts";
 import { localDate, nextOccurrence, daysUntil } from "./event-dates.ts";
 import { sendMail, smtpConfigured } from "./mail.ts";
 import type { Wishlist } from "./lists.ts";
+import { formatOfferAlert, offerAlertForDelivery } from "./offer-alerts.ts";
 
-// Only event types leave the instance, never names, amounts or private links.
+// Generic channels and other notification kinds stay neutral.
 export const notificationMessages: Record<string, string> = {
   declaration: "Ouicheur: a contribution needs your review.",
   reservation: "Ouicheur: a gift has been reserved.",
@@ -63,7 +64,10 @@ export function notificationAccountAllowed(
     if (["declaration", "import_failed", "backup_failed"].includes(kind))
       return false;
   }
-  if (["reservation", "reservation_expiring"].includes(kind) && listId) {
+  if (
+    ["reservation", "reservation_expiring", "offer_changed"].includes(kind) &&
+    listId
+  ) {
     const row = db
       .prepare(
         "SELECT l.surprise_mode,COALESCE(p.recipient,'owner') recipient FROM lists l LEFT JOIN family_profiles p ON p.id=l.profile_id WHERE l.id=?",
@@ -92,6 +96,7 @@ export function enqueueNotification(
     sourceKey?: string;
     days?: number;
     now?: Date;
+    offerAlertId?: string;
   } = {},
 ) {
   if (!notificationMessages[kind]) return;
@@ -144,7 +149,7 @@ export function enqueueNotification(
       )
         continue;
       db.prepare(
-        "INSERT OR IGNORE INTO notification_jobs(id,event_key,kind,created_at,account_id,channel,list_id,source_key,frequency) VALUES (?,?,?,?,?,?,?,?,?)",
+        "INSERT OR IGNORE INTO notification_jobs(id,event_key,kind,created_at,account_id,channel,list_id,source_key,frequency,offer_alert_id) VALUES (?,?,?,?,?,?,?,?,?,?)",
       ).run(
         randomUUID(),
         `${kind}:${key}:${account}:${channel}`,
@@ -155,6 +160,7 @@ export function enqueueNotification(
         listId,
         source,
         rule.frequency,
+        context.offerAlertId || "",
       );
     }
   }
@@ -191,12 +197,15 @@ export async function sendNotification(
   kind: string,
   channel = "ntfy",
   target = "",
+  details?: string,
 ) {
   if (channel === "email")
     return sendMail(
       target,
       "Ouicheur",
-      notificationMessages[kind] || notificationMessages.digest,
+      [notificationMessages[kind] || notificationMessages.digest, details]
+        .filter(Boolean)
+        .join("\n\n"),
     );
   const url = webUrl(process.env.NTFY_URL || "");
   if (url.hash || url.search || !url.pathname.slice(1))
@@ -222,6 +231,7 @@ export async function deliverNotifications(
     kind: string,
     channel?: string,
     target?: string,
+    details?: string,
   ) => Promise<void> = sendNotification,
   now = new Date(),
 ) {
@@ -277,12 +287,16 @@ export async function deliverNotifications(
             .prepare("SELECT * FROM lists WHERE id=? AND archived=0")
             .get(listId) as unknown as Wishlist | undefined)
         : undefined;
+    const alertId = String(job.offer_alert_id || "");
+    const offerAlert =
+      alertId && offerAlertForDelivery(db, alertId, source, listId, now);
     const stale =
       (kind === "exchange_reminder" &&
         db
           .prepare("SELECT event_date FROM gift_exchanges WHERE id=?")
           .get(listId)?.event_date !== source) ||
       currentList !== listId ||
+      (!!alertId && !offerAlert) ||
       (kind === "event_reminder" &&
         (!event || nextOccurrence(event, now) !== source)) ||
       !notificationAccountAllowed(db, account, listId, kind) ||
@@ -327,7 +341,54 @@ export async function deliverNotifications(
     )
       continue;
     try {
-      await send(job.frequency === "daily" ? "digest" : kind, channel, target);
+      const timezone = pref?.timezone || "Europe/Paris";
+      let details: string | undefined;
+      if (channel === "email") {
+        if (job.frequency === "daily") {
+          const matching = db
+            .prepare(
+              `SELECT offer_alert_id,list_id,source_key FROM notification_jobs
+            WHERE account_id=? AND channel='email' AND frequency='daily' AND state='pending'
+              AND created_at<=? AND offer_alert_id<>'' ORDER BY created_at DESC,id`,
+            )
+            .all(account, now.toISOString());
+          details =
+            matching
+              .flatMap((row) => {
+                const eventList = String(row.list_id);
+                if (
+                  !pref?.rules.some(
+                    (rule) =>
+                      rule.kind === "offer_changed" &&
+                      rule.channel === "email" &&
+                      (!rule.list_id || rule.list_id === eventList),
+                  ) ||
+                  !notificationAccountAllowed(
+                    db,
+                    account,
+                    eventList,
+                    "offer_changed",
+                  )
+                )
+                  return [];
+                const alert = offerAlertForDelivery(
+                  db,
+                  String(row.offer_alert_id),
+                  String(row.source_key),
+                  eventList,
+                  now,
+                );
+                return alert ? [formatOfferAlert(alert, timezone)] : [];
+              })
+              .join("\n\n") || undefined;
+        } else if (offerAlert) details = formatOfferAlert(offerAlert, timezone);
+      }
+      await send(
+        job.frequency === "daily" ? "digest" : kind,
+        channel,
+        target,
+        details,
+      );
       atomic(db, () => {
         db.prepare(
           "UPDATE notification_jobs SET state='sent',attempts=attempts+1 WHERE id=?",

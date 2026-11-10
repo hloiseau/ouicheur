@@ -1,10 +1,16 @@
-import { randomUUID, createHash } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
 import { atomic } from "./db.ts";
 import { AppError, canonicalUrl } from "./validation.ts";
 import { extractMetadata } from "./metadata.ts";
 import { enqueueNotification } from "./notifications.ts";
+import {
+  offerFingerprint,
+  priceObservationMaxAge,
+} from "./offer-observations.ts";
+import type { WishDetails } from "./wish-details.ts";
+import { recordOfferAlert } from "./offer-alerts.ts";
 export function offerIdentity(db: DatabaseSync, giftId: string, offerId = "") {
   const gift = db.prepare("SELECT * FROM gifts WHERE id=?").get(giftId);
   if (!gift) throw new AppError("Envie introuvable.", 404);
@@ -17,18 +23,12 @@ export function offerIdentity(db: DatabaseSync, giftId: string, offerId = "") {
   const url = String(offer?.url || gift.url),
     currency = String(offer?.currency || gift.currency);
   if (!url) throw new AppError("Cette envie n’a pas de lien marchand.", 409);
-  const fingerprint = createHash("sha256")
-    .update(
-      JSON.stringify([
-        canonicalUrl(url),
-        ...[gift.size, gift.color, gift.model].map((v) =>
-          String(v).trim().toLowerCase(),
-        ),
-        offer?.condition || "primary",
-        currency,
-      ]),
-    )
-    .digest("hex");
+  const fingerprint = offerFingerprint(
+    url,
+    gift as Pick<WishDetails, "size" | "color" | "model">,
+    String(offer?.condition || "primary"),
+    currency,
+  );
   return {
     giftId,
     offerId,
@@ -49,6 +49,7 @@ type Observation = {
   price: number | null;
   currency: string;
   availability: string;
+  promotion?: { referencePrice: number; expiresAt: string | null };
 };
 export function recordOfferPrice(
   db: DatabaseSync,
@@ -103,8 +104,22 @@ export function recordOfferPrice(
       observed.price! <= 100000000
         ? observed.price
         : null;
+    const promotion = observed?.promotion;
+    const referencePrice =
+      comparable &&
+      price !== null &&
+      promotion &&
+      Number.isSafeInteger(promotion.referencePrice) &&
+      promotion.referencePrice > price &&
+      promotion.referencePrice <= 100000000 &&
+      (promotion.expiresAt === null ||
+        Date.parse(promotion.expiresAt) > now.getTime())
+        ? promotion.referencePrice
+        : null;
     db.prepare(
-      "INSERT INTO offer_price_history VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      `INSERT INTO offer_price_history
+      (id,gift_id,offer_id,url,hostname,fingerprint,price,currency,shipping,availability,checked_at,state,method,reference_price,promotion_expires_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     ).run(
       id,
       identity.giftId,
@@ -119,6 +134,8 @@ export function recordOfferPrice(
       now.toISOString(),
       state,
       method,
+      referencePrice,
+      referencePrice !== null ? promotion!.expiresAt : null,
     );
     const watch = db
       .prepare("SELECT * FROM price_watches WHERE gift_id=? AND offer_id=?")
@@ -131,27 +148,38 @@ export function recordOfferPrice(
       !current?.archived &&
       comparable
     ) {
-      const key = `${identity.fingerprint}:${watch.threshold}`,
+      const delivered = watch.threshold_basis === "delivered";
+      const shipping = delivered ? identity.shipping : 0;
+      const comparablePrice =
+        price !== null &&
+        shipping !== null &&
+        observed!.availability === "in_stock" &&
+        now.getTime() >= Date.now() - priceObservationMaxAge &&
+        (!delivered || shipping === current?.shipping)
+          ? price + shipping
+          : null;
+      const key = `${identity.fingerprint}:${watch.threshold}${delivered ? ":delivered" : ""}`,
         day = now.toISOString().slice(0, 10);
       if (
-        price !== null &&
+        comparablePrice !== null &&
         watch.threshold !== null &&
-        price <= Number(watch.threshold) &&
+        comparablePrice <= Number(watch.threshold) &&
         watch.last_price_alert !== key
       ) {
         enqueueNotification(db, "offer_changed", `price:${id}`, {
           listId: identity.listId,
           sourceKey: identity.giftId,
           now,
+          offerAlertId: recordOfferAlert(db, id, identity.listId, "price"),
         });
         db.prepare(
           "UPDATE price_watches SET last_price_alert=? WHERE gift_id=? AND offer_id=?",
         ).run(key, identity.giftId, identity.offerId);
       }
       if (
-        price !== null &&
+        comparablePrice !== null &&
         watch.threshold !== null &&
-        price > Number(watch.threshold)
+        comparablePrice > Number(watch.threshold)
       )
         db.prepare(
           "UPDATE price_watches SET last_price_alert='' WHERE gift_id=? AND offer_id=?",
@@ -170,7 +198,12 @@ export function recordOfferPrice(
             db,
             "offer_changed",
             `stock:${identity.giftId}:${identity.offerId}:${day}`,
-            { listId: identity.listId, sourceKey: identity.giftId, now },
+            {
+              listId: identity.listId,
+              sourceKey: identity.giftId,
+              now,
+              offerAlertId: recordOfferAlert(db, id, identity.listId, "stock"),
+            },
           );
           db.prepare(
             "UPDATE price_watches SET last_stock_alert=? WHERE gift_id=? AND offer_id=?",
@@ -227,7 +260,13 @@ export function readPriceHistory(
   return {
     identity,
     watch: row
-      ? { ...row, stale: row.fingerprint !== identity.fingerprint }
+      ? {
+          ...row,
+          paused: String(row.paused),
+          threshold_basis:
+            row.threshold_basis === "delivered" ? "delivered" : "price",
+          stale: row.fingerprint !== identity.fingerprint,
+        }
       : null,
     items: db
       .prepare(
@@ -249,6 +288,7 @@ export function savePriceWatch(db: DatabaseSync, input: unknown) {
         .nullable()
         .default(null),
       stock_alert: z.boolean().default(false),
+      threshold_basis: z.enum(["price", "delivered"]).default("price"),
       automatic: z.boolean().default(false),
       confirmed_variant: z.boolean(),
       confirm: z.literal(true),
@@ -264,18 +304,54 @@ export function savePriceWatch(db: DatabaseSync, input: unknown) {
       "Confirmez que ce lien correspond à la variante choisie.",
     );
   db.prepare(
-    "INSERT INTO price_watches(gift_id,offer_id,fingerprint,currency,threshold,stock_alert,automatic,confirmed_variant,next_check) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(gift_id,offer_id) DO UPDATE SET fingerprint=excluded.fingerprint,currency=excluded.currency,threshold=excluded.threshold,stock_alert=excluded.stock_alert,automatic=excluded.automatic,confirmed_variant=excluded.confirmed_variant,paused='',next_check=MAX(price_watches.next_check,excluded.next_check),last_price_alert=CASE WHEN price_watches.threshold IS excluded.threshold AND price_watches.fingerprint=excluded.fingerprint THEN price_watches.last_price_alert ELSE '' END,last_stock_alert=CASE WHEN price_watches.fingerprint=excluded.fingerprint THEN price_watches.last_stock_alert ELSE '' END",
+    "INSERT INTO price_watches(gift_id,offer_id,fingerprint,currency,threshold,threshold_basis,stock_alert,automatic,confirmed_variant,next_check) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(gift_id,offer_id) DO UPDATE SET fingerprint=excluded.fingerprint,currency=excluded.currency,threshold=excluded.threshold,threshold_basis=excluded.threshold_basis,stock_alert=excluded.stock_alert,automatic=excluded.automatic,confirmed_variant=excluded.confirmed_variant,paused='',next_check=MAX(price_watches.next_check,excluded.next_check),last_price_alert=CASE WHEN price_watches.threshold IS excluded.threshold AND price_watches.threshold_basis=excluded.threshold_basis AND price_watches.fingerprint=excluded.fingerprint THEN price_watches.last_price_alert ELSE '' END,last_stock_alert=CASE WHEN price_watches.fingerprint=excluded.fingerprint THEN price_watches.last_stock_alert ELSE '' END",
   ).run(
     v.gift_id,
     v.offer_id,
     identity.fingerprint,
     identity.currency,
     v.threshold,
+    v.threshold_basis,
     Number(v.stock_alert),
     Number(v.automatic),
     Number(v.confirmed_variant),
     Date.now(),
   );
+}
+export function updatePriceWatch(db: DatabaseSync, input: unknown) {
+  const { gift_id, offer_id, action } = z
+    .object({
+      gift_id: z.uuid(),
+      offer_id: z.union([z.uuid(), z.literal("")]).default(""),
+      action: z.enum(["pause", "delete"]),
+      confirm: z.literal(true),
+    })
+    .strict()
+    .parse(input);
+  return atomic(db, () => {
+    if (action === "pause")
+      db.prepare(
+        "UPDATE price_watches SET paused='manual' WHERE gift_id=? AND offer_id=?",
+      ).run(gift_id, offer_id);
+    else
+      db.prepare(
+        "DELETE FROM price_watches WHERE gift_id=? AND offer_id=?",
+      ).run(gift_id, offer_id);
+    db.prepare(
+      `DELETE FROM notification_jobs
+      WHERE kind='offer_changed' AND state='pending' AND source_key=? AND (
+        event_key LIKE ? OR EXISTS (
+          SELECT 1 FROM offer_price_history h WHERE h.gift_id=? AND h.offer_id=?
+            AND notification_jobs.event_key LIKE 'offer_changed:price:' || h.id || ':%'
+        )
+      )`,
+    ).run(
+      gift_id,
+      `offer_changed:stock:${gift_id}:${offer_id}:%`,
+      gift_id,
+      offer_id,
+    );
+  });
 }
 export async function pollPriceWatches(
   db: DatabaseSync,
