@@ -10,6 +10,7 @@ import { dateNow } from "./validation.ts";
 import { listLists, publicAccess, type Access } from "./lists.ts";
 import type { Appearance } from "./appearance.ts";
 import { hiddenSurpriseLists } from "./surprise.ts";
+import type { OfferObservation } from "./offer-observations.ts";
 
 export type Gift = WishDetails & {
   position?: number;
@@ -38,6 +39,7 @@ export type Gift = WishDetails & {
   suggested_price: number | null;
   suggested_currency: string | null;
   extracted_at: string | null;
+  offer_observations?: OfferObservation[];
 };
 export type PublicProfile = Appearance & {
   name: string;

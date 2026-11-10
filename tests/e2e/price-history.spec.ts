@@ -61,11 +61,19 @@ test("price history presents comparable observations and saves opt-in alerts wit
     .getByRole("searchbox", { name: "Rechercher une envie", exact: true })
     .fill(title);
   const card = page.locator(".admin-gift-row").filter({ hasText: title });
+  await expect(
+    card.getByText("Prix relevé chez example.org : 25,00 €"),
+  ).toBeVisible();
+  await expect(card.getByText("35,00 €", { exact: true })).toBeVisible();
   await card.getByText("Gérer", { exact: true }).click();
   await card.getByRole("button", { name: "Modifier", exact: true }).click();
   const section = page.locator("details.price-history");
   await section.locator("summary").click();
   await expect(section.getByRole("table")).toBeVisible();
+  await expect(
+    section.getByRole("img", { name: "Évolution du prix vérifié" }),
+  ).toBeVisible();
+  await expect(section.getByText("Plus bas observé : 25,00 €")).toBeVisible();
   await expect(
     section.getByRole("cell", { name: "25,00 €", exact: true }),
   ).toBeVisible();
@@ -78,6 +86,7 @@ test("price history presents comparable observations and saves opt-in alerts wit
   await section
     .getByRole("textbox", { name: /Me prévenir à ce prix ou moins/ })
     .fill("24,50");
+  await section.getByLabel("Calcul du seuil").selectOption("delivered");
   await section
     .getByRole("checkbox", {
       name: "J’ai vérifié que ce lien correspond bien à la variante choisie",
@@ -98,6 +107,7 @@ test("price history presents comparable observations and saves opt-in alerts wit
     await context.request.get(`/api/admin/price-history?gift_id=${gift.id}`)
   ).json();
   expect(current.watch.threshold).toBe(2450);
+  expect(current.watch.threshold_basis).toBe("delivered");
   expect(current.watch.automatic).toBe(0);
   expect(
     (await (await context.request.get("/api/admin")).json()).gifts.find(

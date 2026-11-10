@@ -5,6 +5,7 @@ import { accessFromCookies } from "../../../lib/lists";
 import { notFound } from "next/navigation";
 import { database } from "../../../lib/db";
 import { listGifts, publicProfile } from "../../../lib/gifts";
+import { withOfferObservations } from "../../../lib/offer-observations";
 
 export const metadata = { robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -35,7 +36,7 @@ export default async function GiftPage({
     .map((row) => ({ ...row }));
   return (
     <GiftDetails
-      gift={gift}
+      gift={withOfferObservations(db, [gift])[0]}
       profile={profile}
       priority={priority}
       supporters={supporters}

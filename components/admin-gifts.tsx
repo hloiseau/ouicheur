@@ -771,7 +771,11 @@ export function GiftEditor({
         {gift &&
           apiPrefix === "admin" &&
           !!(gift.url || gift.offers?.length) && (
-            <PriceHistory gift={gift} onSaved={onSaved || onDone} />
+            <PriceHistory
+              gift={gift}
+              onSaved={onSaved || onDone}
+              onObservation={onCategoriesChanged}
+            />
           )}
       </Modal>
       {priorityEditor && (

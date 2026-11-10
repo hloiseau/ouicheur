@@ -4,6 +4,7 @@ import {
   readPriceHistory,
   savePriceWatch,
   refreshOfferPrice,
+  updatePriceWatch,
 } from "./price-history";
 import { calendarFeedStatus, rotateCalendarFeed } from "./calendar";
 import { bulkGifts, reorderGift, duplicateList } from "./organization";
@@ -145,6 +146,10 @@ export async function productPost(
   }
   if (path === "admin/price-watch") {
     savePriceWatch(db, data);
+    return json({ ok: true });
+  }
+  if (path === "admin/price-watch/action") {
+    updatePriceWatch(db, data);
     return json({ ok: true });
   }
   if (path === "admin/price-history/refresh") {
