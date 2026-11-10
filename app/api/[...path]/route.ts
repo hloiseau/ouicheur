@@ -75,7 +75,7 @@ import {
 } from "../../../lib/auth";
 import { listGifts } from "../../../lib/gifts";
 import { giftService } from "../../../lib/gift-persistence.ts";
-import { SqliteGiftStore } from "../../../lib/gift-sqlite.ts";
+import { removeGift, SqliteGiftStore } from "../../../lib/gift-sqlite.ts";
 import { catalogService } from "../../../lib/catalog.ts";
 import { SqliteCatalogStore } from "../../../lib/catalog-sqlite.ts";
 import { queryWishlist } from "../../../lib/wishlist-query";
@@ -911,6 +911,13 @@ async function handle(
       return response({
         id: await giftService(new SqliteGiftStore(db)).saveGift(data, access),
       });
+    if (
+      segments[0] === "admin" &&
+      segments[1] === "gifts" &&
+      segments.length === 4 &&
+      segments[3] === "remove"
+    )
+      return response(removeGift(db, segments[2], data, access));
     if (
       segments[0] === "admin" &&
       segments[1] === "gifts" &&

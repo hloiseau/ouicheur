@@ -81,10 +81,14 @@ test("all alternative offers consume the same quantity; the selected offer remai
 test("no-link wishes distinguish unknown budgets from no expense, remain reservable and cannot collect money", async () => {
   const db = await fixture();
   try {
-    assert.throws(
-      () => saveGift(db, { title: "Product without link", target: "20" }),
-      /doit avoir un lien/,
-    );
+    const product = saveGift(db, {
+      title: "Product without link",
+      budget_mode: "unknown",
+    });
+    const saved = listGifts(db).find((gift) => gift.id === product);
+    assert.equal(saved?.kind, "product");
+    assert.equal(saved?.url, "");
+    assert.equal(saved?.target, 0);
     assert.throws(
       () => saveGift(db, { ...gift, target: "" }),
       /budget positif/,
@@ -106,7 +110,7 @@ test("no-link wishes distinguish unknown budgets from no expense, remain reserva
       budget_mode: "unknown",
     });
     const rows = listGifts(db);
-    assert.equal(rows.length, 3);
+    assert.equal(rows.length, 4);
     assert.ok(rows.every((r) => r.target === 0));
     const filters = {
       search: "",

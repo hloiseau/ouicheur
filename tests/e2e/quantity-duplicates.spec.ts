@@ -21,6 +21,9 @@ test("quantités et doublons volontaires dans le formulaire, l’import et la pa
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Lien du produit", { exact: true }).fill(url);
   await dialog.getByLabel("Nom de cette envie").fill(title);
+  await dialog
+    .getByRole("button", { name: "Compléter les détails", exact: true })
+    .click();
   await dialog.getByLabel("Objectif (EUR)", { exact: false }).fill("19,99");
   await dialog.getByLabel("Quantité", { exact: true }).fill("3");
   await expect(dialog.getByText(/Objectif total/)).toContainText("59,97");
@@ -30,7 +33,11 @@ test("quantités et doublons volontaires dans le formulaire, l’import et la pa
     .locator(".admin-gift-row")
     .filter({ has: page.getByRole("heading", { name: title, exact: true }) });
   await expect(card.getByText(/Quantité : 3/)).toContainText("19,99");
+  await card.getByText("Gérer", { exact: true }).click();
   await card.getByRole("button", { name: "Modifier", exact: true }).click();
+  await expect(
+    dialog.getByRole("heading", { name: "Budget et quantité" }),
+  ).toBeVisible();
   await expect(
     dialog.getByLabel("Objectif (EUR)", { exact: false }),
   ).toHaveValue("19.99");
@@ -44,6 +51,9 @@ test("quantités et doublons volontaires dans le formulaire, l’import et la pa
     .click();
   await dialog.getByLabel("Lien du produit", { exact: true }).fill(url);
   await dialog.getByLabel("Nom de cette envie").fill(`${title} copie`);
+  await dialog
+    .getByRole("button", { name: "Compléter les détails", exact: true })
+    .click();
   await dialog.getByLabel("Objectif (EUR)", { exact: false }).fill("19.99");
   await dialog.getByLabel("Quantité", { exact: true }).fill("2");
   await dialog.getByRole("button", { name: "Enregistrer cette envie" }).click();

@@ -248,7 +248,7 @@ test("audit visuel de toutes les pages et des principaux états", async ({
       .getByRole("button", { name: "Ajouter une envie", exact: true })
       .click();
     await capture(page, "20-add-wish");
-    await page.locator("summary").filter({ hasText: "Plus d’options" }).click();
+    await page.getByRole("button", { name: "Compléter les détails" }).click();
     await capture(page, "20b-wish-options");
     await page.getByRole("button", { name: "Annuler", exact: true }).click();
     await page

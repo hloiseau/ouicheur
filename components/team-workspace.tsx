@@ -10,6 +10,7 @@ import type { Gift } from "../lib/gifts";
 import type { Wishlist } from "../lib/lists";
 import type { GiftPriority } from "../lib/priority-labels";
 import { GiftEditor } from "./admin-gifts";
+import { GiftActions } from "./gift-actions";
 import { AccountSecurity } from "./account-security";
 import { PageHeader } from "./page-header";
 import { useI18n } from "./language";
@@ -289,13 +290,19 @@ export function TeamWorkspace() {
                                   ? t("Déjà acheté")
                                   : t("Cadeau acheté")}
                               </button>
-                              <button
-                                className="button secondary"
-                                disabled={busy || !!selectedList?.archived}
-                                onClick={() => setEditing(g)}
-                              >
-                                {t("Modifier")}
-                              </button>
+                              {!selectedList?.archived && (
+                                <GiftActions
+                                  id={g.id}
+                                  title={g.title}
+                                  apiPrefix="team"
+                                  onEdit={() => setEditing(g)}
+                                  onRemoved={() =>
+                                    void refresh().catch((e: Error) =>
+                                      setError(e.message),
+                                    )
+                                  }
+                                />
+                              )}
                             </>
                           )}
                         </article>

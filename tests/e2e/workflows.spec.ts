@@ -205,8 +205,10 @@ test("Ouichlist, contribution privée, administration et erreurs", async ({
   await page
     .getByLabel("Nom de cette envie")
     .fill(`Ajout manuel ${info.project.name}`);
+  await page
+    .getByRole("button", { name: "Compléter les détails", exact: true })
+    .click();
   await page.getByLabel("Objectif (EUR)", { exact: false }).fill("39.90");
-  await page.getByText("Plus d’options", { exact: true }).click();
   await page
     .getByRole("combobox", { name: "Visibilité", exact: true })
     .selectOption("visible");

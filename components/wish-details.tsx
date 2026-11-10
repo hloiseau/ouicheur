@@ -99,10 +99,12 @@ export function WishDetailsFields({
   value,
   onChange,
   currency,
+  expanded = false,
 }: {
   value: GiftDraft;
   onChange: (v: GiftDraft) => void;
   currency: string;
+  expanded?: boolean;
 }) {
   const { t } = useI18n();
   const change = <K extends keyof GiftDraft>(key: K, v: GiftDraft[K]) =>
@@ -113,10 +115,13 @@ export function WishDetailsFields({
       "offers",
       offers.map((o, n) => (n === i ? { ...o, ...patch } : o)),
     );
+  const Section = expanded ? "section" : "details";
+  const Heading = expanded ? "h3" : "summary";
+  const className = expanded ? "gift-editor-section stack" : "advanced-fields";
   return (
     <>
-      <details className="advanced-fields">
-        <summary>{t("Taille, couleur et modèle")}</summary>
+      <Section className={className}>
+        <Heading>{t("Taille, couleur et modèle")}</Heading>
         <div className="stack">
           <div className="form-grid">
             {(
@@ -158,7 +163,7 @@ export function WishDetailsFields({
             />
           </Field>
         </div>
-      </details>
+      </Section>
       {value.kind && value.kind !== "product" && (
         <Field
           label={t("Quand ou comment offrir (facultatif)")}
@@ -173,8 +178,8 @@ export function WishDetailsFields({
           />
         </Field>
       )}
-      <details className="advanced-fields">
-        <summary>{t("Autres boutiques et seconde main")}</summary>
+      <Section className={className}>
+        <Heading>{t("Autres boutiques et seconde main")}</Heading>
         <div className="stack">
           <p>
             {t(
@@ -304,7 +309,7 @@ export function WishDetailsFields({
             {t("Ajouter une offre")}
           </button>
         </div>
-      </details>
+      </Section>
     </>
   );
 }

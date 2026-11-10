@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import { z } from "zod";
 import { atomic, audit } from "./db.ts";
 import { dateNow, AppError } from "./validation.ts";
-import { editableGiftLists } from "./catalog.ts";
+import { editableGiftLists, requireGiftOperator } from "./catalog.ts";
 import { reservedQuantity } from "./reservations.ts";
 import {
   giftDecision,
@@ -16,6 +17,64 @@ import {
   type GiftStore,
 } from "./gift-persistence.ts";
 import type { Access } from "./lists.ts";
+
+export function removeGift(
+  db: DatabaseSync,
+  id: string,
+  input: unknown,
+  access: Access,
+) {
+  requireGiftOperator(access);
+  const { confirm } = z
+    .object({ confirm: z.enum(["delete", "archive"]).optional() })
+    .strict()
+    .parse(input);
+  return atomic(db, () => {
+    const gift = db
+      .prepare(
+        `SELECT g.*, l.surprise_mode, l.archived,
+          EXISTS(SELECT 1 FROM reservations WHERE gift_id=g.id)
+          OR EXISTS(SELECT 1 FROM contributions WHERE gift_id=g.id)
+          OR EXISTS(SELECT 1 FROM received_gifts WHERE gift_id=g.id) AS has_history
+        FROM gifts g JOIN lists l ON l.id=g.list_id
+        WHERE g.id=? AND (? OR g.list_id IN (SELECT value FROM json_each(?)))`,
+      )
+      .get(
+        id,
+        Number(access.owner),
+        JSON.stringify(editableGiftLists(access)),
+      ) as GiftSnapshot | undefined;
+    if (!gift) throw new AppError("Cadeau introuvable.", 404);
+    requireGiftEdit(gift, Number(gift.surprise_mode), access);
+    const action = gift.purchased || gift.has_history ? "archive" : "delete";
+    if (!confirm) return { action };
+    if (confirm !== action)
+      throw new AppError(
+        "Les engagements de cette envie ont changé. Vérifiez le retrait avant de confirmer.",
+        409,
+      );
+    if (action === "archive") {
+      db.prepare(
+        "UPDATE gifts SET visibility='archived',updated_at=? WHERE id=?",
+      ).run(dateNow(), id);
+      db.prepare(
+        "UPDATE price_watches SET automatic=0,paused='archived' WHERE gift_id=?",
+      ).run(id);
+    } else {
+      db.prepare("UPDATE suggestions SET gift_id=NULL WHERE gift_id=?").run(id);
+      db.prepare("DELETE FROM product_checks WHERE gift_id=?").run(id);
+      db.prepare("DELETE FROM gifts WHERE id=?").run(id);
+    }
+    db.prepare(
+      "DELETE FROM notification_jobs WHERE kind='offer_changed' AND source_key=? AND state='pending'",
+    ).run(id);
+    audit(db, `gift.${action}`, id, {
+      list_id: gift.list_id,
+      ...(access.memberId ? { actor: access.memberId } : {}),
+    });
+    return { action };
+  });
+}
 
 export function saveGiftInTransaction(
   db: DatabaseSync,
@@ -167,7 +226,7 @@ export function saveGiftInTransaction(
     .all(id))
     if (!retained.includes(String(offer.id)))
       db.prepare("DELETE FROM gift_offers WHERE id=?").run(offer.id);
-  if (gift.extracted_at)
+  if (gift.extracted_at || (existing && gift.url !== existing.url))
     db.prepare(
       "UPDATE gifts SET suggested_price=?,suggested_currency=?,extracted_at=? WHERE id=?",
     ).run(gift.suggested_price, gift.suggested_currency, gift.extracted_at, id);

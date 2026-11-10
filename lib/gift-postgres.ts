@@ -191,6 +191,8 @@ export class PostgresGiftStore implements GiftStore {
             [this.tenant, plan.listId],
           )
         ).rows[0].next;
+      const replaceObservation =
+        gift.extracted_at || (existing && gift.url !== existing.url);
       const row: Record<string, unknown> = {
         tenant_id: this.tenant,
         id,
@@ -224,13 +226,15 @@ export class PostgresGiftStore implements GiftStore {
         created_at: existing?.created_at ?? now,
         updated_at: now,
         duplicate_key: gift.url ? duplicateGiftKey(gift) : null,
-        suggested_price: gift.extracted_at
+        suggested_price: replaceObservation
           ? gift.suggested_price
           : (existing?.suggested_price ?? null),
-        suggested_currency: gift.extracted_at
+        suggested_currency: replaceObservation
           ? gift.suggested_currency
           : (existing?.suggested_currency ?? null),
-        extracted_at: gift.extracted_at || existing?.extracted_at || null,
+        extracted_at: replaceObservation
+          ? gift.extracted_at
+          : (existing?.extracted_at ?? null),
       };
       const keys = Object.keys(row);
       await client.query(

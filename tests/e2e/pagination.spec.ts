@@ -144,6 +144,7 @@ test("server pages search beyond the first page, recover from edits and revoke c
     await expect(page.locator(".gift-card")).toHaveCount(48);
     const last = page.locator(".gift-card").last();
     const title = await last.locator("h2").innerText();
+    await last.getByText("Gérer", { exact: true }).click();
     await last.getByRole("button", { name: "Modifier", exact: true }).click();
     await expect(
       page.getByRole("dialog").getByLabel("Nom de cette envie"),

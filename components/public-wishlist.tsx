@@ -28,6 +28,7 @@ import { appearanceStyle, defaultAppearance } from "../lib/appearance";
 import { ProfileHeader } from "./profile-header";
 import { Brand, Icon, Notice } from "./ui";
 import { GiftEditor } from "./admin-gifts";
+import { GiftActions } from "./gift-actions";
 import { Categories, type Category } from "./categories";
 import { GiftPurchaseToggle } from "./gift-purchase-toggle";
 import {
@@ -916,33 +917,33 @@ export function PublicWishlist({
                     )}
                     <Progress gift={gift} compact />
                     {owner ? (
-                      <>
-                        <button
-                          type="button"
-                          className="card-action"
-                          disabled={gift.surprise_hidden}
-                          onClick={() =>
-                            setEditor(
-                              result
-                                ? (gift as Gift)
-                                : owner.gifts.find((g) => g.id === gift.id)!,
-                            )
-                          }
-                        >
-                          {gift.surprise_hidden
-                            ? t("Révéler avant de modifier")
-                            : t("Modifier")}{" "}
+                      gift.surprise_hidden ? (
+                        <button type="button" className="card-action" disabled>
+                          {t("Révéler avant de modifier")}{" "}
                           <Icon name="arrow" size={17} />
                         </button>
-                        {!gift.surprise_hidden && (
+                      ) : (
+                        <>
+                          <GiftActions
+                            id={gift.id}
+                            title={gift.title}
+                            onEdit={() =>
+                              setEditor(
+                                result
+                                  ? (gift as Gift)
+                                  : owner.gifts.find((g) => g.id === gift.id)!,
+                              )
+                            }
+                            onRemoved={refresh}
+                          />
                           <GiftPurchaseToggle
                             id={gift.id}
                             title={gift.title}
                             purchased={!!gift.purchased}
                             onSaved={refresh}
                           />
-                        )}
-                      </>
+                        </>
+                      )
                     ) : (
                       <Link
                         className="card-action"

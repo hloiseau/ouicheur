@@ -29,6 +29,9 @@ test("une image importée ne remplace pas les modifications faites pendant son t
     .getByLabel("Lien du produit", { exact: true })
     .fill(`https://example.com/image-race-${info.project.name}`);
   await page.getByLabel("Nom de cette envie").fill("Avant téléchargement");
+  await page
+    .getByRole("button", { name: "Compléter les détails", exact: true })
+    .click();
   await page.getByLabel("Objectif (EUR)", { exact: false }).fill("20");
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {

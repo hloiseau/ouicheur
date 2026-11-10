@@ -11,6 +11,26 @@ export const english: Record<string, string> = {
     "This wish has changed. Reload it before saving your changes.",
   "Rechargez cette envie avant de la modifier.":
     "Reload this wish before editing it.",
+  "Gérer l’envie {0}": "Manage wish {0}",
+  Gérer: "Manage",
+  "Retirer de la liste": "Remove from list",
+  "Retirer {0} de la liste ?": "Remove {0} from the list?",
+  "Vérification des engagements…": "Checking commitments…",
+  "Cette envie et ses offres seront supprimées définitivement. Les alertes de prix seront arrêtées.":
+    "This wish and its offers will be permanently deleted. Price alerts will stop.",
+  "Cette envie sera archivée. Ses offres et son historique d’achats, de réservations et de participations seront conservés. Les alertes de prix seront arrêtées.":
+    "This wish will be archived. Its offers and purchase, reservation, and contribution history will be kept. Price alerts will stop.",
+  "Supprimer définitivement": "Delete permanently",
+  "Archiver cette envie": "Archive this wish",
+  "Envie archivée.": "This wish is archived.",
+  "Les engagements de cette envie ont changé. Vérifiez le retrait avant de confirmer.":
+    "This wish’s commitments have changed. Review the removal before confirming.",
+  "Recalculer le retrait": "Check removal again",
+  "Aucun prix trouvé. Vous pouvez enregistrer sans budget.":
+    "No price was found. You can save without a budget.",
+  "Prix relevé : {0}": "Observed price: {0}",
+  "L’import n’a pas abouti. Le lien est conservé. Ajoutez simplement un nom.":
+    "Import didn’t finish. The link has been kept. Just add a name.",
   Filtres: "Filters",
   "Effacer les filtres": "Clear filters",
   "Trouver une envie…": "Find a wish…",
@@ -345,6 +365,11 @@ export const english: Record<string, string> = {
     "Once purchased, this gift no longer accepts new contributions or reservations. You can undo this choice at any time.",
   "Modifier cette envie": "Edit this wish",
   "Une nouvelle envie": "A new wish",
+  "Détails de la nouvelle envie": "New wish details",
+  "Compléter les détails": "Fill in the details",
+  "Informations de l’envie": "Wish details",
+  "Budget et quantité": "Budget and quantity",
+  "Organisation de l’envie": "Wish organization",
   Fermer: "Close",
   "Commencer avec un lien produit": "Start with a product link",
   "Collez le lien de votre envie…": "Paste a product link…",
