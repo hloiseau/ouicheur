@@ -72,7 +72,9 @@ test("l’extraction importe automatiquement l’image et préserve les modifica
     }, url);
     await requested;
     await expect(link).toHaveValue(url);
-    await page.getByText("Plus d’options", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "Compléter les détails", exact: true })
+      .click();
     await expect(
       page.getByLabel("Objectif (EUR)", { exact: false }),
     ).toHaveValue("29.90");
@@ -199,7 +201,9 @@ test("la lecture lente conserve les champs déjà remplis et les saisies pendant
       "readOnly",
       true,
     );
-    await page.getByText("Plus d’options", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "Compléter les détails", exact: true })
+      .click();
     await page
       .getByLabel("Pourquoi ce cadeau ?")
       .fill("Mes précisions personnelles");

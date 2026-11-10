@@ -18,7 +18,12 @@ test("simple gift options and reversible owner purchase switch", async ({
   await page
     .getByRole("button", { name: "Ajouter une envie", exact: true })
     .click();
-  await page.getByText("Plus d’options", { exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Budget et quantité" }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Compléter les détails", exact: true })
+    .click();
   await expect(
     page.getByText(/ChatGPT|Sendico|Fermer les nouvelles intentions/),
   ).toHaveCount(0);
@@ -80,7 +85,15 @@ test("simple gift options and reversible owner purchase switch", async ({
       .filter({ has: page.getByRole("heading", { name: title, exact: true }) });
     await card.getByText("Gérer", { exact: true }).click();
     await card.getByRole("button", { name: "Modifier", exact: true }).click();
-    await page.getByText("Plus d’options", { exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Budget et quantité" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Autres boutiques et seconde main" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Compléter les détails", exact: true }),
+    ).toHaveCount(0);
     await page
       .getByRole("checkbox", {
         name: "Mettre cette envie en pause",

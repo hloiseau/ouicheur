@@ -19,7 +19,9 @@ test("free experiences and second-hand variants have clear, accessible screens",
     .getByRole("button", { name: "Ajouter une envie", exact: true })
     .click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByText("Plus d’options", { exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "Compléter les détails", exact: true })
+    .click();
   await dialog
     .getByRole("combobox", { name: "Type d’envie", exact: true })
     .selectOption("experience");

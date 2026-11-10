@@ -65,7 +65,9 @@ test("catégories illustrées et ajout en popup depuis les envies", async ({
   await expect(
     dialog.getByLabel("Visibilité", { exact: true }),
   ).not.toBeVisible();
-  await dialog.getByText("Plus d’options", { exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "Compléter les détails", exact: true })
+    .click();
   await expect(
     dialog
       .getByRole("combobox", { name: "Catégorie", exact: true })
@@ -80,7 +82,9 @@ test("catégories illustrées et ajout en popup depuis les envies", async ({
     .getByLabel("Lien du produit", { exact: true })
     .fill(`https://example.com/escape-${info.project.name}`);
   await dialog.getByLabel("Nom de cette envie").fill(title);
-  await dialog.getByText("Plus d’options", { exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "Compléter les détails", exact: true })
+    .click();
   await dialog.getByLabel("Objectif (EUR)", { exact: false }).fill("49,90");
   await dialog
     .locator('input[type="file"]')
@@ -147,7 +151,9 @@ test("catégories illustrées et ajout en popup depuis les envies", async ({
     .filter({ has: page.getByRole("heading", { name: title, exact: true }) });
   await gift.getByText("Gérer", { exact: true }).click();
   await gift.getByRole("button", { name: "Modifier", exact: true }).click();
-  await dialog.getByText("Plus d’options", { exact: true }).click();
+  await expect(
+    dialog.getByRole("heading", { name: "Budget et quantité" }),
+  ).toBeVisible();
   await dialog
     .getByRole("combobox", { name: "Catégorie", exact: true })
     .selectOption("");
@@ -156,7 +162,9 @@ test("catégories illustrées et ajout en popup depuis les envies", async ({
   await expect(gift.locator(".gift-category")).toHaveCount(0);
   await gift.getByText("Gérer", { exact: true }).click();
   await gift.getByRole("button", { name: "Modifier", exact: true }).click();
-  await dialog.getByText("Plus d’options", { exact: true }).click();
+  await expect(
+    dialog.getByRole("heading", { name: "Budget et quantité" }),
+  ).toBeVisible();
   await dialog
     .getByRole("combobox", { name: "Catégorie", exact: true })
     .selectOption({ label: renamed });

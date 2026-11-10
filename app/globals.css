@@ -831,15 +831,18 @@ body:has(.personal-page) {
 .wish-modal .image-picker {
   padding: 14px;
 }
-.gift-options > summary,
 .category-delete > summary {
   padding: 12px 0;
   color: var(--muted);
   cursor: pointer;
   font-size: 13px;
 }
-.gift-options > .stack {
-  padding-top: 10px;
+.gift-editor-section {
+  padding-block: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.gift-editor-section > h3 {
+  margin: 0;
 }
 .gift-import-preview {
   display: flex;

@@ -44,7 +44,9 @@ test("priorities can be renamed, added and reordered without losing the wish dra
       .getByLabel("Lien du produit", { exact: true })
       .fill(`https://example.com/priorities-${info.project.name}`);
     await page.getByLabel("Nom de cette envie", { exact: true }).fill(title);
-    await page.getByText("Plus d’options", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "Compléter les détails", exact: true })
+      .click();
     await page.getByLabel("Objectif (EUR)", { exact: false }).fill("29");
     await page
       .getByRole("dialog")
