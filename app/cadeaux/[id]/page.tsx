@@ -5,7 +5,10 @@ import { accessFromCookies } from "../../../lib/lists";
 import { notFound } from "next/navigation";
 import { database } from "../../../lib/db";
 import { listGifts, publicProfile } from "../../../lib/gifts";
-import { withOfferObservations } from "../../../lib/offer-observations";
+import {
+  readOfferSeries,
+  withOfferObservations,
+} from "../../../lib/offer-observations";
 
 export const metadata = { robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -23,6 +26,7 @@ export default async function GiftPage({
   const profile = publicProfile(db);
   const priority = listPriorities(db).find((p) => p.id === gift?.priority);
   if (!gift || !profile) notFound();
+  const observedGift = withOfferObservations(db, [gift])[0];
   const supporters = db
     .prepare(
       `SELECT CASE WHEN c.public_name=1 THEN c.nickname ELSE '' END nickname,
@@ -36,7 +40,8 @@ export default async function GiftPage({
     .map((row) => ({ ...row }));
   return (
     <GiftDetails
-      gift={withOfferObservations(db, [gift])[0]}
+      gift={observedGift}
+      priceSeries={readOfferSeries(db, observedGift)}
       profile={profile}
       priority={priority}
       supporters={supporters}

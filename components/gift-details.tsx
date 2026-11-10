@@ -18,6 +18,8 @@ import { ContributionForm } from "./contribution";
 import { SurpriseNotice } from "./surprise-notice";
 import { GiftPurchaseToggle } from "./gift-purchase-toggle";
 import { MerchantPrice } from "./merchant-price";
+import { PriceTrend } from "./price-trend";
+import type { PricePoint } from "../lib/offer-observations";
 export function GiftDetails({
   gift,
   profile,
@@ -26,6 +28,7 @@ export function GiftDetails({
   owner = false,
   onRefresh,
   manageReservations = true,
+  priceSeries,
 }: {
   gift: Gift;
   profile: PublicProfile;
@@ -34,6 +37,7 @@ export function GiftDetails({
   owner?: boolean;
   onRefresh?: () => void;
   manageReservations?: boolean;
+  priceSeries?: { merchant: string; currency: string; points: PricePoint[] };
 }) {
   const { t, money, date } = useI18n();
   const href = useAppHref(),
@@ -76,6 +80,41 @@ export function GiftDetails({
             {hasBudget(gift) && <span>{t("Budget estimé")}</span>}
           </div>
           {primaryQuote && <MerchantPrice observation={primaryQuote} />}
+          {!!priceSeries?.points.length && (
+            <details className="panel stack">
+              <summary>
+                {t("Historique des prix chez {0}", priceSeries.merchant)}
+              </summary>
+              <PriceTrend
+                currency={priceSeries.currency}
+                points={priceSeries.points}
+              />
+              <div
+                className="table-scroll"
+                role="region"
+                aria-label={t("Historique des relevés")}
+                tabIndex={0}
+              >
+                <table>
+                  <caption>{t("Historique des relevés")}</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">{t("Date")}</th>
+                      <th scope="col">{t("Prix unitaire")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {priceSeries.points.map(({ price, checkedAt }, index) => (
+                      <tr key={`${checkedAt}:${index}`}>
+                        <td>{date(checkedAt, true)}</td>
+                        <td>{money(price, priceSeries.currency)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
           {priority && (
             <p className="fine-print">
               {t("Priorité")} : {priorityLabel(priority, t)}

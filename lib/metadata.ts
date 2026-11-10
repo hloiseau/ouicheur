@@ -57,6 +57,9 @@ function markupProducts($: cheerio.CheerioAPI): JsonObject[] {
             "lowPrice",
             "priceSpecification",
             "priceType",
+            "priceValidUntil",
+            "validFrom",
+            "validThrough",
             "billingDuration",
             "billingIncrement",
             "validForMemberTier",
@@ -238,11 +241,85 @@ function matchesUrl(candidate: unknown, url: string) {
     return false;
   }
 }
+type Promotion = { referencePrice: number; expiresAt: string | null };
+type StructuredPrice = {
+  price: number;
+  currency: string;
+  availability: string;
+  promotion?: Promotion;
+};
+function validityTime(value: unknown, end = false) {
+  if (value == null) return undefined;
+  if (typeof value !== "string") return NaN;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const time = Date.parse(`${value}T00:00:00Z`);
+    return Number.isFinite(time) &&
+      new Date(time).toISOString().slice(0, 10) === value
+      ? time + (end ? 86400000 : 0)
+      : NaN;
+  }
+  return /^\d{4}-\d{2}-\d{2}T\d\d:\d\d(?::\d\d(?:\.\d+)?)?(?:Z|[+-]\d\d:\d\d)$/.test(
+    value,
+  )
+    ? Date.parse(value)
+    : NaN;
+}
+function offerPromotion(offer: JsonObject, active: JsonObject, price: number) {
+  if (
+    schemaType(offer, "AggregateOffer") ||
+    offer.validForMemberTier ||
+    offer.billingDuration ||
+    offer.billingIncrement ||
+    offer.priceType
+  )
+    return;
+  const currency = String(
+    active.priceCurrency || offer.priceCurrency || "",
+  ).toUpperCase();
+  if (!/^[A-Z]{3}$/.test(currency)) return;
+  const references = list(offer.priceSpecification).flatMap((value) => {
+    if (!value || typeof value !== "object") return [];
+    const spec = value as JsonObject;
+    const amount = productPrice(spec.price);
+    return typeof spec.priceType === "string" &&
+      schemaName(spec.priceType) === "StrikethroughPrice" &&
+      !spec.validForMemberTier &&
+      !spec.billingDuration &&
+      !spec.billingIncrement &&
+      String(spec.priceCurrency || offer.priceCurrency || "").toUpperCase() ===
+        currency &&
+      amount !== null &&
+      amount > price
+      ? [{ amount, spec }]
+      : [];
+  });
+  if (references.length !== 1) return;
+  const [{ amount, spec }] = references;
+  const starts = [offer.validFrom, active.validFrom, spec.validFrom].flatMap(
+    (value) => validityTime(value) ?? [],
+  );
+  const ends = [
+    offer.priceValidUntil,
+    offer.validThrough,
+    active.validThrough,
+    spec.validThrough,
+  ].flatMap((value) => validityTime(value, true) ?? []);
+  const now = Date.now();
+  if (
+    starts.some((time) => !Number.isFinite(time) || time > now) ||
+    ends.some((time) => !Number.isFinite(time) || time <= now)
+  )
+    return;
+  return {
+    referencePrice: amount,
+    expiresAt: ends.length ? new Date(Math.min(...ends)).toISOString() : null,
+  };
+}
 function offerPrice(
   value: unknown,
   url: string,
   depth = 0,
-): { price: number; currency: string; availability: string } | null {
+): StructuredPrice | null {
   if (depth > 8) return null;
   const offers = list(value).filter(
     (v): v is JsonObject => !!v && typeof v === "object",
@@ -260,6 +337,7 @@ function offerPrice(
         price,
         currency: String(offer.priceCurrency || ""),
         availability: String(offer.availability || ""),
+        promotion: offerPromotion(offer, offer, price),
       };
     const specifications = list(offer.priceSpecification).filter(
       (v): v is JsonObject => {
@@ -276,14 +354,18 @@ function offerPrice(
         );
       },
     );
-    const nested =
-      offerPrice(offer.offers, url, depth + 1) ||
-      offerPrice(specifications, url, depth + 1);
+    const nestedOffer = offerPrice(offer.offers, url, depth + 1);
+    const nested = nestedOffer || offerPrice(specifications, url, depth + 1);
     if (nested)
       return {
         ...nested,
         currency: nested.currency || String(offer.priceCurrency || ""),
         availability: nested.availability || String(offer.availability || ""),
+        promotion:
+          nestedOffer?.promotion ??
+          (!nestedOffer && specifications.length === 1
+            ? offerPromotion(offer, specifications[0], nested.price)
+            : undefined),
       };
   }
   return null;
@@ -332,7 +414,7 @@ export function parseMetadata(html: string, url: string, requestedUrl = url) {
     .trim()
     .match(/\s[-–]\s*(.+?)\s+([A-Z]{3})$/);
   const optionPrice = option ? productPrice(option[1]) : null;
-  const offer =
+  const offer: StructuredPrice | null =
     optionPrice !== null
       ? { price: optionPrice, currency: option![2], availability: "" }
       : offerPrice(product.offers, url);
@@ -413,6 +495,7 @@ export function parseMetadata(html: string, url: string, requestedUrl = url) {
     image_url,
     price,
     currency,
+    ...(offer?.promotion ? { promotion: offer.promotion } : {}),
     availability: (() => {
       const raw = offer?.availability || meta("product:availability");
       return /(?:OutOfStock|SoldOut|Discontinued)$/i.test(raw)

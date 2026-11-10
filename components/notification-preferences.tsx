@@ -7,6 +7,7 @@ import {
 } from "../lib/notification-labels";
 import { api, Field, Notice } from "./ui";
 import { useI18n } from "./language";
+import type { OfferAlert } from "../lib/offer-alerts.ts";
 type Data = {
   owner: boolean;
   preferences: NotificationPreferences;
@@ -16,9 +17,10 @@ type Data = {
   smtp_available: boolean;
   owner_email_configured: boolean;
   lists: { id: string; name: string }[];
+  offer_alerts?: OfferAlert[];
 };
 export function NotificationPreferencesPanel() {
-  const { t } = useI18n();
+  const { t, money, date } = useI18n();
   const [data, setData] = useState<Data | null>(null),
     [email, setEmail] = useState(""),
     [code, setCode] = useState(""),
@@ -62,13 +64,46 @@ export function NotificationPreferencesPanel() {
       <h2>{t("Mes rappels et notifications")}</h2>
       <p>
         {t(
-          "Choisissez vos occasions, canaux et horaires. Les messages restent neutres, sans noms de cadeaux, montants ou liens privés.",
+          "Choisissez vos occasions, canaux et horaires. Les courriels d’alerte de prix indiquent l’offre marchande et son relevé.",
         )}
       </p>
       {error && <Notice error>{error}</Notice>}
       {notice && <p role="status">{notice}</p>}
       {data && (
         <>
+          {!!data.offer_alerts?.length && (
+            <section className="stack">
+              <h3>{t("Alertes de prix récentes")}</h3>
+              <ul>
+                {data.offer_alerts.map((alert) => (
+                  <li key={alert.id}>
+                    <strong>
+                      {t(
+                        alert.kind === "price"
+                          ? "Prix cible atteint"
+                          : "Retour en stock",
+                      )}
+                    </strong>
+                    {` · ${alert.title} · `}
+                    <a
+                      href={alert.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {alert.merchant}
+                    </a>
+                    <p className="fine-print">
+                      {alert.price === null
+                        ? t("Prix non précisé")
+                        : money(alert.price, alert.currency)}
+                      {` · ${alert.shipping === null ? t("Livraison non précisée") : t("Livraison indiquée : {0}", money(alert.shipping, alert.currency))}`}
+                      {` · ${t("Relevé du {0}", date(alert.checkedAt, true))}`}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {data.owner && (
             <p>
               {t(

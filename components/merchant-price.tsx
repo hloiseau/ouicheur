@@ -49,6 +49,23 @@ export function MerchantPrice({
           {t("Dernière tentative non vérifiable le {0}", date(checkedAt, true))}
         </p>
       )}
+      {observation.promotion && (
+        <p>
+          {t(
+            "Promo annoncée par le marchand, prix de référence {0}",
+            money(observation.promotion.referencePrice, currency),
+          )}
+        </p>
+      )}
+      {observation.observedDrop && (
+        <p>
+          {t(
+            "Baisse observée depuis le relevé de {0} du {1}",
+            money(observation.observedDrop.previousPrice, currency),
+            date(observation.observedDrop.checkedAt, true),
+          )}
+        </p>
+      )}
     </div>
   );
 }

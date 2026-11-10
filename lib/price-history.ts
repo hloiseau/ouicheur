@@ -10,6 +10,7 @@ import {
   priceObservationMaxAge,
 } from "./offer-observations.ts";
 import type { WishDetails } from "./wish-details.ts";
+import { recordOfferAlert } from "./offer-alerts.ts";
 export function offerIdentity(db: DatabaseSync, giftId: string, offerId = "") {
   const gift = db.prepare("SELECT * FROM gifts WHERE id=?").get(giftId);
   if (!gift) throw new AppError("Envie introuvable.", 404);
@@ -48,6 +49,7 @@ type Observation = {
   price: number | null;
   currency: string;
   availability: string;
+  promotion?: { referencePrice: number; expiresAt: string | null };
 };
 export function recordOfferPrice(
   db: DatabaseSync,
@@ -102,8 +104,22 @@ export function recordOfferPrice(
       observed.price! <= 100000000
         ? observed.price
         : null;
+    const promotion = observed?.promotion;
+    const referencePrice =
+      comparable &&
+      price !== null &&
+      promotion &&
+      Number.isSafeInteger(promotion.referencePrice) &&
+      promotion.referencePrice > price &&
+      promotion.referencePrice <= 100000000 &&
+      (promotion.expiresAt === null ||
+        Date.parse(promotion.expiresAt) > now.getTime())
+        ? promotion.referencePrice
+        : null;
     db.prepare(
-      "INSERT INTO offer_price_history VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      `INSERT INTO offer_price_history
+      (id,gift_id,offer_id,url,hostname,fingerprint,price,currency,shipping,availability,checked_at,state,method,reference_price,promotion_expires_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     ).run(
       id,
       identity.giftId,
@@ -118,6 +134,8 @@ export function recordOfferPrice(
       now.toISOString(),
       state,
       method,
+      referencePrice,
+      referencePrice !== null ? promotion!.expiresAt : null,
     );
     const watch = db
       .prepare("SELECT * FROM price_watches WHERE gift_id=? AND offer_id=?")
@@ -152,6 +170,7 @@ export function recordOfferPrice(
           listId: identity.listId,
           sourceKey: identity.giftId,
           now,
+          offerAlertId: recordOfferAlert(db, id, identity.listId, "price"),
         });
         db.prepare(
           "UPDATE price_watches SET last_price_alert=? WHERE gift_id=? AND offer_id=?",
@@ -179,7 +198,12 @@ export function recordOfferPrice(
             db,
             "offer_changed",
             `stock:${identity.giftId}:${identity.offerId}:${day}`,
-            { listId: identity.listId, sourceKey: identity.giftId, now },
+            {
+              listId: identity.listId,
+              sourceKey: identity.giftId,
+              now,
+              offerAlertId: recordOfferAlert(db, id, identity.listId, "stock"),
+            },
           );
           db.prepare(
             "UPDATE price_watches SET last_stock_alert=? WHERE gift_id=? AND offer_id=?",

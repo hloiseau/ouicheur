@@ -5,6 +5,7 @@ import type { WishDetails } from "./wish-details.ts";
 import { canonicalUrl } from "./validation.ts";
 
 export const priceObservationMaxAge = 48 * 60 * 60 * 1000;
+export type PricePoint = { price: number; checkedAt: string };
 
 export type OfferObservation = {
   offerId: string;
@@ -17,6 +18,8 @@ export type OfferObservation = {
   priceCheckedAt: string | null;
   verified: boolean;
   stale: boolean;
+  promotion?: { referencePrice: number; expiresAt: string | null };
+  observedDrop?: { previousPrice: number; checkedAt: string };
 };
 
 export function offerFingerprint(
@@ -90,7 +93,8 @@ export function withOfferObservations(
            COALESCE(priced.currency, latest.currency) currency,
            CASE WHEN priced.rowid IS NOT NULL THEN priced.shipping
                 WHEN latest.state='ok' THEN latest.shipping END shipping,
-           priced.checked_at price_checked_at
+           priced.checked_at price_checked_at, priced.reference_price, priced.promotion_expires_at,
+           earlier.price earlier_price, earlier.checked_at earlier_checked_at
     FROM wanted
     JOIN offer_price_history latest ON latest.rowid=(
       SELECT rowid FROM offer_price_history
@@ -101,6 +105,13 @@ export function withOfferObservations(
       SELECT rowid FROM offer_price_history
       WHERE gift_id=wanted.gift_id AND offer_id=wanted.offer_id AND fingerprint=wanted.fingerprint
         AND state='ok' AND price IS NOT NULL
+      ORDER BY checked_at DESC, rowid DESC LIMIT 1
+    )
+    LEFT JOIN offer_price_history earlier ON earlier.rowid=(
+      SELECT rowid FROM offer_price_history
+      WHERE gift_id=wanted.gift_id AND offer_id=wanted.offer_id AND fingerprint=wanted.fingerprint
+        AND state='ok' AND price IS NOT NULL
+        AND (checked_at < priced.checked_at OR (checked_at=priced.checked_at AND rowid < priced.rowid))
       ORDER BY checked_at DESC, rowid DESC LIMIT 1
     )
     ORDER BY wanted.position
@@ -114,18 +125,42 @@ export function withOfferObservations(
     const checkedAt = String(row.checked_at);
     const priceCheckedAt =
       row.price_checked_at === null ? null : String(row.price_checked_at);
+    const stale =
+      now - Date.parse(priceCheckedAt ?? checkedAt) > priceObservationMaxAge;
+    const verified = row.state === "ok" && row.latest_price !== null;
+    const price = row.price === null ? null : Number(row.price);
+    const expiresAt =
+      row.promotion_expires_at === null
+        ? null
+        : String(row.promotion_expires_at);
+    const current =
+      verified && !stale && row.availability === "in_stock" && price !== null;
+    const promotion =
+      current &&
+      row.reference_price !== null &&
+      (expiresAt === null || Date.parse(expiresAt) > now)
+        ? { referencePrice: Number(row.reference_price), expiresAt }
+        : undefined;
+    const observedDrop =
+      current && row.earlier_price !== null && Number(row.earlier_price) > price
+        ? {
+            previousPrice: Number(row.earlier_price),
+            checkedAt: String(row.earlier_checked_at),
+          }
+        : undefined;
     observations.push({
       offerId: String(row.offer_id),
       merchant: String(row.hostname),
       currency: String(row.currency ?? ""),
-      price: row.price === null ? null : Number(row.price),
+      price,
       shipping: row.shipping === null ? null : Number(row.shipping),
       availability: row.state === "ok" ? String(row.availability) : "unknown",
       checkedAt,
       priceCheckedAt,
-      verified: row.state === "ok" && row.latest_price !== null,
-      stale:
-        now - Date.parse(priceCheckedAt ?? checkedAt) > priceObservationMaxAge,
+      verified,
+      stale,
+      ...(promotion ? { promotion } : {}),
+      ...(observedDrop ? { observedDrop } : {}),
     });
     byGift.set(key, observations);
   }
@@ -133,4 +168,38 @@ export function withOfferObservations(
     const observations = byGift.get(gift.id);
     return observations ? { ...gift, offer_observations: observations } : gift;
   });
+}
+
+export function readOfferSeries(
+  db: DatabaseSync,
+  gift: Gift,
+  now = Date.now(),
+) {
+  const quote = gift.offer_observations?.[0];
+  if (!quote?.priceCheckedAt) return;
+  const offer = gift.offers?.find((item) => item.id === quote.offerId);
+  const url = offer?.url ?? gift.url;
+  const fingerprint = offerFingerprint(
+    url,
+    gift,
+    offer?.condition ?? "primary",
+    quote.currency,
+  );
+  const points = db
+    .prepare(
+      `SELECT price,checked_at FROM offer_price_history
+    WHERE gift_id=? AND offer_id=? AND fingerprint=? AND state='ok' AND price IS NOT NULL AND checked_at>=?
+    ORDER BY checked_at DESC,rowid DESC LIMIT 100`,
+    )
+    .all(
+      gift.id,
+      quote.offerId,
+      fingerprint,
+      new Date(now - 180 * 86400000).toISOString(),
+    )
+    .map((row) => ({
+      price: Number(row.price),
+      checkedAt: String(row.checked_at),
+    }));
+  return { merchant: quote.merchant, currency: quote.currency, points };
 }

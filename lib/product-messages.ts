@@ -1,4 +1,14 @@
 export const productEnglish: Record<string, string> = {
+  "Historique des prix chez {0}": "Price history at {0}",
+  "Choisissez vos occasions, canaux et horaires. Les courriels d’alerte de prix indiquent l’offre marchande et son relevé.":
+    "Choose occasions, channels and times. Price alert emails include the merchant offer and observation.",
+  "Alertes de prix récentes": "Recent price alerts",
+  "Prix cible atteint": "Target price reached",
+  "Retour en stock": "Back in stock",
+  "Promo annoncée par le marchand, prix de référence {0}":
+    "Merchant-advertised sale, reference price {0}",
+  "Baisse observée depuis le relevé de {0} du {1}":
+    "Observed drop from {0} on {1}",
   "Calcul du seuil": "Price threshold basis",
   "Prix unitaire hors livraison": "Unit price excluding shipping",
   "Total unitaire livré": "Total per unit including shipping",

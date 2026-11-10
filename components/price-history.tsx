@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import type { Gift } from "../lib/gifts";
 import { money as parseMoney } from "../lib/validation";
+import { PriceTrend } from "./price-trend";
 import { ProductRefresh } from "./product-refresh";
 import { api, Field, Notice } from "./ui";
 import { useI18n } from "./language";
@@ -29,54 +30,6 @@ type History = {
     fingerprint: string;
   }[];
 };
-function PriceTrend({ history }: { history: History }) {
-  const { t, money } = useI18n();
-  const samples = history.items
-    .flatMap((item) =>
-      item.state === "ok" &&
-      item.fingerprint === history.identity.fingerprint &&
-      item.currency === history.identity.currency &&
-      item.price !== null &&
-      Number.isFinite(Date.parse(item.checked_at))
-        ? [{ time: Date.parse(item.checked_at), price: item.price }]
-        : [],
-    )
-    .reverse();
-  if (!samples.length) return null;
-  const low = Math.min(...samples.map(({ price }) => price));
-  const high = Math.max(...samples.map(({ price }) => price));
-  const start = samples[0].time;
-  const duration = samples.at(-1)!.time - start;
-  const points = samples.map(({ time, price }, index) => {
-    const x = duration
-      ? (time - start) / duration
-      : index / Math.max(1, samples.length - 1);
-    const y = high === low ? 0.5 : (price - low) / (high - low);
-    return `${8 + x * 344},${72 - y * 64}`;
-  });
-  return (
-    <div className="stack price-trend">
-      <p>
-        {t("Plus bas observé : {0}", money(low, history.identity.currency))}
-      </p>
-      {points.length > 1 && (
-        <svg
-          viewBox="0 0 360 80"
-          role="img"
-          aria-label={t("Évolution du prix vérifié")}
-        >
-          <polyline
-            points={points.join(" ")}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
-      )}
-    </div>
-  );
-}
 export function PriceHistory({
   gift,
   onSaved,
@@ -358,7 +311,17 @@ export function PriceHistory({
                 )}
               </div>
             </form>
-            <PriceTrend history={data} />
+            <PriceTrend
+              currency={data.identity.currency}
+              points={data.items.flatMap((item) =>
+                item.state === "ok" &&
+                item.fingerprint === data.identity.fingerprint &&
+                item.currency === data.identity.currency &&
+                item.price !== null
+                  ? [{ price: item.price, checkedAt: item.checked_at }]
+                  : [],
+              )}
+            />
             {data.items.length ? (
               <div
                 className="table-scroll"

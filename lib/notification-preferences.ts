@@ -12,6 +12,7 @@ import {
   type NotificationPreferences,
 } from "./notification-labels.ts";
 import { emailAddress, sendMail, smtpConfigured } from "./mail.ts";
+import { readOfferAlerts } from "./offer-alerts.ts";
 export const accountId = (access: Access) =>
   access.owner ? "owner" : access.memberId || "";
 const time = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
@@ -91,6 +92,7 @@ export function readNotificationPreferences(db: DatabaseSync, access: Access) {
     lists: listLists(db, access)
       .filter((l) => access.owner || access.managedLists?.includes(l.id))
       .map((l) => ({ id: l.id, name: l.name })),
+    offer_alerts: readOfferAlerts(db, access),
   };
 }
 export function saveNotificationPreferences(
