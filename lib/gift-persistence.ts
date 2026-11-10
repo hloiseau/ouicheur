@@ -60,10 +60,6 @@ export function giftDecision(
 ) {
   const existing = facts.existing;
   if (!facts.currency) throw new AppError("Instance non initialisée.");
-  if (gift.kind === "product" && !gift.url)
-    throw new AppError(
-      "Un produit doit avoir un lien. Choisissez un autre type pour une envie sans lien.",
-    );
   if (gift.budget_mode === "fixed" && gift.target <= 0)
     throw new AppError(
       "Renseignez un budget positif ou choisissez un budget non précisé ou sans dépense.",

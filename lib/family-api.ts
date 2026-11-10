@@ -13,6 +13,7 @@ import { listLists } from "./lists.ts";
 import { extractMetadata } from "./metadata.ts";
 import { downloadImage, storeImage } from "./images.ts";
 import { AppError, urlSchema } from "./validation.ts";
+import { removeGift } from "./gift-sqlite.ts";
 
 const json = (value: unknown) =>
   Response.json(value, { headers: { "Cache-Control": "no-store" } });
@@ -56,6 +57,10 @@ export async function teamPost(
     setMemberGiftPurchased(db, token, z.uuid().parse(parts[2]), input);
     return json({ ok: true });
   }
+  if (parts[1] === "gifts" && parts[3] === "remove" && parts.length === 4)
+    return json(
+      removeGift(db, z.uuid().parse(parts[2]), input, memberAccess(db, token)),
+    );
   if (
     !db
       .prepare(

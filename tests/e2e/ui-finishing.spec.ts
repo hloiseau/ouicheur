@@ -23,6 +23,7 @@ test("language and category creation preserve the entire wish draft", async ({
   await page
     .getByLabel("Nom de cette envie", { exact: true })
     .fill("Mon brouillon conservé");
+  await page.getByText("Plus d’options", { exact: true }).click();
   await page.getByLabel("Objectif (EUR)", { exact: false }).fill("12.50");
   await page.getByLabel("Quantité", { exact: true }).fill("2");
   await page

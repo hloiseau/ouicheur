@@ -232,6 +232,7 @@ test("owner invites a coorganizer, assigns a family profile and prepares a priva
       .fill(`https://example.com/collaborative-${info.project.name}`);
     const title = `Envie préparée ensemble ${info.project.name}`;
     await visitor.getByLabel("Nom de cette envie", { exact: true }).fill(title);
+    await visitor.getByText("Plus d’options", { exact: true }).click();
     await visitor.getByLabel("Objectif (EUR)", { exact: false }).fill("20");
     const png = await sharp({
       create: { width: 12, height: 12, channels: 3, background: "#bd5b67" },

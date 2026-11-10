@@ -1,12 +1,17 @@
 import { randomUUID } from "node:crypto";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { openDatabase } from "../lib/db.ts";
 import { initializeOwner } from "../lib/auth.ts";
 import { saveList } from "../lib/lists.ts";
 import { giftService } from "../lib/gift-persistence.ts";
-import { SqliteGiftStore } from "../lib/gift-sqlite.ts";
+import { removeGift, SqliteGiftStore } from "../lib/gift-sqlite.ts";
 import { giftContract } from "./gift-contract.ts";
 import { catalogService } from "../lib/catalog.ts";
 import { SqliteCatalogStore } from "../lib/catalog-sqlite.ts";
+import { saveGift } from "../lib/gifts.ts";
+import { savePriceWatch } from "../lib/price-history.ts";
+import { createReservation, reservationStatus } from "../lib/reservations.ts";
 giftContract("SQLite gifts", async () => {
   const db = openDatabase(":memory:");
   await initializeOwner(db, "Gifts", "test-gift-password-only");
@@ -87,4 +92,59 @@ giftContract("SQLite gifts", async () => {
       db.close();
     },
   };
+});
+
+test("gift removal rechecks engagements and keeps reservation and offer history", async () => {
+  const db = openDatabase(":memory:");
+  try {
+    await initializeOwner(db, "Gifts", "test-gift-password-only");
+    const owner = { owner: true, lists: [] };
+    const editor = {
+      owner: false,
+      lists: [],
+      memberId: randomUUID(),
+      editableLists: ["default"],
+    };
+    const id = saveGift(db, {
+      title: "Gift with a price watch",
+      url: "https://example.com/gift",
+      target: "15",
+      offers: [{ url: "https://example.com/offer", currency: "EUR" }],
+    });
+    savePriceWatch(db, {
+      gift_id: id,
+      threshold: 1000,
+      confirmed_variant: true,
+      automatic: true,
+      confirm: true,
+    });
+    const remove = (confirm?: "archive" | "delete") =>
+      removeGift(db, id, { confirm }, editor);
+    assert.throws(
+      () => removeGift(db, id, {}, { ...editor, editableLists: ["other"] }),
+      /Cadeau introuvable/,
+    );
+    assert.deepEqual(remove(), { action: "delete" });
+    const reservation = createReservation(db, { gift_id: id, quantity: 1 });
+    assert.throws(() => remove("delete"), /engagements.*ont changé/);
+    assert.equal(
+      db.prepare("SELECT visibility FROM gifts WHERE id=?").get(id)?.visibility,
+      "visible",
+    );
+    assert.deepEqual(removeGift(db, id, {}, owner), { action: "archive" });
+    assert.deepEqual(remove("archive"), { action: "archive" });
+    assert.equal(
+      db.prepare("SELECT visibility FROM gifts WHERE id=?").get(id)?.visibility,
+      "archived",
+    );
+    assert.equal(reservationStatus(db, reservation.token).state, "reserved");
+    assert.ok(db.prepare("SELECT 1 FROM gift_offers WHERE gift_id=?").get(id));
+    assert.equal(
+      db.prepare("SELECT automatic FROM price_watches WHERE gift_id=?").get(id)
+        ?.automatic,
+      0,
+    );
+  } finally {
+    db.close();
+  }
 });

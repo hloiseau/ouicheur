@@ -65,6 +65,7 @@ test("catégories illustrées et ajout en popup depuis les envies", async ({
   await expect(
     dialog.getByLabel("Visibilité", { exact: true }),
   ).not.toBeVisible();
+  await dialog.getByText("Plus d’options", { exact: true }).click();
   await expect(
     dialog
       .getByRole("combobox", { name: "Catégorie", exact: true })
@@ -79,6 +80,7 @@ test("catégories illustrées et ajout en popup depuis les envies", async ({
     .getByLabel("Lien du produit", { exact: true })
     .fill(`https://example.com/escape-${info.project.name}`);
   await dialog.getByLabel("Nom de cette envie").fill(title);
+  await dialog.getByText("Plus d’options", { exact: true }).click();
   await dialog.getByLabel("Objectif (EUR)", { exact: false }).fill("49,90");
   await dialog
     .locator('input[type="file"]')
@@ -143,14 +145,18 @@ test("catégories illustrées et ajout en popup depuis les envies", async ({
   const gift = page
     .locator(".gift-card")
     .filter({ has: page.getByRole("heading", { name: title, exact: true }) });
+  await gift.getByText("Gérer", { exact: true }).click();
   await gift.getByRole("button", { name: "Modifier", exact: true }).click();
+  await dialog.getByText("Plus d’options", { exact: true }).click();
   await dialog
     .getByRole("combobox", { name: "Catégorie", exact: true })
     .selectOption("");
   await dialog.getByRole("button", { name: "Enregistrer cette envie" }).click();
   await expect(dialog).toHaveCount(0);
   await expect(gift.locator(".gift-category")).toHaveCount(0);
+  await gift.getByText("Gérer", { exact: true }).click();
   await gift.getByRole("button", { name: "Modifier", exact: true }).click();
+  await dialog.getByText("Plus d’options", { exact: true }).click();
   await dialog
     .getByRole("combobox", { name: "Catégorie", exact: true })
     .selectOption({ label: renamed });

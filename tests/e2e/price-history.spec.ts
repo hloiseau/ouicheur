@@ -61,6 +61,7 @@ test("price history presents comparable observations and saves opt-in alerts wit
     .getByRole("searchbox", { name: "Rechercher une envie", exact: true })
     .fill(title);
   const card = page.locator(".admin-gift-row").filter({ hasText: title });
+  await card.getByText("Gérer", { exact: true }).click();
   await card.getByRole("button", { name: "Modifier", exact: true }).click();
   const section = page.locator("details.price-history");
   await section.locator("summary").click();

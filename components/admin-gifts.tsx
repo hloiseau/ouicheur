@@ -10,10 +10,10 @@ import { priorityLabel, type GiftPriority } from "../lib/priority-labels";
 import { PrioritiesEditor } from "./priorities";
 import { useI18n } from "./language";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Gift } from "../lib/gifts";
 import { decimal } from "../lib/format";
-import { money as parseMoney } from "../lib/validation";
+import { money as parseMoney, webUrl } from "../lib/validation";
 import { api, Field, Notice } from "./ui";
 import { Modal } from "./modal";
 import { ImagePicker } from "./image-picker";
@@ -89,6 +89,7 @@ export function GiftFields({
   categories,
   currency,
   simple = false,
+  extraOptions,
   onImageBusy,
   showDuplicate = true,
   onManagePriorities,
@@ -101,6 +102,7 @@ export function GiftFields({
   categories: { id: string; name: string }[];
   currency: string;
   simple?: boolean;
+  extraOptions?: ReactNode;
   onImageBusy?: (busy: boolean) => void;
   showDuplicate?: boolean;
   onManagePriorities?: () => void;
@@ -123,8 +125,7 @@ export function GiftFields({
   }
   const set = <K extends keyof GiftDraft>(key: K, next: GiftDraft[K]) =>
     onChange({ ...value, [key]: next });
-  const Options = simple ? "details" : "div";
-  return (
+  const options = (
     <>
       {!simple && (
         <>
@@ -147,15 +148,7 @@ export function GiftFields({
           </Field>
         </>
       )}
-      <Field label={t("Nom de cette envie")}>
-        <input
-          name="title"
-          required
-          value={value.title}
-          onChange={(e) => set("title", e.target.value)}
-          maxLength={160}
-        />
-      </Field>
+      {extraOptions}
       <WishBudgetField value={value} onChange={onChange} />
       <div className="form-grid">
         {hasBudget(value) && (
@@ -166,7 +159,7 @@ export function GiftFields({
             )}
           >
             <input
-              required={!value.budget_mode || value.budget_mode === "fixed"}
+              required={!simple && hasBudget(value)}
               inputMode="decimal"
               disabled={!!value.budget_mode && value.budget_mode !== "fixed"}
               value={value.target}
@@ -243,64 +236,91 @@ export function GiftFields({
         onChange={onChange}
         currency={currency}
       />
-      <Options className="gift-options">
-        {simple && <summary>{t("Plus d’options")}</summary>}
-        <div className="stack">
-          <Field label={t("Priorité")}>
-            <select
-              value={value.priority}
-              onChange={(e) => set("priority", Number(e.target.value))}
-            >
-              {priorities.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {priorityLabel(p, t)}
-                </option>
-              ))}
-            </select>
-          </Field>
-          {onManagePriorities && (
-            <button
-              type="button"
-              className="text-link priority-manage-link"
-              onClick={onManagePriorities}
-            >
-              {t("Gérer les priorités")}
-            </button>
-          )}
-          <Field label={t("Visibilité")}>
-            <select
-              value={value.visibility}
-              onChange={(e) => set("visibility", e.target.value)}
-            >
-              <option value="visible">{t("Visible sur ma Ouichlist")}</option>
-              <option value="archived">{t("Archivé (privé)")}</option>
-            </select>
-          </Field>
-          <Field label={t("Pourquoi ce cadeau ?")}>
-            <textarea
-              value={value.description}
-              onChange={(e) => set("description", e.target.value)}
-              rows={3}
-              maxLength={2000}
+      <div className="stack">
+        <Field label={t("Priorité")}>
+          <select
+            value={value.priority}
+            onChange={(e) => set("priority", Number(e.target.value))}
+          >
+            {priorities.map((p) => (
+              <option key={p.id} value={p.id}>
+                {priorityLabel(p, t)}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {onManagePriorities && (
+          <button
+            type="button"
+            className="text-link priority-manage-link"
+            onClick={onManagePriorities}
+          >
+            {t("Gérer les priorités")}
+          </button>
+        )}
+        <Field label={t("Visibilité")}>
+          <select
+            value={value.visibility}
+            onChange={(e) => set("visibility", e.target.value)}
+          >
+            <option value="visible">{t("Visible sur ma Ouichlist")}</option>
+            <option value="archived">{t("Archivé (privé)")}</option>
+          </select>
+        </Field>
+        <Field label={t("Pourquoi ce cadeau ?")}>
+          <textarea
+            value={value.description}
+            onChange={(e) => set("description", e.target.value)}
+            rows={3}
+            maxLength={2000}
+          />
+        </Field>
+        <div className="gift-pause-option">
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={value.closed}
+              onChange={(e) => set("closed", e.target.checked)}
             />
-          </Field>
-          <div className="gift-pause-option">
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={value.closed}
-                onChange={(e) => set("closed", e.target.checked)}
-              />
-              {t("Mettre cette envie en pause")}
-            </label>
-            <p className="fine-print">
-              {t(
-                "Bloque les nouvelles participations et réservations sans supprimer le cadeau. Les participations déjà commencées peuvent être finalisées.",
-              )}
-            </p>
-          </div>
+            {t("Mettre cette envie en pause")}
+          </label>
+          <p className="fine-print">
+            {t(
+              "Bloque les nouvelles participations et réservations sans supprimer le cadeau. Les participations déjà commencées peuvent être finalisées.",
+            )}
+          </p>
         </div>
-      </Options>
+      </div>
+    </>
+  );
+  return (
+    <>
+      <Field label={t("Nom de cette envie")}>
+        <input
+          name="title"
+          required
+          value={value.title}
+          onChange={(e) => set("title", e.target.value)}
+          maxLength={160}
+        />
+      </Field>
+      {simple ? (
+        <details
+          className="gift-options"
+          onInvalid={(event) => {
+            event.currentTarget.open = true;
+            const details =
+              event.target instanceof Element &&
+              event.target.closest("details");
+            if (details) details.open = true;
+          }}
+        >
+          <summary>{t("Plus d’options")}</summary>
+          <div className="stack">{options}</div>
+        </details>
+      ) : (
+        options
+      )}
     </>
   );
 }
@@ -333,7 +353,7 @@ export function GiftEditor({
   onCategoriesChanged?: () => void;
   apiPrefix?: "admin" | "team";
 }) {
-  const { t, date } = useI18n();
+  const { t, date, money } = useI18n();
   const [value, setValue] = useState(
     gift
       ? giftDraft(gift)
@@ -371,8 +391,11 @@ export function GiftEditor({
   const [operation, setOperation] = useState<"extract" | "save" | null>(null);
   const busy = operation !== null;
   const formRef = useRef<HTMLFormElement>(null);
-  const urlRef = useRef<HTMLInputElement>(null);
-  const urlHintId = useId();
+  const triedInitialUrl = useRef(false);
+  const extracting = useRef(false);
+  const imported = useRef<
+    Partial<Pick<GiftDraft, "title" | "description" | "target" | "image">>
+  >({});
   const [suggestion, setSuggestion] = useState<{
     suggested_price: number | null;
     suggested_currency: string | null;
@@ -382,10 +405,39 @@ export function GiftEditor({
     suggested_currency: gift?.suggested_currency || null,
     extracted_at: gift?.extracted_at || null,
   });
-  const extract = async () => {
-    if (busy || uploading || !urlRef.current?.reportValidity()) return;
-    const initial = value;
+  const changeLink = (url: string) => {
+    const auto = imported.current;
+    imported.current = {};
+    const next = {
+      ...value,
+      url,
+      original_url: url,
+      title: value.title === auto.title ? "" : value.title,
+      description:
+        value.description === auto.description ? "" : value.description,
+      target: value.target === auto.target ? "" : value.target,
+      image: value.image === auto.image ? "" : value.image,
+    };
+    setValue(next);
+    setExtractionError("");
+    setNotice("");
+    setSuggestion({
+      suggested_price: null,
+      suggested_currency: null,
+      extracted_at: null,
+    });
+    return next;
+  };
+  const extract = async (initial: GiftDraft) => {
+    if (busy || uploading || extracting.current) return;
     const url = initial.url;
+    try {
+      webUrl(url);
+    } catch (error) {
+      setExtractionError(t((error as Error).message));
+      return;
+    }
+    extracting.current = true;
     setOperation("extract");
     setError("");
     setExtractionError("");
@@ -400,6 +452,21 @@ export function GiftEditor({
         currency: string;
         extracted_at: string;
       }>(`${apiPrefix}/extract`, { url });
+      const suggestedTarget =
+        hasBudget(initial) &&
+        !initial.target.trim() &&
+        m.price &&
+        m.currency === (gift?.currency || currency)
+          ? decimal(m.price)
+          : undefined;
+      imported.current = {
+        ...imported.current,
+        ...(!initial.title.trim() && m.title ? { title: m.title } : {}),
+        ...(!initial.description.trim() && m.description
+          ? { description: m.description }
+          : {}),
+        ...(suggestedTarget ? { target: suggestedTarget } : {}),
+      };
       setValue((v) => ({
         ...v,
         url: m.url,
@@ -413,11 +480,8 @@ export function GiftEditor({
             ? m.description || v.description
             : v.description,
         target:
-          !initial.target.trim() &&
-          v.target === initial.target &&
-          m.price &&
-          m.currency === (gift?.currency || currency)
-            ? decimal(m.price)
+          v.target === initial.target && hasBudget(v)
+            ? suggestedTarget || v.target
             : v.target,
       }));
       setSuggestion({
@@ -433,6 +497,7 @@ export function GiftEditor({
               url: m.image_url,
             },
           );
+          imported.current.image = image;
           setValue((v) => (v.image === initial.image ? { ...v, image } : v));
         } catch (e) {
           setError(
@@ -454,9 +519,7 @@ export function GiftEditor({
                 gift?.currency || currency,
               )
             : m.price === null
-              ? t(
-                  "Le prix n’a pas été trouvé. Saisissez-le ou choisissez « Budget non précisé ».",
-                )
+              ? t("Aucun prix trouvé. Vous pouvez enregistrer sans budget.")
               : t(
                   "Le prix est une suggestion, sans garantie de disponibilité.",
                 ),
@@ -465,9 +528,16 @@ export function GiftEditor({
     } catch (e) {
       setExtractionError((e as Error).message);
     } finally {
+      extracting.current = false;
       setOperation(null);
     }
   };
+  useEffect(() => {
+    if (!gift && initialUrl && !triedInitialUrl.current) {
+      triedInitialUrl.current = true;
+      void extract(value);
+    }
+  }, [gift, initialUrl]);
   return (
     <>
       <Modal
@@ -492,6 +562,10 @@ export function GiftEditor({
                     : `${apiPrefix}/gifts`,
                 {
                   ...value,
+                  budget_mode:
+                    hasBudget(value) && !value.target.trim()
+                      ? "unknown"
+                      : value.budget_mode,
                   original_url: value.original_url || value.url,
                   ...suggestion,
                 },
@@ -504,64 +578,69 @@ export function GiftEditor({
             }
           }}
         >
-          <WishKindField value={value} onChange={setValue} />
           <div className="extract-box inline-input">
-            <Field
-              label={t(
-                !value.kind || value.kind === "product"
-                  ? "Lien du produit"
-                  : "Lien (facultatif)",
-              )}
-            >
+            <Field label={t("Lien du produit")}>
               <input
-                ref={urlRef}
-                aria-describedby={urlHintId}
                 type="url"
-                required={!value.kind || value.kind === "product"}
                 autoFocus
                 maxLength={2048}
                 readOnly={busy}
                 value={value.url}
-                onChange={(e) => {
-                  setValue((v) => ({
-                    ...v,
-                    url: e.target.value,
-                    original_url: e.target.value,
-                  }));
-                  setExtractionError("");
-                  setNotice("");
-                  setSuggestion({
-                    suggested_price: null,
-                    suggested_currency: null,
-                    extracted_at: null,
-                  });
+                onChange={(e) => changeLink(e.target.value)}
+                onPaste={(event) => {
+                  if (busy || uploading || extracting.current) return;
+                  const pasted = event.clipboardData.getData("text").trim();
+                  try {
+                    webUrl(pasted);
+                  } catch {
+                    return;
+                  }
+                  event.preventDefault();
+                  void extract(changeLink(pasted));
                 }}
                 placeholder={t("Collez le lien de votre envie…")}
               />
             </Field>
-            <button
-              type="button"
-              className="button secondary"
-              disabled={busy || uploading || !value.url}
-              onClick={() => void extract()}
-            >
-              {operation === "extract"
-                ? t("Lecture…")
-                : t("Récupérer les informations")}
-            </button>
-          </div>
-          <p className="fine-print" id={urlHintId}>
-            {t(
-              "La récupération est facultative. Seuls les champs vides sont complétés.",
+            {value.url && !notice && operation !== "extract" && (
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy || uploading}
+                onClick={() => void extract(value)}
+              >
+                {t("Récupérer les informations")}
+              </button>
             )}
-          </p>
-          {notice && <Notice>{notice}</Notice>}
+          </div>
+          {operation === "extract" && <Notice>{t("Lecture…")}</Notice>}
+          {notice && (
+            <div className="gift-import-preview">
+              {value.image && (
+                <img src={value.image} width={56} height={56} alt="" />
+              )}
+              <div>
+                {suggestion.suggested_price !== null &&
+                  suggestion.suggested_currency && (
+                    <strong>
+                      {t(
+                        "Prix relevé : {0}",
+                        money(
+                          suggestion.suggested_price,
+                          suggestion.suggested_currency,
+                        ),
+                      )}
+                    </strong>
+                  )}
+                <p role="status">{notice}</p>
+              </div>
+            </div>
+          )}
           {error && <Notice error>{error}</Notice>}
           {extractionError && (
             <Notice error>
               <p>
                 {t(
-                  "La récupération automatique n’a pas abouti. Votre lien est conservé : ajoutez le nom et le montant pour enregistrer cette envie.",
+                  "L’import n’a pas abouti. Le lien est conservé. Ajoutez simplement un nom.",
                 )}
               </p>
               <button
@@ -581,23 +660,29 @@ export function GiftEditor({
               </details>
             </Notice>
           )}
-          <Field label={t("Liste")}>
-            <select
-              disabled={!!proposed}
-              value={value.list_id || "default"}
-              onChange={(e) =>
-                setValue((v) => ({ ...v, list_id: e.target.value }))
-              }
-            >
-              {lists.map((l) => (
-                <option value={l.id} key={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
-          </Field>
           <GiftFields
             simple
+            extraOptions={
+              <>
+                <WishKindField value={value} onChange={setValue} />
+                {!proposed && lists.length > 1 && (
+                  <Field label={t("Liste")}>
+                    <select
+                      value={value.list_id || "default"}
+                      onChange={(e) =>
+                        setValue((v) => ({ ...v, list_id: e.target.value }))
+                      }
+                    >
+                      {lists.map((l) => (
+                        <option value={l.id} key={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
+              </>
+            }
             onImageBusy={setUploading}
             value={value}
             onChange={setValue}
@@ -613,7 +698,10 @@ export function GiftEditor({
             currency={gift?.currency || currency}
           />
           <div className="form-actions">
-            <button className="button primary" disabled={busy || uploading}>
+            <button
+              className="button primary"
+              disabled={busy || uploading || !value.title.trim()}
+            >
               {operation === "save"
                 ? t("Enregistrement…")
                 : proposed

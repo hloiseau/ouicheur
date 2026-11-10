@@ -841,6 +841,33 @@ body:has(.personal-page) {
 .gift-options > .stack {
   padding-top: 10px;
 }
+.gift-import-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.gift-import-preview img {
+  flex: 0 0 56px;
+  object-fit: contain;
+}
+.gift-import-preview p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.gift-card-menu summary {
+  width: fit-content;
+  cursor: pointer;
+  font-weight: 600;
+}
+.gift-card-menu .stack {
+  align-items: start;
+  gap: 8px;
+  padding-top: 8px;
+}
 .category-delete p {
   font-size: 13px;
   color: var(--muted);

@@ -61,7 +61,15 @@ export function recordOfferPrice(
     let current: Identity | null = null;
     try {
       current = offerIdentity(db, identity.giftId, identity.offerId);
-    } catch {}
+    } catch (error) {
+      if (
+        method === "scheduled" ||
+        !db.prepare("SELECT 1 FROM gifts WHERE id=?").get(identity.giftId)
+      )
+        throw error;
+    }
+    if (method === "scheduled" && current?.archived)
+      throw new AppError("Envie archivée.", 409);
     if (observed)
       observed = {
         ...observed,
@@ -120,6 +128,7 @@ export function recordOfferPrice(
       watch.fingerprint === identity.fingerprint &&
       watch.confirmed_variant &&
       !watch.paused &&
+      !current?.archived &&
       comparable
     ) {
       const key = `${identity.fingerprint}:${watch.threshold}`,
@@ -336,13 +345,19 @@ export async function pollPriceWatches(
     }
     return null;
   });
-  if (watch)
-    await refreshOfferPrice(
-      db,
-      String(watch.gift_id),
-      String(watch.offer_id),
-      extract,
-      "scheduled",
-      now,
-    );
+  if (watch) {
+    try {
+      await refreshOfferPrice(
+        db,
+        String(watch.gift_id),
+        String(watch.offer_id),
+        extract,
+        "scheduled",
+        now,
+      );
+    } catch (error) {
+      if (!(error instanceof AppError) || ![404, 409].includes(error.status))
+        throw error;
+    }
+  }
 }

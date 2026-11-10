@@ -54,12 +54,25 @@ test("l’extraction importe automatiquement l’image et préserve les modifica
     });
   });
   try {
-    await page.getByLabel("Lien du produit").fill(url);
+    const link = page.getByLabel("Lien du produit");
+    await expect(
+      page.getByLabel("Objectif (EUR)", { exact: false }),
+    ).toBeHidden();
     const requested = page.waitForRequest("**/api/admin/images");
-    await page
-      .getByRole("button", { name: "Récupérer les informations", exact: true })
-      .click();
+    await link.evaluate((input, value) => {
+      const clipboardData = new DataTransfer();
+      clipboardData.setData("text/plain", value);
+      input.dispatchEvent(
+        new ClipboardEvent("paste", {
+          bubbles: true,
+          cancelable: true,
+          clipboardData,
+        }),
+      );
+    }, url);
     await requested;
+    await expect(link).toHaveValue(url);
+    await page.getByText("Plus d’options", { exact: true }).click();
     await expect(
       page.getByLabel("Objectif (EUR)", { exact: false }),
     ).toHaveValue("29.90");
@@ -76,7 +89,7 @@ test("l’extraction importe automatiquement l’image et préserve les modifica
       page.getByRole("button", { name: "Enregistrement…", exact: true }),
     ).toHaveCount(0);
     release();
-    const image = page.locator(".image-preview img");
+    const image = page.locator(".gift-import-preview img");
     await expect(image).toHaveAttribute("src", /^\/media\/[a-f0-9]{64}\.webp$/);
     await expect(image).toBeVisible();
     await expect(page.getByLabel("Nom de cette envie")).toHaveValue(title);
@@ -115,6 +128,7 @@ test("l’extraction importe automatiquement l’image et préserve les modifica
     await expect(page.getByLabel("Nom de cette envie")).toHaveValue(
       "Produit extrait",
     );
+    await expect(page.getByText(/Prix relevé/)).toBeVisible();
     await expect(
       page.getByLabel("Objectif (EUR)", { exact: false }),
     ).toHaveValue("29.90");
@@ -171,9 +185,7 @@ test("la lecture lente conserve les champs déjà remplis et les saisies pendant
       .getByRole("button", { name: "Récupérer les informations", exact: true })
       .click();
     await requested;
-    await expect(
-      page.getByRole("button", { name: "Lecture…", exact: true }),
-    ).toBeDisabled();
+    await expect(page.getByText("Lecture…", { exact: true })).toBeVisible();
     await expect(
       page.getByRole("button", {
         name: "Enregistrer cette envie",
@@ -271,9 +283,6 @@ test("un refus marchand permet de terminer l’ajout manuellement en français e
   });
   await expect(title).toBeFocused();
   await title.fill(`Figurine manuelle ${info.project.name}`);
-  await page
-    .getByLabel(fr ? "Objectif (EUR)" : "Goal (EUR)", { exact: false })
-    .fill("35.50");
   const audit = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();
@@ -302,7 +311,7 @@ test("un refus marchand permet de terminer l’ajout manuellement en français e
   ).toBeVisible();
   const data = await (await context.request.get("/api/admin")).json();
   const gift = data.gifts.find((g: { url: string }) => g.url === url);
-  expect(gift.target).toBe(3550);
+  expect(gift.budget_mode).toBe("unknown");
   expect(gift.title).toBe(`Figurine manuelle ${info.project.name}`);
   expect(requests).toBe(1);
 });

@@ -78,6 +78,7 @@ test("simple gift options and reversible owner purchase switch", async ({
     const card = page
       .locator(".gift-card")
       .filter({ has: page.getByRole("heading", { name: title, exact: true }) });
+    await card.getByText("Gérer", { exact: true }).click();
     await card.getByRole("button", { name: "Modifier", exact: true }).click();
     await page.getByText("Plus d’options", { exact: true }).click();
     await page
@@ -99,6 +100,7 @@ test("simple gift options and reversible owner purchase switch", async ({
     await toggle.press("Space");
     await expect(toggle).toBeChecked();
     await expect(card.getByText("Déjà acheté", { exact: true })).toBeVisible();
+    await card.getByText("Gérer", { exact: true }).click();
     await card.getByRole("button", { name: "Modifier", exact: true }).click();
     await page
       .getByRole("button", { name: "Enregistrer cette envie", exact: true })
